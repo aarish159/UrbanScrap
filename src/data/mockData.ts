@@ -1,0 +1,313 @@
+import type { Material, Booking, AssignedDealer } from '../types';
+
+export const SAMPLE_MATERIALS: Material[] = [
+  // Paper
+  {
+    id: 'mat-newspaper',
+    name: 'Newspaper (Raddi)',
+    category: 'paper',
+    indicativeRate: 14,
+    unit: 'kg',
+    description: 'Dry daily newspapers, magazines, and printed periodicals.',
+    popular: true,
+    minQuantity: 5,
+  },
+  {
+    id: 'mat-cardboard',
+    name: 'Cardboard / Corrugated Boxes',
+    category: 'paper',
+    indicativeRate: 11,
+    unit: 'kg',
+    description: 'E-commerce shipping cartons, brown carton packing boxes, flattened cartons.',
+    popular: true,
+    minQuantity: 5,
+  },
+  {
+    id: 'mat-office-paper',
+    name: 'Office White Paper / Notebooks',
+    category: 'paper',
+    indicativeRate: 16,
+    unit: 'kg',
+    description: 'School books, white office stationery, shreddings, and blank records.',
+    minQuantity: 5,
+  },
+
+  // Plastic
+  {
+    id: 'mat-pet-bottles',
+    name: 'PET Bottles (Water / Soft Drink)',
+    category: 'plastic',
+    indicativeRate: 18,
+    unit: 'kg',
+    description: 'Crushed clear drinking water bottles, carbonated drink containers (clean & dry).',
+    popular: true,
+    minQuantity: 3,
+  },
+  {
+    id: 'mat-mixed-plastic',
+    name: 'Mixed Hard Plastic',
+    category: 'plastic',
+    indicativeRate: 9,
+    unit: 'kg',
+    description: 'Buckets, plastic chairs, basins, detergent bottles, kitchen containers.',
+    popular: true,
+    minQuantity: 5,
+  },
+  {
+    id: 'mat-polythene-pouches',
+    name: 'Milk Pouches & Soft Poly',
+    category: 'plastic',
+    indicativeRate: 12,
+    unit: 'kg',
+    description: 'Rinsed dry milk packets, grocery LDPE film bags, stretch wraps.',
+    minQuantity: 2,
+  },
+
+  // Metal
+  {
+    id: 'mat-iron',
+    name: 'Iron Scrap (Loha)',
+    category: 'metal',
+    indicativeRate: 28,
+    unit: 'kg',
+    description: 'TMT bar cutoffs, iron pipes, window grills, bicycle frames, rusted iron.',
+    popular: true,
+    minQuantity: 10,
+  },
+  {
+    id: 'mat-aluminium',
+    name: 'Aluminium Scrap',
+    category: 'metal',
+    indicativeRate: 110,
+    unit: 'kg',
+    description: 'Utensils, window extrusion frames, beverage cans, aluminium ladders.',
+    popular: true,
+    minQuantity: 2,
+  },
+  {
+    id: 'mat-copper',
+    name: 'Copper Wire & Piping',
+    category: 'metal',
+    indicativeRate: 420,
+    unit: 'kg',
+    description: 'Stripped electrical wire coils, motor windings, AC copper tubing.',
+    popular: true,
+    minQuantity: 1,
+  },
+  {
+    id: 'mat-brass',
+    name: 'Brass (Peetal)',
+    category: 'metal',
+    indicativeRate: 310,
+    unit: 'kg',
+    description: 'Pooja lamps, brass plumbing fixtures, door handles, antique vessels.',
+    minQuantity: 1,
+  },
+
+  // E-waste
+  {
+    id: 'mat-small-ewaste',
+    name: 'Small E-waste & Peripherals',
+    category: 'ewaste',
+    indicativeRate: 35,
+    unit: 'kg',
+    description: 'Keyboards, routers, chargers, mobile chargers, circuit boards, set-top boxes.',
+    popular: true,
+    minQuantity: 2,
+  },
+  {
+    id: 'mat-batteries',
+    name: 'Lead-Acid Batteries',
+    category: 'ewaste',
+    indicativeRate: 65,
+    unit: 'kg',
+    description: 'Two-wheeler and UPS inverter lead batteries (unbroken seal).',
+    minQuantity: 1,
+  },
+  {
+    id: 'mat-appliances',
+    name: 'Heavy Appliances (Microwaves / CPU)',
+    category: 'ewaste',
+    indicativeRate: 250,
+    unit: 'piece',
+    description: 'Defunct desktop cabinets, microwaves, small mini-refrigerators.',
+    minQuantity: 1,
+  },
+];
+
+export const DEMO_DEALER: AssignedDealer = {
+  id: 'dealer-blr-104',
+  name: 'Rajesh Kumar & Sons',
+  businessName: 'GreenCycle Eco Recyclers',
+  phone: '+91 98450 12345',
+  rating: 4.8,
+  vehicleType: 'Electric Three-Wheeler (EV Loader)',
+  verifiedBadge: true,
+  assignedAt: 'Within 2 hours of request',
+};
+
+export const TIME_SLOTS = [
+  '09:00 AM - 12:00 PM (Morning Slot)',
+  '12:00 PM - 03:00 PM (Afternoon Slot)',
+  '03:00 PM - 06:00 PM (Late Afternoon)',
+  '06:00 PM - 08:00 PM (Evening Slot)',
+];
+
+export const POPULAR_CITIES = [
+  'Bengaluru',
+  'Mumbai',
+  'Delhi NCR',
+  'Hyderabad',
+  'Pune',
+  'Chennai',
+  'Kolkata',
+  'Ahmedabad',
+];
+
+export const SEED_BOOKINGS: Booking[] = [
+  {
+    id: 'US-2026-9481',
+    createdAt: new Date(Date.now() - 36 * 3600 * 1000).toISOString(),
+    status: 'dealer_assigned',
+    isDemoSample: true,
+    materials: [
+      {
+        materialId: 'mat-newspaper',
+        materialName: 'Newspaper (Raddi)',
+        category: 'paper',
+        quantity: 25,
+        unit: 'kg',
+        ratePerUnit: 14,
+        estimatedSubtotal: 350,
+      },
+      {
+        materialId: 'mat-cardboard',
+        materialName: 'Cardboard / Corrugated Boxes',
+        category: 'paper',
+        quantity: 15,
+        unit: 'kg',
+        ratePerUnit: 11,
+        estimatedSubtotal: 165,
+      },
+      {
+        materialId: 'mat-iron',
+        materialName: 'Iron Scrap (Loha)',
+        category: 'metal',
+        quantity: 12,
+        unit: 'kg',
+        ratePerUnit: 28,
+        estimatedSubtotal: 336,
+      },
+    ],
+    estimatedTotal: 851,
+    address: {
+      fullName: 'Aarav Sharma',
+      phoneNumber: '9876543210',
+      email: 'aarav.sharma@example.com',
+      streetAddress: 'Flat 402, Oakwood Enclave, 14th Main Rd, HSR Layout Sector 2',
+      area: 'HSR Layout',
+      city: 'Bengaluru',
+      pincode: '560102',
+      preferredDate: new Date(Date.now() + 24 * 3600 * 1000).toISOString().split('T')[0],
+      timeSlot: '09:00 AM - 12:00 PM (Morning Slot)',
+      notes: 'Lift is operational. Scrap is packed in 2 large sacks near the balcony.',
+    },
+    assignedDealer: DEMO_DEALER,
+    statusHistory: [
+      {
+        status: 'requested',
+        timestamp: new Date(Date.now() - 36 * 3600 * 1000).toISOString(),
+        note: 'Pickup request submitted by customer.',
+      },
+      {
+        status: 'dealer_assigned',
+        timestamp: new Date(Date.now() - 30 * 3600 * 1000).toISOString(),
+        note: 'Assigned to Rajesh Kumar & Sons (GreenCycle Eco Recyclers).',
+      },
+    ],
+  },
+  {
+    id: 'US-2026-8120',
+    createdAt: new Date(Date.now() - 90 * 3600 * 1000).toISOString(),
+    status: 'completed',
+    isDemoSample: true,
+    materials: [
+      {
+        materialId: 'mat-pet-bottles',
+        materialName: 'PET Bottles (Water / Soft Drink)',
+        category: 'plastic',
+        quantity: 10,
+        unit: 'kg',
+        ratePerUnit: 18,
+        estimatedSubtotal: 180,
+      },
+      {
+        materialId: 'mat-copper',
+        materialName: 'Copper Wire & Piping',
+        category: 'metal',
+        quantity: 4,
+        unit: 'kg',
+        ratePerUnit: 420,
+        estimatedSubtotal: 1680,
+      },
+    ],
+    estimatedTotal: 1860,
+    address: {
+      fullName: 'Priya Nambiar',
+      phoneNumber: '9123456780',
+      streetAddress: 'House #88, 3rd Cross, Indiranagar',
+      area: 'Indiranagar',
+      city: 'Bengaluru',
+      pincode: '560038',
+      preferredDate: new Date(Date.now() - 72 * 3600 * 1000).toISOString().split('T')[0],
+      timeSlot: '03:00 PM - 06:00 PM (Late Afternoon)',
+      notes: 'Electronic weighing scale verified on doorstep.',
+    },
+    assignedDealer: DEMO_DEALER,
+    statusHistory: [
+      {
+        status: 'requested',
+        timestamp: new Date(Date.now() - 90 * 3600 * 1000).toISOString(),
+        note: 'Pickup request placed.',
+      },
+      {
+        status: 'dealer_assigned',
+        timestamp: new Date(Date.now() - 85 * 3600 * 1000).toISOString(),
+        note: 'Dealer assigned.',
+      },
+      {
+        status: 'in_progress',
+        timestamp: new Date(Date.now() - 74 * 3600 * 1000).toISOString(),
+        note: 'Partner out for pickup collection.',
+      },
+      {
+        status: 'completed',
+        timestamp: new Date(Date.now() - 72 * 3600 * 1000).toISOString(),
+        note: 'Weighing completed and payment settled via UPI.',
+      },
+    ],
+  },
+];
+
+export const FAQS = [
+  {
+    q: 'How do indicative scrap rates work on Urban Scrap?',
+    a: 'The rates shown on our platform are sample indicative benchmarks reflecting average prevailing scrap market rates across tier-1 Indian cities. Because scrap prices fluctuate based on domestic market demand, grade purity, and moisture levels, the final price is evaluated after physical inspection and electronic weighing by your assigned partner.',
+  },
+  {
+    q: 'What happens immediately after I submit a booking request?',
+    a: 'Your pickup request is routed to nearby verified scrap collection partners in your pincode. A partner reviews the scrap categories and scheduled time slot, confirms their availability, and gets assigned to your booking. You can check the live status anytime in "My Bookings".',
+  },
+  {
+    q: 'Is scrap pickup guaranteed for any quantity?',
+    a: 'To make doorstep collection economically viable and reduce carbon footprint per trip, partners generally look for a minimum threshold (approx. 15-20 kg total, or high-value items like copper, brass, and e-waste). If your volume is smaller, pooling scrap with apartment neighbours is strongly recommended.',
+  },
+  {
+    q: 'How is weighing and payment handled on-site?',
+    a: 'All authorized dealers carry certified digital hanging or platform scales for transparent weighing in front of you. Once weights are recorded, payout is made immediately on the spot via cash or instant UPI (Google Pay, PhonePe, Paytm).',
+  },
+  {
+    q: 'Can housing societies and offices book bulk commercial pickups?',
+    a: 'Yes! Urban Scrap supports bulk clearance drives for Resident Welfare Associations (RWAs), IT offices, and commercial warehouses. For bulk pickups above 200 kg, select your estimated quantity and our team assigns dedicated electric vehicles or commercial trucks.',
+  },
+];
