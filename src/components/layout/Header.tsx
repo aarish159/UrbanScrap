@@ -9,11 +9,14 @@ import {
   X,
   Truck,
   Sparkles,
+  User,
 } from 'lucide-react';
 import { getBookings, subscribeToBookingChanges } from '../../utils/storage';
+import { AuthModal } from '../auth/AuthModal';
 
 export const Header: React.FC = () => {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const [authModalOpen, setAuthModalOpen] = useState(false);
   const [bookingsCount, setBookingsCount] = useState(0);
   const location = useLocation();
 
@@ -104,8 +107,17 @@ export const Header: React.FC = () => {
             })}
           </nav>
 
-          {/* Primary CTA Button */}
+          {/* Action CTAs (Login / Sign Up + Book a Pickup) */}
           <div className="hidden md:flex items-center gap-3">
+            <button
+              type="button"
+              onClick={() => setAuthModalOpen(true)}
+              className="inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl font-bold text-sm text-[#143e29] hover:text-[#16a34a] border border-[#d1d5db] hover:border-[#143e29] hover:bg-[#eef2ee] active:scale-[0.98] transition-all duration-150 focus:outline-none focus:ring-2 focus:ring-[#16a34a] focus:ring-offset-2"
+            >
+              <User className="w-4 h-4 stroke-[2.2]" />
+              <span>Login / Sign Up</span>
+            </button>
+
             <Link
               to="/book"
               className="inline-flex items-center justify-center gap-2 px-5 py-2.5 rounded-xl font-bold text-sm bg-gradient-to-r from-[#16a34a] to-[#15803d] text-white shadow-md shadow-[#16a34a]/25 hover:shadow-lg hover:shadow-[#16a34a]/30 hover:from-[#15803d] hover:to-[#166534] active:scale-[0.98] transition-all duration-150 focus:outline-none focus:ring-2 focus:ring-[#16a34a] focus:ring-offset-2"
@@ -117,6 +129,15 @@ export const Header: React.FC = () => {
 
           {/* Mobile menu trigger */}
           <div className="flex md:hidden items-center gap-2">
+            <button
+              type="button"
+              onClick={() => setAuthModalOpen(true)}
+              className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg font-bold text-xs text-[#143e29] border border-[#d1d5db] hover:bg-[#eef2ee] transition-colors"
+            >
+              <User className="w-3.5 h-3.5" />
+              <span>Login</span>
+            </button>
+
             <Link
               to="/book"
               className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg font-bold text-xs bg-[#16a34a] text-white"
@@ -177,7 +198,19 @@ export const Header: React.FC = () => {
             })}
           </div>
 
-          <div className="mt-5 pt-4 border-t border-[#e8e8e3]">
+          <div className="mt-5 pt-4 border-t border-[#e8e8e3] space-y-2.5">
+            <button
+              type="button"
+              onClick={() => {
+                setMobileMenuOpen(false);
+                setAuthModalOpen(true);
+              }}
+              className="w-full flex items-center justify-center gap-2 px-5 py-3 rounded-xl font-bold text-sm text-[#143e29] border-2 border-[#143e29] hover:bg-[#eef2ee] transition-all"
+            >
+              <User className="w-4 h-4" />
+              <span>Login / Sign Up</span>
+            </button>
+
             <Link
               to="/book"
               className="w-full flex items-center justify-center gap-2 px-5 py-3.5 rounded-xl font-bold text-base bg-gradient-to-r from-[#16a34a] to-[#143e29] text-white shadow-md shadow-[#16a34a]/20"
@@ -195,6 +228,12 @@ export const Header: React.FC = () => {
           </div>
         </div>
       )}
+
+      {/* Auth Modal (Role Selection & Role-Specific Login/Signup) */}
+      <AuthModal
+        isOpen={authModalOpen}
+        onClose={() => setAuthModalOpen(false)}
+      />
     </header>
   );
 };
