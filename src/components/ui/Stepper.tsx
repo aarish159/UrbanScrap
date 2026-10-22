@@ -10,7 +10,7 @@ interface StepperProps {
 export const Stepper: React.FC<StepperProps> = ({ steps, currentStep, onStepClick }) => {
   return (
     <div className="w-full py-4">
-      <div className="flex items-center justify-between max-w-2xl mx-auto">
+      <div className="flex items-center justify-between max-w-2xl mx-auto px-2">
         {steps.map((step, idx) => {
           const isCompleted = currentStep > step.id;
           const isCurrent = currentStep === step.id;
@@ -24,32 +24,45 @@ export const Stepper: React.FC<StepperProps> = ({ steps, currentStep, onStepClic
                   isClickable ? 'cursor-pointer group' : ''
                 }`}
                 onClick={() => isClickable && onStepClick(step.id)}
+                role={isClickable ? 'button' : undefined}
+                tabIndex={isClickable ? 0 : undefined}
+                onKeyDown={(e) => {
+                  if (isClickable && (e.key === 'Enter' || e.key === ' ')) {
+                    onStepClick(step.id);
+                  }
+                }}
+                aria-label={`Step ${step.id}: ${step.title}`}
               >
                 <div
-                  className={`w-10 h-10 rounded-full flex items-center justify-center font-bold text-sm transition-all duration-200 border-2 ${
+                  className={`w-11 h-11 rounded-2xl flex items-center justify-center font-extrabold text-sm transition-all duration-200 border-2 ${
                     isCompleted
-                      ? 'bg-[#16a34a] border-[#16a34a] text-white shadow-sm shadow-[#16a34a]/30'
+                      ? 'bg-[#16a34a] border-[#16a34a] text-white shadow-md shadow-[#16a34a]/25 group-hover:scale-105'
                       : isCurrent
-                      ? 'bg-[#143e29] border-[#143e29] text-white ring-4 ring-[#16a34a]/20 shadow-md'
+                      ? 'bg-[#123b26] border-[#123b26] text-white ring-4 ring-[#16a34a]/25 shadow-lg scale-105'
                       : 'bg-white border-[#d1d5db] text-[#717a75]'
                   }`}
                 >
-                  {isCompleted ? <Check className="w-5 h-5 stroke-[2.5]" /> : step.id}
+                  {isCompleted ? (
+                    <Check className="w-5 h-5 stroke-[2.8]" />
+                  ) : (
+                    <span>0{step.id}</span>
+                  )}
                 </div>
-                <div className="mt-2 text-center">
+
+                <div className="mt-2.5 text-center">
                   <span
-                    className={`block text-xs sm:text-sm font-semibold transition-colors ${
+                    className={`block text-xs sm:text-sm transition-colors ${
                       isCurrent
-                        ? 'text-[#143e29] font-bold'
+                        ? 'text-[#123b26] font-extrabold'
                         : isCompleted
-                        ? 'text-[#16a34a]'
-                        : 'text-[#717a75]'
+                        ? 'text-[#16a34a] font-bold'
+                        : 'text-[#717a75] font-semibold'
                     }`}
                   >
                     {step.title}
                   </span>
                   {step.subtitle && (
-                    <span className="hidden sm:block text-[11px] text-[#9aa19d]">
+                    <span className="hidden sm:block text-[11px] text-[#9aa19d] font-medium mt-0.5">
                       {step.subtitle}
                     </span>
                   )}
@@ -59,7 +72,7 @@ export const Stepper: React.FC<StepperProps> = ({ steps, currentStep, onStepClic
               {/* Connector line */}
               {idx < steps.length - 1 && (
                 <div
-                  className={`flex-1 h-0.5 mx-2 sm:mx-4 -mt-6 transition-all duration-300 ${
+                  className={`flex-1 h-1 mx-2 sm:mx-4 -mt-7 rounded-full transition-all duration-300 ${
                     currentStep > idx + 1 ? 'bg-[#16a34a]' : 'bg-[#e2e4e1]'
                   }`}
                 />

@@ -1,4 +1,4 @@
-import type { Material, Booking, AssignedDealer } from '../types';
+import type { Material, Booking, AssignedDealer, DealerApplication } from '../types';
 
 export const SAMPLE_MATERIALS: Material[] = [
   // Paper
@@ -309,5 +309,50 @@ export const FAQS = [
   {
     q: 'Can housing societies and offices book bulk commercial pickups?',
     a: 'Yes! Urban Scrap supports bulk clearance drives for Resident Welfare Associations (RWAs), IT offices, and commercial warehouses. For bulk pickups above 200 kg, select your estimated quantity and our team assigns dedicated electric vehicles or commercial trucks.',
+  },
+];
+
+export const SAMPLE_DEALER_APPLICATIONS: DealerApplication[] = [
+  {
+    id: 'dealer-app-101',
+    businessName: 'Kaveri Scrap Yard',
+    applicantName: 'Suresh Patil',
+    email: 'suresh.patil@kaveriscrap.in',
+    phone: '9845011223',
+    serviceArea: 'Indiranagar & Domlur, Bengaluru',
+    vehicleType: 'EV Three-Wheeler Loader',
+    rating: 4.8,
+    isVerified: false,
+    status: 'pending',
+    createdAt: new Date(Date.now() - 18 * 3600 * 1000).toISOString(),
+    updatedAt: new Date(Date.now() - 18 * 3600 * 1000).toISOString(),
+  },
+  {
+    id: 'dealer-app-102',
+    businessName: 'Metro Recyclers & EV Fleet',
+    applicantName: 'Anand Verma',
+    email: 'anand@metrorecyclers.com',
+    phone: '9741098765',
+    serviceArea: 'Koramangala & HSR Layout, Bengaluru',
+    vehicleType: 'Electric Mini-Truck (Tata Ace EV)',
+    rating: 4.9,
+    isVerified: false,
+    status: 'pending',
+    createdAt: new Date(Date.now() - 42 * 3600 * 1000).toISOString(),
+    updatedAt: new Date(Date.now() - 42 * 3600 * 1000).toISOString(),
+  },
+  {
+    id: 'dealer-blr-104',
+    businessName: 'GreenCycle Eco Recyclers',
+    applicantName: 'Rajesh Kumar',
+    email: 'dealer@urbanscrap.in',
+    phone: '9845012345',
+    serviceArea: 'HSR Layout & BTM Layout, Bengaluru',
+    vehicleType: 'Electric Three-Wheeler (EV Loader)',
+    rating: 4.8,
+    isVerified: true,
+    status: 'verified',
+    createdAt: new Date(Date.now() - 7 * 24 * 3600 * 1000).toISOString(),
+    updatedAt: new Date(Date.now() - 2 * 24 * 3600 * 1000).toISOString(),
   },
 ];

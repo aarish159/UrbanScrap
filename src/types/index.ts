@@ -75,3 +75,20 @@ export interface DealerMetrics {
   completedCount: number;
   indicativeEarnings: number;
 }
+
+export interface DealerApplication {
+  id: string;
+  userId?: string | null;
+  businessName: string;
+  applicantName: string;
+  email: string;
+  phone: string;
+  serviceArea: string;
+  vehicleType: string;
+  rating: number;
+  isVerified: boolean;
+  status: 'pending' | 'verified' | 'rejected';
+  rejectionReason?: string;
+  createdAt: string;
+  updatedAt: string;
+}

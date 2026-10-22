@@ -1,8 +1,12 @@
-import type { Booking, BookingStatus } from '../types';
-import { SEED_BOOKINGS, DEMO_DEALER } from '../data/mockData';
+import type { Booking, BookingStatus, DealerApplication } from '../types';
+import { SEED_BOOKINGS, DEMO_DEALER, SAMPLE_DEALER_APPLICATIONS } from '../data/mockData';
 
 const STORAGE_KEY = 'urban_scrap_bookings_v1';
+const DEALERS_STORAGE_KEY = 'urban_scrap_dealers_v1';
 const EVENT_NAME = 'urban-scrap-storage-change';
+const DEALER_EVENT_NAME = 'urban-scrap-dealers-change';
+
+let memoryDealers: DealerApplication[] | null = null;
 
 // In-memory fallback if localStorage is disabled or throws
 let memoryBookings: Booking[] | null = null;
@@ -127,6 +131,109 @@ export function subscribeToBookingChanges(callback: () => void): () => void {
   window.addEventListener('storage', listener);
   return () => {
     window.removeEventListener(EVENT_NAME, listener);
+    window.removeEventListener('storage', listener);
+  };
+}
+
+// ====================================================================
+// DEALER APPLICATIONS STORAGE (For local demo & offline management)
+// ====================================================================
+
+export function getDealerApplications(): DealerApplication[] {
+  if (!isLocalStorageAvailable()) {
+    if (!memoryDealers) {
+      memoryDealers = [...SAMPLE_DEALER_APPLICATIONS];
+    }
+    return memoryDealers;
+  }
+
+  try {
+    const stored = window.localStorage.getItem(DEALERS_STORAGE_KEY);
+    if (!stored) {
+      window.localStorage.setItem(
+        DEALERS_STORAGE_KEY,
+        JSON.stringify(SAMPLE_DEALER_APPLICATIONS)
+      );
+      return SAMPLE_DEALER_APPLICATIONS;
+    }
+    const parsed = JSON.parse(stored);
+    if (!Array.isArray(parsed) || parsed.length === 0) {
+      window.localStorage.setItem(
+        DEALERS_STORAGE_KEY,
+        JSON.stringify(SAMPLE_DEALER_APPLICATIONS)
+      );
+      return SAMPLE_DEALER_APPLICATIONS;
+    }
+    return parsed;
+  } catch (error) {
+    console.warn('Failed to parse dealer applications from localStorage:', error);
+    return SAMPLE_DEALER_APPLICATIONS;
+  }
+}
+
+export function saveDealerApplication(app: DealerApplication): void {
+  const current = getDealerApplications();
+  const updated = [app, ...current.filter((d) => d.id !== app.id)];
+
+  if (!isLocalStorageAvailable()) {
+    memoryDealers = updated;
+  } else {
+    try {
+      window.localStorage.setItem(DEALERS_STORAGE_KEY, JSON.stringify(updated));
+    } catch (e) {
+      console.error('LocalStorage update error:', e);
+      memoryDealers = updated;
+    }
+  }
+
+  window.dispatchEvent(
+    new CustomEvent(DEALER_EVENT_NAME, { detail: { action: 'create', app } })
+  );
+}
+
+export function updateDealerApplicationStatus(
+  id: string,
+  newStatus: 'verified' | 'rejected',
+  rejectionReason?: string
+): DealerApplication | null {
+  const current = getDealerApplications();
+  const index = current.findIndex((d) => d.id === id);
+  if (index === -1) return null;
+
+  const target = current[index];
+  const updatedApp: DealerApplication = {
+    ...target,
+    status: newStatus,
+    isVerified: newStatus === 'verified',
+    rejectionReason: newStatus === 'rejected' ? rejectionReason || 'Application rejected by administration.' : undefined,
+    updatedAt: new Date().toISOString(),
+  };
+
+  current[index] = updatedApp;
+
+  if (!isLocalStorageAvailable()) {
+    memoryDealers = current;
+  } else {
+    try {
+      window.localStorage.setItem(DEALERS_STORAGE_KEY, JSON.stringify(current));
+    } catch (e) {
+      console.error('LocalStorage update error:', e);
+      memoryDealers = current;
+    }
+  }
+
+  window.dispatchEvent(
+    new CustomEvent(DEALER_EVENT_NAME, { detail: { action: 'update', app: updatedApp } })
+  );
+  return updatedApp;
+}
+
+export function subscribeToDealerChanges(callback: () => void): () => void {
+  const listener = () => callback();
+  window.addEventListener(DEALER_EVENT_NAME, listener);
+  window.addEventListener('storage', listener);
+  return () => {
+    window.removeEventListener(DEALER_EVENT_NAME, listener);
     window.removeEventListener('storage', listener);
   };
 }

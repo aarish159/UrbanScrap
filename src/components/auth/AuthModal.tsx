@@ -4,89 +4,130 @@ import { useNavigate } from 'react-router-dom';
 import {
   X,
   User,
-  Store,
   ArrowRight,
   ArrowLeft,
   Mail,
   Lock,
   Eye,
   EyeOff,
-  Building,
+  Phone,
   CheckCircle2,
-  Info,
+  AlertCircle,
   KeyRound,
+  Sparkles,
+  Store,
+  Truck,
+  ShieldAlert,
+  Clock,
+  Building2,
+  ChevronRight,
+  LogOut,
+  Info,
 } from 'lucide-react';
+import { useAuth } from '../../contexts/AuthContext';
+import type {
+  OpenAuthModalOptions,
+  AuthRoleChoice,
+} from '../../contexts/AuthContext';
 import { useToast } from '../ui/Toast';
+import { supabase } from '../../lib/supabase';
 
-export type AuthRole = 'customer' | 'merchant';
-export type AuthMode = 'login' | 'signup';
-export type AuthStep = 'role_select' | 'auth_form' | 'forgot_password';
+export type AuthMode = 'login' | 'signup' | 'forgot_password' | 'verify_phone';
 
 interface AuthModalProps {
   isOpen: boolean;
   onClose: () => void;
-  initialRole?: AuthRole;
+  options?: OpenAuthModalOptions | null;
+}
+
+interface AccessNotice {
+  type: 'customer_attempted_dealer' | 'unverified_dealer';
+  title: string;
+  message: string;
+  actionLabel: string;
+  actionTo: string;
 }
 
 export const AuthModal: React.FC<AuthModalProps> = ({
   isOpen,
   onClose,
-  initialRole,
+  options,
 }) => {
   const navigate = useNavigate();
+  const {
+    isConfigured,
+    user,
+    signInWithEmail,
+    signInWithPhone,
+    signUp,
+    applyAsDealer,
+    sendPhoneVerificationOtp,
+    verifyPhoneOtp,
+    sendPasswordResetCode,
+    signOut,
+    refreshProfile,
+    refreshDealer,
+  } = useAuth();
   const { showToast } = useToast();
 
-  const [step, setStep] = useState<AuthStep>('role_select');
-  const [role, setRole] = useState<AuthRole>('customer');
-  const [mode, setMode] = useState<AuthMode>('login');
+  // Role choice state: null = choice screen; 'customer' or 'dealer' = specific form
+  const [roleChoice, setRoleChoice] = useState<AuthRoleChoice>(
+    options?.initialRole !== undefined ? options.initialRole : null
+  );
 
-  // Form fields
+  const [mode, setMode] = useState<AuthMode>(options?.initialMode || 'login');
+  const [loginMethod, setLoginMethod] = useState<'email' | 'phone'>('email');
+
+  // Customer form fields
+  const [fullName, setFullName] = useState('');
   const [email, setEmail] = useState('');
+  const [phoneNumber, setPhoneNumber] = useState('');
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
-  const [fullName, setFullName] = useState('');
+  const [otpCode, setOtpCode] = useState('');
+
+  // Dealer specific registration fields
   const [businessName, setBusinessName] = useState('');
+  const [serviceArea, setServiceArea] = useState('');
 
   // Password visibility
   const [showPassword, setShowPassword] = useState(false);
-  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
 
-  // Validation errors
-  const [errors, setErrors] = useState<Record<string, string>>({});
+  // States
+  const [loading, setLoading] = useState(false);
+  const [errorMsg, setErrorMsg] = useState<string | null>(null);
+  const [emailVerificationSent, setEmailVerificationSent] = useState(false);
+  const [resetEmailSent, setResetEmailSent] = useState(false);
+  const [phoneOtpSent, setPhoneOtpSent] = useState(false);
+  const [accessNotice, setAccessNotice] = useState<AccessNotice | null>(null);
 
-  // Submission feedback placeholder
-  const [submittedNotice, setSubmittedNotice] = useState<{
-    title: string;
-    message: string;
-    role: AuthRole;
-    mode: AuthMode;
-    redirectPath: string;
-    redirectLabel: string;
-  } | null>(null);
-
-  // Reset or initialize state on open
+  // Reset state on open or when options change
   useEffect(() => {
     if (isOpen) {
-      if (initialRole) {
-        setRole(initialRole);
-        setStep('auth_form');
-      } else {
-        setStep('role_select');
-      }
-      setMode('login');
+      setRoleChoice(
+        options?.initialRole !== undefined ? options.initialRole : null
+      );
+      setMode(options?.initialMode || 'login');
+      setLoginMethod('email');
+      setFullName('');
       setEmail('');
+      setPhoneNumber('');
       setPassword('');
       setConfirmPassword('');
-      setFullName('');
       setBusinessName('');
+      setServiceArea('');
+      setOtpCode('');
       setShowPassword(false);
-      setShowConfirmPassword(false);
-      setErrors({});
-      setSubmittedNotice(null);
+      setLoading(false);
+      setErrorMsg(null);
+      setEmailVerificationSent(false);
+      setResetEmailSent(false);
+      setPhoneOtpSent(false);
+      setAccessNotice(null);
     }
-  }, [isOpen, initialRole]);
+  }, [isOpen, options]);
 
-  // Handle Escape key and prevent background scroll
+  // Handle Escape key
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
       if (e.key === 'Escape') onClose();
@@ -103,434 +144,1019 @@ export const AuthModal: React.FC<AuthModalProps> = ({
 
   if (!isOpen) return null;
 
-  const handleSelectRole = (selectedRole: AuthRole) => {
-    setRole(selectedRole);
-    setStep('auth_form');
-    setMode('login');
-    setErrors({});
-    setSubmittedNotice(null);
-  };
-
-  const handleBackToRoleSelect = () => {
-    setStep('role_select');
-    setErrors({});
-    setSubmittedNotice(null);
-  };
-
-  const validateEmail = (val: string) => {
-    return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(val);
-  };
-
-  const handleFormSubmit = (e: React.FormEvent) => {
+  // Sign In Handler
+  const handleSignIn = async (e: React.FormEvent) => {
     e.preventDefault();
-    const newErrors: Record<string, string> = {};
+    setErrorMsg(null);
+    setLoading(true);
 
-    // Validate email
-    if (!email.trim()) {
-      newErrors.email = 'Email address is required.';
-    } else if (!validateEmail(email.trim())) {
-      newErrors.email = 'Please enter a valid email address.';
-    }
+    try {
+      const cleanPhone = phoneNumber.replace(/\D/g, '');
 
-    // Validate password
-    if (!password) {
-      newErrors.password = 'Password is required.';
-    } else if (password.length < 6) {
-      newErrors.password = 'Password must be at least 6 characters.';
-    }
-
-    if (mode === 'signup') {
-      if (!fullName.trim()) {
-        newErrors.fullName =
-          role === 'merchant'
-            ? 'Contact representative name is required.'
-            : 'Full name is required.';
+      // Demo mode fallback handling
+      if (!isConfigured) {
+        handleDemoSignIn();
+        return;
       }
 
-      if (role === 'merchant' && !businessName.trim()) {
-        newErrors.businessName = 'Business or scrap shop name is required.';
+      let authRes: { error?: string } = {};
+
+      if (loginMethod === 'email') {
+        if (!email.trim() || !password) {
+          setErrorMsg('Please enter both your email address and password.');
+          setLoading(false);
+          return;
+        }
+        authRes = await signInWithEmail(email, password);
+      } else {
+        if (cleanPhone.length !== 10) {
+          setErrorMsg('Please enter a valid 10-digit Indian mobile number.');
+          setLoading(false);
+          return;
+        }
+        if (!password) {
+          setErrorMsg('Please enter your account password.');
+          setLoading(false);
+          return;
+        }
+        authRes = await signInWithPhone(cleanPhone, password);
       }
 
-      if (!confirmPassword) {
-        newErrors.confirmPassword = 'Confirm your password.';
-      } else if (confirmPassword !== password) {
-        newErrors.confirmPassword = 'Passwords do not match.';
+      if (authRes.error) {
+        setErrorMsg(authRes.error);
+        return;
       }
+
+      // Successfully authenticated with Supabase Auth
+      // Now inspect actual profile role to prevent role spoofing
+      const {
+        data: { session },
+      } = await supabase.auth.getSession();
+      const currentUserId = session?.user?.id;
+
+      if (!currentUserId) {
+        onClose();
+        return;
+      }
+
+      // Fetch actual profile from public.profiles
+      const { data: profileData } = await supabase
+        .from('profiles')
+        .select('*')
+        .eq('id', currentUserId)
+        .maybeSingle();
+
+      const actualRole = profileData?.role || 'customer';
+      await refreshProfile();
+
+      // Check if user chose "Dealer"
+      if (roleChoice === 'dealer') {
+        // Requirement 4 & 5:
+        // Selecting "Dealer" must NOT give dealer permissions.
+        // Use user's actual role from profile.
+        // If account is customer or unverified dealer, show clear message and DO NOT open Dealer Dashboard.
+        if (actualRole === 'customer') {
+          setAccessNotice({
+            type: 'customer_attempted_dealer',
+            title: 'Customer Account Detected',
+            message:
+              'You selected “Continue as Dealer”, but this account is registered as a Customer. Dealer access requires an authorized partner account and administrative verification. Customers cannot switch themselves to dealer permissions.',
+            actionLabel: 'Go to My Bookings',
+            actionTo: '/bookings',
+          });
+          return;
+        }
+
+        if (actualRole === 'dealer') {
+          // Check verification in public.dealers
+          const { data: dealerData } = await supabase
+            .from('dealers')
+            .select('*')
+            .eq('user_id', currentUserId)
+            .maybeSingle();
+
+          await refreshDealer();
+
+          if (!dealerData || !dealerData.is_verified) {
+            setAccessNotice({
+              type: 'unverified_dealer',
+              title: 'Dealer Verification Pending',
+              message: `Welcome, ${dealerData?.business_name || profileData?.full_name || 'Partner'}! Your dealer account is registered, but pending administrative review. Once verified by an Urban Scrap administrator, you will receive full access to the Dealer Dashboard.`,
+              actionLabel: 'Return to Home',
+              actionTo: '/',
+            });
+            return;
+          }
+
+          // Verified dealer!
+          showToast(
+            'Welcome, Partner!',
+            `Signed in as ${dealerData.business_name}.`,
+            'success'
+          );
+          onClose();
+          navigate(options?.returnTo || '/dealer');
+          return;
+        }
+
+        if (actualRole === 'admin') {
+          showToast('Welcome, Admin', 'Administrative access verified.', 'success');
+          onClose();
+          navigate(options?.returnTo || '/dealer');
+          return;
+        }
+      }
+
+      // If user chose "Customer"
+      showToast('Welcome back!', 'Successfully signed in to Urban Scrap.', 'success');
+      onClose();
+
+      // Navigate to intended target
+      if (options?.returnTo) {
+        if (options.returnTo === '/dealer' && actualRole === 'customer') {
+          navigate('/bookings');
+        } else {
+          navigate(options.returnTo);
+        }
+      }
+    } finally {
+      setLoading(false);
     }
-
-    setErrors(newErrors);
-
-    if (Object.keys(newErrors).length > 0) return;
-
-    // Notice per specification: Frontend integration placeholder, do not invent credentials
-    const isSignup = mode === 'signup';
-    const title = isSignup
-      ? `${role === 'merchant' ? 'Merchant' : 'Customer'} Registration Submitted`
-      : `${role === 'merchant' ? 'Merchant' : 'Customer'} Sign-In Submitted`;
-
-    const message = isSignup
-      ? `Registration validated successfully for "${email}". Since this is a frontend prototype without a live auth server, this demonstrates the client validation flow before calling POST /api/v1/auth/signup.`
-      : `Sign-in credentials formatted and validated for "${email}". In a production environment with an API connected, this submits to POST /api/v1/auth/login.`;
-
-    const redirectPath = role === 'merchant' ? '/dealer' : '/bookings';
-    const redirectLabel =
-      role === 'merchant' ? 'Go to Dealer Dashboard' : 'Go to My Bookings';
-
-    setSubmittedNotice({
-      title,
-      message,
-      role,
-      mode,
-      redirectPath,
-      redirectLabel,
-    });
-
-    showToast(
-      `${role === 'merchant' ? 'Dealer' : 'Customer'} Form Validated`,
-      'Frontend authentication placeholder triggered successfully.',
-      'info'
-    );
   };
 
-  const handleForgotPasswordSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
-    const newErrors: Record<string, string> = {};
-    if (!email.trim()) {
-      newErrors.email = 'Please enter your registered email address.';
-    } else if (!validateEmail(email.trim())) {
-      newErrors.email = 'Please enter a valid email address.';
-    }
-    setErrors(newErrors);
+  // Demo sign in helper (for testing when Supabase is not configured)
+  const handleDemoSignIn = (preset?: 'customer' | 'verified_dealer' | 'unverified_dealer') => {
+    const target = preset || (roleChoice === 'dealer' ? 'verified_dealer' : 'customer');
 
-    if (Object.keys(newErrors).length === 0) {
-      setSubmittedNotice({
-        title: 'Password Reset Request Sent',
-        message: `A simulated password reset link has been dispatched to ${email}. In a production environment, this triggers an email with a secure reset token.`,
-        role,
-        mode: 'login',
-        redirectPath: role === 'merchant' ? '/dealer' : '/',
-        redirectLabel: 'Return to Urban Scrap',
+    if (roleChoice === 'dealer') {
+      if (target === 'customer') {
+        setAccessNotice({
+          type: 'customer_attempted_dealer',
+          title: 'Customer Account Detected',
+          message:
+            'You selected “Continue as Dealer”, but this account is registered as a Customer. Dealer access requires an authorized partner account and administrative verification. Customers cannot switch themselves to dealer permissions.',
+          actionLabel: 'Go to My Bookings',
+          actionTo: '/bookings',
+        });
+        return;
+      }
+
+      if (target === 'unverified_dealer') {
+        setAccessNotice({
+          type: 'unverified_dealer',
+          title: 'Dealer Verification Pending',
+          message:
+            'Your dealer account is registered, but your merchant verification is currently pending administrative review. Once an Urban Scrap administrator approves your credentials, you will be granted access to the Dealer Dashboard.',
+          actionLabel: 'Return to Home',
+          actionTo: '/',
+        });
+        return;
+      }
+
+      // Verified dealer demo
+      showToast('Demo Partner Active', 'Logged in as Demo Dealer Rajesh Metals.', 'success');
+      onClose();
+      navigate(options?.returnTo || '/dealer');
+      return;
+    }
+
+    // Customer demo
+    showToast('Demo Customer Active', 'Signed in as Customer.', 'success');
+    onClose();
+    if (options?.returnTo) {
+      navigate(options.returnTo);
+    }
+  };
+
+  // Sign Up Handler (Customer)
+  const handleSignUp = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setErrorMsg(null);
+
+    if (fullName.trim().length < 2) {
+      setErrorMsg('Full name must be at least 2 characters.');
+      return;
+    }
+
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.trim())) {
+      setErrorMsg('Please enter a valid email address.');
+      return;
+    }
+
+    const cleanPhone = phoneNumber.replace(/\D/g, '');
+    if (cleanPhone.length !== 10) {
+      setErrorMsg('Please enter a valid 10-digit Indian mobile number.');
+      return;
+    }
+
+    if (password.length < 8) {
+      setErrorMsg('Password must be at least 8 characters long.');
+      return;
+    }
+
+    if (password !== confirmPassword) {
+      setErrorMsg('Passwords do not match. Please re-enter.');
+      return;
+    }
+
+    setLoading(true);
+    try {
+      const res = await signUp({
+        email,
+        password,
+        fullName,
+        phone: cleanPhone,
       });
-      showToast('Reset Link Dispatched', `Password instructions sent to ${email}`, 'info');
+
+      if (res.error) {
+        setErrorMsg(res.error);
+      } else if (res.emailConfirmationRequired) {
+        setEmailVerificationSent(true);
+      } else {
+        showToast('Account Created!', 'Welcome to Urban Scrap.', 'success');
+        onClose();
+        if (options?.returnTo) {
+          navigate(options.returnTo);
+        }
+      }
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // Dealer Partner Application Handler
+  const handleDealerApplication = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setErrorMsg(null);
+
+    if (fullName.trim().length < 2) {
+      setErrorMsg('Full name must be at least 2 characters.');
+      return;
+    }
+
+    if (!businessName.trim()) {
+      setErrorMsg('Please enter your Scrap Merchant or Business Name.');
+      return;
+    }
+
+    if (!serviceArea.trim()) {
+      setErrorMsg('Please specify your operational service city or area.');
+      return;
+    }
+
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.trim())) {
+      setErrorMsg('Please enter a valid commercial email address.');
+      return;
+    }
+
+    const cleanPhone = phoneNumber.replace(/\D/g, '');
+    if (cleanPhone.length !== 10) {
+      setErrorMsg('Please enter a valid 10-digit mobile number.');
+      return;
+    }
+
+    if (password.length < 8) {
+      setErrorMsg('Password must be at least 8 characters long.');
+      return;
+    }
+
+    setLoading(true);
+    try {
+      const res = await applyAsDealer({
+        email,
+        password,
+        fullName,
+        phone: cleanPhone,
+        businessName,
+        serviceArea,
+      });
+
+      if (res.error) {
+        setErrorMsg(res.error);
+      } else {
+        setAccessNotice({
+          type: 'unverified_dealer',
+          title: 'Dealer Application Received',
+          message: `Thank you for applying, ${businessName}! Your partner application is under administrative review. Once verified by an Urban Scrap admin, your Dealer Dashboard and collection route access will be activated.`,
+          actionLabel: 'Return to Home',
+          actionTo: '/',
+        });
+      }
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // Forgot Password: Send Reset Email Link
+  const handleSendResetEmail = async (e?: React.FormEvent) => {
+    if (e) e.preventDefault();
+    setErrorMsg(null);
+
+    if (!email.trim()) {
+      setErrorMsg('Please enter your registered email address.');
+      return;
+    }
+
+    setLoading(true);
+    try {
+      const res = await sendPasswordResetCode(email);
+      if (res.error) {
+        setErrorMsg(res.error);
+      } else {
+        setResetEmailSent(true);
+        showToast('Reset Link Sent', 'Please check your email for the password reset link.', 'success');
+      }
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // Phone OTP Flow: Send OTP
+  const handleSendPhoneOtp = async () => {
+    setErrorMsg(null);
+    const cleanPhone = phoneNumber.replace(/\D/g, '');
+    if (cleanPhone.length !== 10) {
+      setErrorMsg('Enter a valid 10-digit mobile number to verify.');
+      return;
+    }
+
+    setLoading(true);
+    try {
+      const res = await sendPhoneVerificationOtp(cleanPhone);
+      if (res.error) {
+        setErrorMsg(res.error);
+      } else {
+        setPhoneOtpSent(true);
+        showToast('OTP Dispatched', `Verification code sent to +91 ${cleanPhone}.`, 'info');
+      }
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // Phone OTP Flow: Verify OTP
+  const handleVerifyPhoneOtp = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setErrorMsg(null);
+
+    if (!otpCode.trim()) {
+      setErrorMsg('Please enter the OTP code received via SMS.');
+      return;
+    }
+
+    setLoading(true);
+    try {
+      const res = await verifyPhoneOtp(phoneNumber, otpCode);
+      if (res.error) {
+        setErrorMsg(res.error);
+      } else {
+        showToast('Phone Verified!', 'Your mobile number has been verified. You can now use it for login.', 'success');
+        setMode('login');
+      }
+    } finally {
+      setLoading(false);
     }
   };
 
   return createPortal(
-    <div
-      className="fixed inset-0 z-[9999] overflow-y-auto"
-      role="dialog"
-      aria-modal="true"
-      aria-labelledby="auth-modal-title"
-    >
+    <div className="fixed inset-0 z-[9999] overflow-y-auto">
       {/* Backdrop */}
       <div
-        className="fixed inset-0 bg-[#0d281a]/65 backdrop-blur-sm transition-opacity"
+        className="fixed inset-0 bg-[#0a2417]/65 backdrop-blur-xs transition-opacity"
         onClick={onClose}
         aria-hidden="true"
       />
 
       <div className="flex min-h-full items-center justify-center p-4 text-center sm:p-6">
-        <div
-          className="relative w-full max-w-lg transform overflow-hidden rounded-3xl bg-[#ffffff] p-6 sm:p-8 text-left shadow-2xl transition-all border border-[#e8e8e3] animate-in zoom-in-95 duration-150"
-          onClick={(e) => e.stopPropagation()}
-        >
-          {/* Header Close Button */}
-          <button
-            type="button"
-            onClick={onClose}
-            className="absolute top-5 right-5 p-2 rounded-xl text-[#717a75] hover:text-[#191c1a] hover:bg-[#f1f3f1] transition-colors focus:outline-none focus:ring-2 focus:ring-[#16a34a]"
-            aria-label="Close modal"
-          >
-            <X className="w-5 h-5" />
-          </button>
+        <div className="relative w-full max-w-md transform overflow-hidden rounded-3xl bg-white p-6 sm:p-8 text-left shadow-2xl transition-all border border-[#e6e8e5] animate-in zoom-in-95 duration-150">
+          {/* Header */}
+          <div className="flex items-start justify-between pb-4 border-b border-[#f1f3f1]">
+            <div>
+              <span className="text-[11px] font-bold uppercase tracking-wider text-[#16a34a] block">
+                {accessNotice
+                  ? 'Access Notice'
+                  : roleChoice === null
+                  ? 'Access Portal'
+                  : roleChoice === 'dealer'
+                  ? 'Authorized Scrap Dealer'
+                  : mode === 'login'
+                  ? 'Customer Account'
+                  : mode === 'signup'
+                  ? 'Customer Registration'
+                  : mode === 'verify_phone'
+                  ? 'Mobile Verification'
+                  : 'Account Recovery'}
+              </span>
+              <h3 className="text-xl sm:text-2xl font-extrabold text-[#123b26] mt-0.5">
+                {accessNotice
+                  ? accessNotice.title
+                  : roleChoice === null
+                  ? 'How would you like to continue?'
+                  : roleChoice === 'dealer'
+                  ? mode === 'signup'
+                    ? 'Apply as Dealer Partner'
+                    : 'Dealer Portal Sign In'
+                  : mode === 'login'
+                  ? 'Sign in to your account'
+                  : mode === 'signup'
+                  ? 'Create your account'
+                  : mode === 'verify_phone'
+                  ? 'Verify Phone Number'
+                  : 'Reset your password'}
+              </h3>
+            </div>
+            <button
+              onClick={onClose}
+              className="rounded-xl p-1.5 text-[#717a75] hover:bg-[#f1f3f1] hover:text-[#191c1a] focus:outline-none focus-visible:ring-2 focus-visible:ring-[#16a34a] transition-colors -mr-1"
+              aria-label="Close modal"
+            >
+              <X className="w-5 h-5" />
+            </button>
+          </div>
 
-          {/* ================= STEP 1: ROLE SELECTION ================= */}
-          {step === 'role_select' && (
-            <div className="space-y-6">
-              <div>
-                <span className="inline-block px-3 py-1 rounded-full text-[11px] font-bold uppercase tracking-wider bg-[#dcfce7] text-[#143e29] mb-2">
-                  Urban Scrap Account
-                </span>
-                <h2
-                  id="auth-modal-title"
-                  className="text-2xl sm:text-3xl font-extrabold text-[#143e29] tracking-tight"
-                >
-                  Welcome back
-                </h2>
-                <p className="text-sm text-[#555c58] mt-1">
-                  Choose how you'd like to continue.
-                </p>
-              </div>
+          {/* Reason Banner if triggered by protected action */}
+          {options?.reasonMessage && !accessNotice && roleChoice !== null && (
+            <div className="mt-4 p-3 rounded-xl bg-[#eaf8ef] border border-[#bbf7d0] text-xs text-[#123b26] flex items-center gap-2">
+              <Info className="w-4 h-4 text-[#16a34a] shrink-0" />
+              <span>{options.reasonMessage}</span>
+            </div>
+          )}
 
-              {/* Two distinct role cards */}
-              <div className="space-y-3.5 pt-1">
-                {/* Option 1: Customer */}
-                <button
-                  type="button"
-                  onClick={() => handleSelectRole('customer')}
-                  className="w-full text-left p-5 rounded-2xl border-2 border-[#e8e8e3] hover:border-[#16a34a] hover:bg-[#fbfdfb] transition-all duration-150 group focus:outline-none focus:ring-2 focus:ring-[#16a34a] shadow-sm hover:shadow-md"
-                >
-                  <div className="flex items-start justify-between gap-4">
-                    <div className="flex items-start gap-4">
-                      <div className="w-12 h-12 rounded-2xl bg-[#dcfce7] text-[#16a34a] flex items-center justify-center shrink-0 group-hover:scale-105 transition-transform">
-                        <User className="w-6 h-6 stroke-[2.2]" />
-                      </div>
-                      <div>
-                        <div className="flex items-center gap-2">
-                          <h3 className="font-extrabold text-base text-[#143e29] group-hover:text-[#16a34a] transition-colors">
-                            Customer
-                          </h3>
-                          <span className="text-[10px] font-semibold px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-800">
-                            Household / RWA
-                          </span>
-                        </div>
-                        <p className="text-xs text-[#555c58] mt-1 leading-relaxed">
-                          For households, apartment societies, and offices looking to sell scrap and book doorstep pickups.
-                        </p>
-                      </div>
-                    </div>
-                  </div>
-
-                  <div className="mt-3.5 pt-3 border-t border-[#f1f3f1] flex items-center justify-between text-xs font-bold text-[#16a34a]">
-                    <span>Continue as Customer</span>
-                    <ArrowRight className="w-4 h-4 group-hover:translate-x-1 transition-transform" />
-                  </div>
-                </button>
-
-                {/* Option 2: Merchant */}
-                <button
-                  type="button"
-                  onClick={() => handleSelectRole('merchant')}
-                  className="w-full text-left p-5 rounded-2xl border-2 border-[#e8e8e3] hover:border-[#d97706] hover:bg-[#fffdf9] transition-all duration-150 group focus:outline-none focus:ring-2 focus:ring-[#d97706] shadow-sm hover:shadow-md"
-                >
-                  <div className="flex items-start justify-between gap-4">
-                    <div className="flex items-start gap-4">
-                      <div className="w-12 h-12 rounded-2xl bg-amber-100 text-amber-800 flex items-center justify-center shrink-0 group-hover:scale-105 transition-transform">
-                        <Store className="w-6 h-6 stroke-[2.2]" />
-                      </div>
-                      <div>
-                        <div className="flex items-center gap-2">
-                          <h3 className="font-extrabold text-base text-[#143e29] group-hover:text-amber-800 transition-colors">
-                            Merchant
-                          </h3>
-                          <span className="text-[10px] font-semibold px-2 py-0.5 rounded-full bg-amber-100 text-amber-800">
-                            Scrap Dealer Partner
-                          </span>
-                        </div>
-                        <p className="text-xs text-[#555c58] mt-1 leading-relaxed">
-                          For verified scrap dealers, kabadiwalas, and recyclers managing customer pickup manifests and daily routes.
-                        </p>
-                      </div>
-                    </div>
-                  </div>
-
-                  <div className="mt-3.5 pt-3 border-t border-[#f1f3f1] flex items-center justify-between text-xs font-bold text-amber-800">
-                    <span>Continue as Merchant</span>
-                    <ArrowRight className="w-4 h-4 group-hover:translate-x-1 transition-transform" />
-                  </div>
-                </button>
-              </div>
-
-              {/* Informative footer note */}
-              <div className="p-3.5 rounded-xl bg-[#f8faf9] border border-[#e8e8e3] text-xs text-[#717a75] flex items-start gap-2.5">
-                <Info className="w-4 h-4 text-[#16a34a] shrink-0 mt-0.5" />
-                <span>
-                  Separate authentication paths ensure secure access to customer booking history and dealer dispatch operations.
-                </span>
+          {/* Backend Configuration Notice in demo mode */}
+          {!isConfigured && (
+            <div className="mt-4 p-3.5 rounded-2xl bg-amber-50 border border-amber-300 text-xs text-amber-950 flex items-start gap-2.5">
+              <Sparkles className="w-4 h-4 text-amber-600 shrink-0 mt-0.5" />
+              <div className="leading-relaxed">
+                <span className="font-bold">Demo / Testing Mode: </span>
+                Supabase credentials are not configured in <code className="font-mono text-[11px]">.env</code>. You can test all customer, dealer, verification, and rejection flows using simulated actions.
               </div>
             </div>
           )}
 
-          {/* ================= STEP 2: AUTHENTICATION FORM ================= */}
-          {step === 'auth_form' && (
-            <div className="space-y-5">
-              {/* Top Bar with Back and Role Badge */}
-              <div className="flex items-center justify-between pb-3 border-b border-[#f1f3f1] -mt-1">
-                <button
-                  type="button"
-                  onClick={handleBackToRoleSelect}
-                  className="inline-flex items-center gap-1.5 text-xs font-bold text-[#555c58] hover:text-[#143e29] transition-colors focus:outline-none focus:ring-2 focus:ring-[#16a34a] rounded-lg px-1 py-0.5"
-                >
-                  <ArrowLeft className="w-3.5 h-3.5" />
-                  <span>Change Role</span>
-                </button>
+          {/* Error Banner */}
+          {errorMsg && (
+            <div className="mt-4 p-3.5 rounded-2xl bg-rose-50 border border-rose-200 text-xs text-rose-800 flex items-start gap-2.5 animate-in fade-in duration-150">
+              <AlertCircle className="w-4 h-4 text-rose-600 shrink-0 mt-0.5" />
+              <span className="leading-relaxed">{errorMsg}</span>
+            </div>
+          )}
 
-                <div className="flex items-center gap-1.5">
-                  <span
-                    className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold border ${
-                      role === 'merchant'
-                        ? 'bg-amber-50 text-amber-900 border-amber-300'
-                        : 'bg-emerald-50 text-emerald-900 border-emerald-300'
-                    }`}
-                  >
-                    {role === 'merchant' ? (
-                      <Store className="w-3.5 h-3.5 text-amber-700" />
-                    ) : (
-                      <User className="w-3.5 h-3.5 text-emerald-700" />
-                    )}
-                    <span>{role === 'merchant' ? 'Merchant Portal' : 'Customer Portal'}</span>
-                  </span>
-                </div>
+          {/* ============================================================== */}
+          {/* ACCESS DENIED / PENDING NOTIFICATION SCREEN (Requirement 4 & 5) */}
+          {/* ============================================================== */}
+          {accessNotice ? (
+            <div className="py-6 text-center space-y-4">
+              <div
+                className={`w-16 h-16 rounded-2xl mx-auto flex items-center justify-center ${
+                  accessNotice.type === 'customer_attempted_dealer'
+                    ? 'bg-rose-50 text-rose-600 border border-rose-200'
+                    : 'bg-amber-50 text-amber-600 border border-amber-200'
+                }`}
+              >
+                {accessNotice.type === 'customer_attempted_dealer' ? (
+                  <ShieldAlert className="w-8 h-8 stroke-[2.2]" />
+                ) : (
+                  <Clock className="w-8 h-8 stroke-[2.2]" />
+                )}
               </div>
 
-              {/* Title & Login / Sign-up Tabs */}
-              <div>
-                <h2
-                  id="auth-modal-title"
-                  className="text-2xl font-extrabold text-[#143e29] tracking-tight"
-                >
-                  {mode === 'login'
-                    ? `Log In to ${role === 'merchant' ? 'Merchant' : 'Customer'} Account`
-                    : `Create ${role === 'merchant' ? 'Merchant' : 'Customer'} Account`}
-                </h2>
-                <p className="text-xs text-[#555c58] mt-0.5">
-                  {mode === 'login'
-                    ? 'Enter your credentials to access your dashboard.'
-                    : role === 'merchant'
-                    ? 'Register your scrap business to receive verified doorstep pickup leads.'
-                    : 'Register to book pickups and track your recyclable scrap payouts.'}
+              <div className="space-y-2">
+                <h4 className="text-xl font-extrabold text-[#123b26]">
+                  {accessNotice.title}
+                </h4>
+                <p className="text-xs sm:text-sm text-[#525955] leading-relaxed max-w-sm mx-auto">
+                  {accessNotice.message}
                 </p>
+              </div>
 
-                {/* Tab switch */}
-                <div className="flex p-1 bg-[#f1f3f1] rounded-xl mt-4">
+              <div className="pt-3 flex flex-col gap-2">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setAccessNotice(null);
+                    onClose();
+                    navigate(accessNotice.actionTo);
+                  }}
+                  className="w-full inline-flex items-center justify-center gap-2 px-5 py-3 rounded-xl font-bold text-sm bg-[#123b26] hover:bg-[#1a5336] text-white shadow-md transition-all active:scale-[0.98]"
+                >
+                  <span>{accessNotice.actionLabel}</span>
+                  <ArrowRight className="w-4 h-4" />
+                </button>
+
+                {user && (
+                  <button
+                    type="button"
+                    onClick={async () => {
+                      await signOut();
+                      setAccessNotice(null);
+                      setRoleChoice(null);
+                    }}
+                    className="w-full inline-flex items-center justify-center gap-1.5 px-4 py-2.5 rounded-xl text-xs font-semibold text-rose-600 hover:bg-rose-50 transition-colors"
+                  >
+                    <LogOut className="w-3.5 h-3.5" />
+                    <span>Sign Out Current Account</span>
+                  </button>
+                )}
+
+                <button
+                  type="button"
+                  onClick={() => {
+                    setAccessNotice(null);
+                    setRoleChoice(null);
+                  }}
+                  className="text-xs font-semibold text-[#717a75] hover:text-[#191c1a] pt-1"
+                >
+                  ← Choose a different login option
+                </button>
+              </div>
+            </div>
+          ) : roleChoice === null ? (
+            /* ============================================================== */
+            /* CHOICE SCREEN: "Continue as Customer" vs "Continue as Dealer"   */
+            /* (Requirement 1)                                                */
+            /* ============================================================== */
+            <div className="mt-5 space-y-3.5">
+              <p className="text-xs text-[#525955] leading-relaxed">
+                Please select your account type to proceed with the appropriate flow:
+              </p>
+
+              {/* Choice 1: Customer */}
+              <button
+                type="button"
+                onClick={() => {
+                  setRoleChoice('customer');
+                  setMode('login');
+                  setErrorMsg(null);
+                }}
+                className="w-full text-left p-4 rounded-2xl border-2 border-[#16a34a]/30 bg-gradient-to-br from-[#f7fcf9] to-white hover:border-[#16a34a] hover:shadow-md hover:shadow-[#16a34a]/10 transition-all duration-150 group active:scale-[0.99] focus:outline-none focus:ring-2 focus:ring-[#16a34a]"
+              >
+                <div className="flex items-start gap-3.5">
+                  <div className="w-12 h-12 rounded-xl bg-[#eaf8ef] text-[#16a34a] flex items-center justify-center shrink-0 group-hover:scale-105 transition-transform duration-150">
+                    <User className="w-6 h-6 stroke-[2.3]" />
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center justify-between">
+                      <span className="font-extrabold text-base text-[#123b26] group-hover:text-[#16a34a] transition-colors">
+                        Continue as Customer
+                      </span>
+                      <ChevronRight className="w-4 h-4 text-[#717a75] group-hover:text-[#16a34a] group-hover:translate-x-0.5 transition-all" />
+                    </div>
+                    <span className="inline-block px-2 py-0.5 text-[10px] font-bold rounded-md bg-[#eaf8ef] text-[#123b26] mt-0.5">
+                      Household & Business Sellers
+                    </span>
+                    <p className="text-xs text-[#525955] mt-1.5 leading-relaxed">
+                      Book free doorstep scrap pickups, check live market rates, and track digital payments.
+                    </p>
+                  </div>
+                </div>
+              </button>
+
+              {/* Choice 2: Dealer */}
+              <button
+                type="button"
+                onClick={() => {
+                  setRoleChoice('dealer');
+                  setMode('login');
+                  setErrorMsg(null);
+                }}
+                className="w-full text-left p-4 rounded-2xl border-2 border-[#123b26]/20 bg-gradient-to-br from-[#f8faf9] to-white hover:border-[#123b26] hover:shadow-md hover:shadow-[#123b26]/10 transition-all duration-150 group active:scale-[0.99] focus:outline-none focus:ring-2 focus:ring-[#123b26]"
+              >
+                <div className="flex items-start gap-3.5">
+                  <div className="w-12 h-12 rounded-xl bg-[#123b26] text-[#4ade80] flex items-center justify-center shrink-0 group-hover:scale-105 transition-transform duration-150">
+                    <Store className="w-6 h-6 stroke-[2.3]" />
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center justify-between">
+                      <span className="font-extrabold text-base text-[#123b26]">
+                        Continue as Dealer
+                      </span>
+                      <ChevronRight className="w-4 h-4 text-[#717a75] group-hover:text-[#123b26] group-hover:translate-x-0.5 transition-all" />
+                    </div>
+                    <span className="inline-block px-2 py-0.5 text-[10px] font-bold rounded-md bg-amber-100 text-amber-900 border border-amber-200 mt-0.5">
+                      Authorized Scrap Merchants
+                    </span>
+                    <p className="text-xs text-[#525955] mt-1.5 leading-relaxed">
+                      For registered scrap dealers & EV pickup fleet partners managing assigned pickup orders.
+                    </p>
+                  </div>
+                </div>
+              </button>
+
+              <div className="pt-2 text-center text-[11px] text-[#717a75]">
+                Scrap prices and the directory are publicly accessible without signing in.
+              </div>
+            </div>
+          ) : emailVerificationSent ? (
+            /* Email confirmation screen */
+            <div className="py-6 text-center space-y-4">
+              <div className="w-16 h-16 rounded-2xl bg-[#eaf8ef] text-[#16a34a] mx-auto flex items-center justify-center">
+                <Mail className="w-8 h-8 stroke-[2.2]" />
+              </div>
+              <div className="space-y-1">
+                <h4 className="text-xl font-bold text-[#123b26]">Check Your Inbox</h4>
+                <p className="text-xs sm:text-sm text-[#525955] leading-relaxed max-w-sm mx-auto">
+                  A verification link has been dispatched to <strong className="text-[#191c1a]">{email}</strong>.
+                  Please confirm your email address before signing in.
+                </p>
+              </div>
+              <div className="pt-2">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setEmailVerificationSent(false);
+                    setMode('login');
+                  }}
+                  className="px-6 py-2.5 rounded-xl font-bold text-xs bg-[#123b26] text-white hover:bg-[#1a5336]"
+                >
+                  Proceed to Login
+                </button>
+              </div>
+            </div>
+          ) : (
+            /* ============================================================== */
+            /* SPECIFIC ROLE FLOW: CUSTOMER OR DEALER                         */
+            /* ============================================================== */
+            <div className="mt-4">
+              {/* Role Indicator & Switch Button */}
+              <div className="flex items-center justify-between p-2.5 rounded-xl bg-[#f4f6f4] border border-[#e5e8e5] text-xs mb-4">
+                <div className="flex items-center gap-1.5 text-[#123b26] font-semibold">
+                  {roleChoice === 'dealer' ? (
+                    <>
+                      <Store className="w-4 h-4 text-[#123b26]" />
+                      <span>Role: <strong>Authorized Dealer</strong></span>
+                    </>
+                  ) : (
+                    <>
+                      <User className="w-4 h-4 text-[#16a34a]" />
+                      <span>Role: <strong>Customer</strong></span>
+                    </>
+                  )}
+                </div>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setRoleChoice(null);
+                    setErrorMsg(null);
+                  }}
+                  className="text-xs font-bold text-[#16a34a] hover:underline"
+                >
+                  Switch Role
+                </button>
+              </div>
+
+              {/* DEALER SPECIFIC TABS */}
+              {roleChoice === 'dealer' && (
+                <div className="grid grid-cols-2 p-1 mb-4 rounded-xl bg-[#f1f3f1] text-xs font-bold text-[#525955]">
                   <button
                     type="button"
                     onClick={() => {
                       setMode('login');
-                      setErrors({});
-                      setSubmittedNotice(null);
+                      setErrorMsg(null);
                     }}
-                    className={`flex-1 py-2 text-xs font-bold rounded-lg transition-all ${
+                    className={`py-2 rounded-lg transition-all ${
                       mode === 'login'
-                        ? 'bg-white text-[#143e29] shadow-sm'
-                        : 'text-[#717a75] hover:text-[#191c1a]'
+                        ? 'bg-white text-[#123b26] shadow-2xs'
+                        : 'hover:text-[#191c1a]'
                     }`}
                   >
-                    Log In
+                    Partner Sign In
                   </button>
                   <button
                     type="button"
                     onClick={() => {
                       setMode('signup');
-                      setErrors({});
-                      setSubmittedNotice(null);
+                      setErrorMsg(null);
                     }}
-                    className={`flex-1 py-2 text-xs font-bold rounded-lg transition-all ${
+                    className={`py-2 rounded-lg transition-all ${
                       mode === 'signup'
-                        ? 'bg-white text-[#143e29] shadow-sm'
-                        : 'text-[#717a75] hover:text-[#191c1a]'
+                        ? 'bg-white text-[#123b26] shadow-2xs'
+                        : 'hover:text-[#191c1a]'
                     }`}
                   >
-                    Sign Up
+                    Apply for Dealer
                   </button>
                 </div>
-              </div>
+              )}
 
-              {/* Submission Notice / Placeholder Feedback */}
-              {submittedNotice ? (
-                <div className="p-4 rounded-2xl bg-emerald-50 border border-emerald-300 text-emerald-950 space-y-3 animate-in fade-in-50">
-                  <div className="flex items-start gap-2.5">
-                    <CheckCircle2 className="w-5 h-5 text-emerald-600 shrink-0 mt-0.5" />
-                    <div>
-                      <h4 className="font-bold text-sm text-emerald-900">
-                        {submittedNotice.title}
-                      </h4>
-                      <p className="text-xs text-emerald-800/90 mt-1 leading-relaxed">
-                        {submittedNotice.message}
-                      </p>
+              {/* ========================================================== */}
+              {/* DEALER APPLICATION FORM (New applicants remain pending)    */}
+              {/* ========================================================== */}
+              {roleChoice === 'dealer' && mode === 'signup' ? (
+                <form onSubmit={handleDealerApplication} className="space-y-3.5">
+                  <div className="p-3 rounded-xl bg-amber-50 border border-amber-200 text-xs text-amber-900 leading-relaxed">
+                    <strong>Partner Notice: </strong>
+                    All new dealer accounts require administrative verification. Your account status will remain pending until approved by Urban Scrap.
+                  </div>
+
+                  <div>
+                    <label className="block text-xs font-bold text-[#191c1a] mb-1">
+                      Contact Person Full Name <span className="text-rose-500">*</span>
+                    </label>
+                    <input
+                      type="text"
+                      required
+                      placeholder="e.g. Rajesh Kumar"
+                      value={fullName}
+                      onChange={(e) => setFullName(e.target.value)}
+                      className="w-full px-3.5 py-2 text-sm rounded-xl border border-[#d1d5db] bg-white focus:outline-none focus:ring-2 focus:ring-[#123b26]"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-xs font-bold text-[#191c1a] mb-1">
+                      Scrap Merchant / Yard Business Name <span className="text-rose-500">*</span>
+                    </label>
+                    <div className="relative">
+                      <Building2 className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-[#717a75]" />
+                      <input
+                        type="text"
+                        required
+                        placeholder="e.g. GreenEarth Recyclers Pvt Ltd"
+                        value={businessName}
+                        onChange={(e) => setBusinessName(e.target.value)}
+                        className="w-full pl-10 pr-3.5 py-2 text-sm rounded-xl border border-[#d1d5db] bg-white focus:outline-none focus:ring-2 focus:ring-[#123b26]"
+                      />
                     </div>
                   </div>
 
-                  <div className="p-2.5 rounded-xl bg-white/80 border border-emerald-200 text-[11px] text-[#3f4441] flex items-start gap-2">
-                    <Info className="w-4 h-4 text-emerald-700 shrink-0 mt-0.5" />
-                    <span>
-                      <strong>Backend Placeholder:</strong> Connect an authentication provider (e.g. Supabase, Firebase, or custom Express/Postgres API) to persist live sessions and token cookies.
-                    </span>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                    <div>
+                      <label className="block text-xs font-bold text-[#191c1a] mb-1">
+                        Operational Area / City <span className="text-rose-500">*</span>
+                      </label>
+                      <input
+                        type="text"
+                        required
+                        placeholder="e.g. Indiranagar, Bengaluru"
+                        value={serviceArea}
+                        onChange={(e) => setServiceArea(e.target.value)}
+                        className="w-full px-3 py-2 text-sm rounded-xl border border-[#d1d5db] bg-white focus:outline-none focus:ring-2 focus:ring-[#123b26]"
+                      />
+                    </div>
+
+                    <div>
+                      <label className="block text-xs font-bold text-[#191c1a] mb-1">
+                        Phone (10 digits) <span className="text-rose-500">*</span>
+                      </label>
+                      <input
+                        type="tel"
+                        maxLength={10}
+                        required
+                        placeholder="9876543210"
+                        value={phoneNumber}
+                        onChange={(e) => setPhoneNumber(e.target.value.replace(/\D/g, ''))}
+                        className="w-full px-3 py-2 text-sm rounded-xl border border-[#d1d5db] bg-white focus:outline-none focus:ring-2 focus:ring-[#123b26]"
+                      />
+                    </div>
                   </div>
 
-                  <div className="pt-1 flex flex-col sm:flex-row items-center gap-2">
+                  <div>
+                    <label className="block text-xs font-bold text-[#191c1a] mb-1">
+                      Business Email Address <span className="text-rose-500">*</span>
+                    </label>
+                    <input
+                      type="email"
+                      required
+                      placeholder="merchant@example.com"
+                      value={email}
+                      onChange={(e) => setEmail(e.target.value)}
+                      className="w-full px-3.5 py-2 text-sm rounded-xl border border-[#d1d5db] bg-white focus:outline-none focus:ring-2 focus:ring-[#123b26]"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-xs font-bold text-[#191c1a] mb-1">
+                      Create Password (8+ chars) <span className="text-rose-500">*</span>
+                    </label>
+                    <input
+                      type="password"
+                      required
+                      minLength={8}
+                      placeholder="••••••••"
+                      value={password}
+                      onChange={(e) => setPassword(e.target.value)}
+                      className="w-full px-3.5 py-2 text-sm rounded-xl border border-[#d1d5db] bg-white focus:outline-none focus:ring-2 focus:ring-[#123b26]"
+                    />
+                  </div>
+
+                  <button
+                    type="submit"
+                    disabled={loading}
+                    className="w-full inline-flex items-center justify-center gap-2 px-5 py-3 rounded-xl font-bold text-sm bg-[#123b26] hover:bg-[#1a5336] text-white shadow-md transition-all active:scale-[0.98] disabled:opacity-50"
+                  >
+                    {loading ? (
+                      <span className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                    ) : (
+                      <>
+                        <Truck className="w-4 h-4" />
+                        <span>Submit Dealer Application</span>
+                      </>
+                    )}
+                  </button>
+                </form>
+              ) : mode === 'login' ? (
+                /* ========================================================== */
+                /* LOGIN FORM (Customer or Dealer)                            */
+                /* ========================================================== */
+                <form onSubmit={handleSignIn} className="space-y-4">
+                  {/* Method Toggle: Email vs Phone */}
+                  <div className="grid grid-cols-2 p-1 rounded-xl bg-[#f1f3f1] text-xs font-bold text-[#525955]">
                     <button
                       type="button"
                       onClick={() => {
-                        onClose();
-                        navigate(submittedNotice.redirectPath);
+                        setLoginMethod('email');
+                        setErrorMsg(null);
                       }}
-                      className="w-full sm:w-auto flex-1 inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl text-xs font-bold bg-[#143e29] hover:bg-[#1a5336] text-white shadow-sm transition-all"
+                      className={`py-2 rounded-lg transition-all ${
+                        loginMethod === 'email'
+                          ? 'bg-white text-[#123b26] shadow-2xs'
+                          : 'hover:text-[#191c1a]'
+                      }`}
                     >
-                      <span>{submittedNotice.redirectLabel}</span>
-                      <ArrowRight className="w-3.5 h-3.5" />
+                      Email + Password
                     </button>
                     <button
                       type="button"
-                      onClick={() => setSubmittedNotice(null)}
-                      className="w-full sm:w-auto px-4 py-2.5 rounded-xl text-xs font-semibold text-[#555c58] hover:text-[#191c1a] hover:bg-emerald-100/50"
+                      onClick={() => {
+                        setLoginMethod('phone');
+                        setErrorMsg(null);
+                      }}
+                      className={`py-2 rounded-lg transition-all ${
+                        loginMethod === 'phone'
+                          ? 'bg-white text-[#123b26] shadow-2xs'
+                          : 'hover:text-[#191c1a]'
+                      }`}
                     >
-                      Back to Form
+                      Phone + Password
                     </button>
                   </div>
-                </div>
-              ) : (
-                /* Form Fields */
-                <form onSubmit={handleFormSubmit} className="space-y-3.5" noValidate>
-                  {/* SIGN UP ONLY: Name fields */}
-                  {mode === 'signup' && (
-                    <>
-                      {/* Representative / Full Name */}
-                      <div>
-                        <label className="block text-xs font-bold text-[#191c1a] mb-1">
-                          {role === 'merchant' ? 'Contact Person Name' : 'Full Name'}{' '}
-                          <span className="text-rose-500">*</span>
-                        </label>
-                        <div className="relative">
-                          <User className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-[#717a75]" />
-                          <input
-                            type="text"
-                            placeholder={
-                              role === 'merchant' ? 'e.g. Rajesh Kumar' : 'e.g. Priya Sharma'
-                            }
-                            value={fullName}
-                            onChange={(e) => setFullName(e.target.value)}
-                            className={`w-full pl-10 pr-3.5 py-2.5 text-xs sm:text-sm rounded-xl border bg-white focus:outline-none focus:ring-2 ${
-                              errors.fullName
-                                ? 'border-rose-400 focus:ring-rose-400'
-                                : 'border-[#d1d5db] focus:ring-[#16a34a]'
-                            }`}
-                          />
-                        </div>
-                        {errors.fullName && (
-                          <p className="text-xs text-rose-500 mt-1">{errors.fullName}</p>
-                        )}
-                      </div>
 
-                      {/* MERCHANT ONLY: Business Name */}
-                      {role === 'merchant' && (
-                        <div>
-                          <label className="block text-xs font-bold text-[#191c1a] mb-1">
-                            Scrap Business / Agency Name <span className="text-rose-500">*</span>
-                          </label>
-                          <div className="relative">
-                            <Building className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-[#717a75]" />
-                            <input
-                              type="text"
-                              placeholder="e.g. GreenCycle Eco Recyclers"
-                              value={businessName}
-                              onChange={(e) => setBusinessName(e.target.value)}
-                              className={`w-full pl-10 pr-3.5 py-2.5 text-xs sm:text-sm rounded-xl border bg-white focus:outline-none focus:ring-2 ${
-                                errors.businessName
-                                  ? 'border-rose-400 focus:ring-rose-400'
-                                  : 'border-[#d1d5db] focus:ring-[#16a34a]'
-                              }`}
-                            />
-                          </div>
-                          {errors.businessName && (
-                            <p className="text-xs text-rose-500 mt-1">{errors.businessName}</p>
-                          )}
-                        </div>
-                      )}
-                    </>
+                  {loginMethod === 'email' ? (
+                    <div>
+                      <label className="block text-xs font-bold text-[#191c1a] mb-1">
+                        {roleChoice === 'dealer' ? 'Registered Dealer Email' : 'Email Address'}
+                      </label>
+                      <div className="relative">
+                        <Mail className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-[#717a75]" />
+                        <input
+                          type="email"
+                          required
+                          placeholder="name@example.com"
+                          value={email}
+                          onChange={(e) => setEmail(e.target.value)}
+                          className="w-full pl-10 pr-3.5 py-2.5 text-sm rounded-xl border border-[#d1d5db] bg-white focus:outline-none focus:ring-2 focus:ring-[#16a34a] text-[#191c1a]"
+                        />
+                      </div>
+                    </div>
+                  ) : (
+                    <div>
+                      <label className="block text-xs font-bold text-[#191c1a] mb-1">
+                        Verified Mobile Number
+                      </label>
+                      <div className="relative flex">
+                        <span className="inline-flex items-center px-3 rounded-l-xl border border-r-0 border-[#d1d5db] bg-[#f8faf9] text-xs font-bold text-[#525955]">
+                          +91
+                        </span>
+                        <input
+                          type="tel"
+                          maxLength={10}
+                          required
+                          placeholder="9876543210"
+                          value={phoneNumber}
+                          onChange={(e) => setPhoneNumber(e.target.value.replace(/\D/g, ''))}
+                          className="w-full px-3.5 py-2.5 text-sm rounded-r-xl border border-[#d1d5db] bg-white focus:outline-none focus:ring-2 focus:ring-[#16a34a] text-[#191c1a]"
+                        />
+                      </div>
+                    </div>
                   )}
 
-                  {/* Email Field */}
+                  {/* Password */}
+                  <div>
+                    <div className="flex items-center justify-between mb-1">
+                      <label className="block text-xs font-bold text-[#191c1a]">
+                        Password
+                      </label>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setMode('forgot_password');
+                          setErrorMsg(null);
+                        }}
+                        className="text-xs font-semibold text-[#16a34a] hover:underline"
+                      >
+                        Forgot password?
+                      </button>
+                    </div>
+                    <div className="relative">
+                      <Lock className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-[#717a75]" />
+                      <input
+                        type={showPassword ? 'text' : 'password'}
+                        required
+                        placeholder="Enter account password"
+                        value={password}
+                        onChange={(e) => setPassword(e.target.value)}
+                        className="w-full pl-10 pr-10 py-2.5 text-sm rounded-xl border border-[#d1d5db] bg-white focus:outline-none focus:ring-2 focus:ring-[#16a34a] text-[#191c1a]"
+                      />
+                      <button
+                        type="button"
+                        onClick={() => setShowPassword(!showPassword)}
+                        className="absolute right-3 top-1/2 -translate-y-1/2 text-[#717a75] hover:text-[#191c1a]"
+                        aria-label={showPassword ? 'Hide password' : 'Show password'}
+                      >
+                        {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                      </button>
+                    </div>
+                  </div>
+
+                  {/* Submit CTA */}
+                  <button
+                    type="submit"
+                    disabled={loading}
+                    className={`w-full inline-flex items-center justify-center gap-2 px-5 py-3 rounded-xl font-bold text-sm text-white shadow-md transition-all active:scale-[0.98] disabled:opacity-50 ${
+                      roleChoice === 'dealer'
+                        ? 'bg-[#123b26] hover:bg-[#1a5336] shadow-[#123b26]/20'
+                        : 'bg-gradient-to-r from-[#16a34a] to-[#123b26] hover:from-[#15803d] hover:to-[#0a2417] shadow-[#16a34a]/20'
+                    }`}
+                  >
+                    {loading ? (
+                      <span className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                    ) : (
+                      <>
+                        <span>{roleChoice === 'dealer' ? 'Sign In as Dealer' : 'Sign In'}</span>
+                        <ArrowRight className="w-4 h-4" />
+                      </>
+                    )}
+                  </button>
+
+                  {/* Demo test helper in demo mode */}
+                  {!isConfigured && roleChoice === 'dealer' && (
+                    <div className="pt-2 p-2.5 rounded-xl bg-slate-50 border border-slate-200 text-xs text-slate-700 space-y-1.5">
+                      <div className="font-bold text-[11px] text-slate-900">Demo Testing Shortcuts:</div>
+                      <div className="flex flex-wrap gap-1.5">
+                        <button
+                          type="button"
+                          onClick={() => handleDemoSignIn('verified_dealer')}
+                          className="px-2 py-1 bg-emerald-100 hover:bg-emerald-200 text-emerald-900 rounded font-semibold text-[11px]"
+                        >
+                          Simulate Verified Dealer
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => handleDemoSignIn('customer')}
+                          className="px-2 py-1 bg-rose-100 hover:bg-rose-200 text-rose-900 rounded font-semibold text-[11px]"
+                        >
+                          Simulate Customer Block
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => handleDemoSignIn('unverified_dealer')}
+                          className="px-2 py-1 bg-amber-100 hover:bg-amber-200 text-amber-900 rounded font-semibold text-[11px]"
+                        >
+                          Simulate Pending Dealer
+                        </button>
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Switch to Sign Up for Customer */}
+                  {roleChoice === 'customer' && (
+                    <div className="pt-3 border-t border-[#f1f3f1] text-center text-xs text-[#525955]">
+                      Don't have an Urban Scrap customer account?{' '}
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setMode('signup');
+                          setErrorMsg(null);
+                        }}
+                        className="font-bold text-[#123b26] hover:underline"
+                      >
+                        Create one now
+                      </button>
+                    </div>
+                  )}
+                </form>
+              ) : mode === 'signup' ? (
+                /* ========================================================== */
+                /* CUSTOMER SIGN UP FORM                                      */
+                /* ========================================================== */
+                <form onSubmit={handleSignUp} className="space-y-4">
+                  <div>
+                    <label className="block text-xs font-bold text-[#191c1a] mb-1">
+                      Full Name <span className="text-rose-500">*</span>
+                    </label>
+                    <div className="relative">
+                      <User className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-[#717a75]" />
+                      <input
+                        type="text"
+                        required
+                        placeholder="e.g. Ramesh Kumar"
+                        value={fullName}
+                        onChange={(e) => setFullName(e.target.value)}
+                        className="w-full pl-10 pr-3.5 py-2.5 text-sm rounded-xl border border-[#d1d5db] bg-white focus:outline-none focus:ring-2 focus:ring-[#16a34a]"
+                      />
+                    </div>
+                  </div>
+
                   <div>
                     <label className="block text-xs font-bold text-[#191c1a] mb-1">
                       Email Address <span className="text-rose-500">*</span>
@@ -539,267 +1165,279 @@ export const AuthModal: React.FC<AuthModalProps> = ({
                       <Mail className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-[#717a75]" />
                       <input
                         type="email"
-                        placeholder={
-                          role === 'merchant'
-                            ? 'dealer@example.com'
-                            : 'customer@example.com'
-                        }
+                        required
+                        placeholder="name@example.com"
                         value={email}
                         onChange={(e) => setEmail(e.target.value)}
-                        className={`w-full pl-10 pr-3.5 py-2.5 text-xs sm:text-sm rounded-xl border bg-white focus:outline-none focus:ring-2 ${
-                          errors.email
-                            ? 'border-rose-400 focus:ring-rose-400'
-                            : 'border-[#d1d5db] focus:ring-[#16a34a]'
-                        }`}
+                        className="w-full pl-10 pr-3.5 py-2.5 text-sm rounded-xl border border-[#d1d5db] bg-white focus:outline-none focus:ring-2 focus:ring-[#16a34a]"
                       />
                     </div>
-                    {errors.email && (
-                      <p className="text-xs text-rose-500 mt-1">{errors.email}</p>
-                    )}
                   </div>
 
-                  {/* Password Field with Show/Hide */}
                   <div>
-                    <div className="flex items-center justify-between mb-1">
-                      <label className="block text-xs font-bold text-[#191c1a]">
-                        Password <span className="text-rose-500">*</span>
-                      </label>
-                      {mode === 'login' && (
-                        <button
-                          type="button"
-                          onClick={() => {
-                            setStep('forgot_password');
-                            setErrors({});
-                            setSubmittedNotice(null);
-                          }}
-                          className="text-xs font-semibold text-[#16a34a] hover:underline"
-                        >
-                          Forgot password?
-                        </button>
-                      )}
-                    </div>
-                    <div className="relative">
-                      <Lock className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-[#717a75]" />
+                    <label className="block text-xs font-bold text-[#191c1a] mb-1">
+                      Mobile Number (10 digits) <span className="text-rose-500">*</span>
+                    </label>
+                    <div className="relative flex">
+                      <span className="inline-flex items-center px-3 rounded-l-xl border border-r-0 border-[#d1d5db] bg-[#f8faf9] text-xs font-bold text-[#525955]">
+                        +91
+                      </span>
                       <input
-                        type={showPassword ? 'text' : 'password'}
+                        type="tel"
+                        maxLength={10}
+                        required
+                        placeholder="9876543210"
+                        value={phoneNumber}
+                        onChange={(e) => setPhoneNumber(e.target.value.replace(/\D/g, ''))}
+                        className="w-full px-3.5 py-2.5 text-sm rounded-r-xl border border-[#d1d5db] bg-white focus:outline-none focus:ring-2 focus:ring-[#16a34a]"
+                      />
+                    </div>
+                  </div>
+
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                    <div>
+                      <label className="block text-xs font-bold text-[#191c1a] mb-1">
+                        Password (8+ chars) <span className="text-rose-500">*</span>
+                      </label>
+                      <input
+                        type="password"
+                        required
+                        minLength={8}
                         placeholder="••••••••"
                         value={password}
                         onChange={(e) => setPassword(e.target.value)}
-                        className={`w-full pl-10 pr-10 py-2.5 text-xs sm:text-sm rounded-xl border bg-white focus:outline-none focus:ring-2 ${
-                          errors.password
-                            ? 'border-rose-400 focus:ring-rose-400'
-                            : 'border-[#d1d5db] focus:ring-[#16a34a]'
-                        }`}
+                        className="w-full px-3.5 py-2 text-sm rounded-xl border border-[#d1d5db] bg-white focus:outline-none focus:ring-2 focus:ring-[#16a34a]"
                       />
-                      <button
-                        type="button"
-                        onClick={() => setShowPassword(!showPassword)}
-                        className="absolute right-3.5 top-1/2 -translate-y-1/2 text-[#717a75] hover:text-[#191c1a] focus:outline-none"
-                        aria-label={showPassword ? 'Hide password' : 'Show password'}
-                      >
-                        {showPassword ? (
-                          <EyeOff className="w-4 h-4" />
-                        ) : (
-                          <Eye className="w-4 h-4" />
-                        )}
-                      </button>
                     </div>
-                    {errors.password && (
-                      <p className="text-xs text-rose-500 mt-1">{errors.password}</p>
-                    )}
-                  </div>
 
-                  {/* SIGN UP ONLY: Confirm Password Field */}
-                  {mode === 'signup' && (
                     <div>
                       <label className="block text-xs font-bold text-[#191c1a] mb-1">
                         Confirm Password <span className="text-rose-500">*</span>
                       </label>
-                      <div className="relative">
-                        <Lock className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-[#717a75]" />
-                        <input
-                          type={showConfirmPassword ? 'text' : 'password'}
-                          placeholder="••••••••"
-                          value={confirmPassword}
-                          onChange={(e) => setConfirmPassword(e.target.value)}
-                          className={`w-full pl-10 pr-10 py-2.5 text-xs sm:text-sm rounded-xl border bg-white focus:outline-none focus:ring-2 ${
-                            errors.confirmPassword
-                              ? 'border-rose-400 focus:ring-rose-400'
-                              : 'border-[#d1d5db] focus:ring-[#16a34a]'
-                          }`}
-                        />
-                        <button
-                          type="button"
-                          onClick={() => setShowConfirmPassword(!showConfirmPassword)}
-                          className="absolute right-3.5 top-1/2 -translate-y-1/2 text-[#717a75] hover:text-[#191c1a] focus:outline-none"
-                          aria-label={
-                            showConfirmPassword ? 'Hide confirm password' : 'Show confirm password'
-                          }
-                        >
-                          {showConfirmPassword ? (
-                            <EyeOff className="w-4 h-4" />
-                          ) : (
-                            <Eye className="w-4 h-4" />
-                          )}
-                        </button>
-                      </div>
-                      {errors.confirmPassword && (
-                        <p className="text-xs text-rose-500 mt-1">
-                          {errors.confirmPassword}
-                        </p>
-                      )}
-                    </div>
-                  )}
-
-                  {/* Submit Button */}
-                  <div className="pt-2">
-                    <button
-                      type="submit"
-                      className={`w-full py-3 px-5 rounded-xl font-bold text-sm text-white shadow-md active:scale-[0.99] transition-all flex items-center justify-center gap-2 ${
-                        role === 'merchant'
-                          ? 'bg-amber-600 hover:bg-amber-700 shadow-amber-600/20'
-                          : 'bg-[#16a34a] hover:bg-[#15803d] shadow-[#16a34a]/20'
-                      }`}
-                    >
-                      <span>
-                        {mode === 'login'
-                          ? `Log In as ${role === 'merchant' ? 'Merchant' : 'Customer'}`
-                          : `Create ${role === 'merchant' ? 'Merchant' : 'Customer'} Account`}
-                      </span>
-                      <ArrowRight className="w-4 h-4" />
-                    </button>
-                  </div>
-
-                  {/* Toggle Mode footer */}
-                  <div className="pt-2 text-center text-xs text-[#555c58]">
-                    {mode === 'login' ? (
-                      <p>
-                        Don't have an account yet?{' '}
-                        <button
-                          type="button"
-                          onClick={() => {
-                            setMode('signup');
-                            setErrors({});
-                          }}
-                          className="font-bold text-[#143e29] hover:underline"
-                        >
-                          Sign Up now
-                        </button>
-                      </p>
-                    ) : (
-                      <p>
-                        Already have an account?{' '}
-                        <button
-                          type="button"
-                          onClick={() => {
-                            setMode('login');
-                            setErrors({});
-                          }}
-                          className="font-bold text-[#143e29] hover:underline"
-                        >
-                          Log In
-                        </button>
-                      </p>
-                    )}
-                  </div>
-                </form>
-              )}
-            </div>
-          )}
-
-          {/* ================= STEP 3: FORGOT PASSWORD ================= */}
-          {step === 'forgot_password' && (
-            <div className="space-y-5">
-              <div className="flex items-center justify-between pb-3 border-b border-[#f1f3f1] -mt-1">
-                <button
-                  type="button"
-                  onClick={() => {
-                    setStep('auth_form');
-                    setErrors({});
-                    setSubmittedNotice(null);
-                  }}
-                  className="inline-flex items-center gap-1.5 text-xs font-bold text-[#555c58] hover:text-[#143e29] transition-colors rounded-lg px-1 py-0.5"
-                >
-                  <ArrowLeft className="w-3.5 h-3.5" />
-                  <span>Back to Log In</span>
-                </button>
-                <span className="text-xs font-bold text-[#717a75] capitalize">
-                  {role} Password Recovery
-                </span>
-              </div>
-
-              <div>
-                <div className="w-10 h-10 rounded-xl bg-amber-100 text-amber-800 flex items-center justify-center mb-3">
-                  <KeyRound className="w-5 h-5" />
-                </div>
-                <h2
-                  id="auth-modal-title"
-                  className="text-2xl font-extrabold text-[#143e29] tracking-tight"
-                >
-                  Reset your password
-                </h2>
-                <p className="text-xs text-[#555c58] mt-1">
-                  Enter the email associated with your {role} account and we'll send password reset instructions.
-                </p>
-              </div>
-
-              {submittedNotice ? (
-                <div className="p-4 rounded-2xl bg-emerald-50 border border-emerald-300 text-emerald-950 space-y-3">
-                  <div className="flex items-start gap-2.5">
-                    <CheckCircle2 className="w-5 h-5 text-emerald-600 shrink-0 mt-0.5" />
-                    <div>
-                      <h4 className="font-bold text-sm text-emerald-900">
-                        {submittedNotice.title}
-                      </h4>
-                      <p className="text-xs text-emerald-800/90 mt-1 leading-relaxed">
-                        {submittedNotice.message}
-                      </p>
-                    </div>
-                  </div>
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setStep('auth_form');
-                      setSubmittedNotice(null);
-                    }}
-                    className="w-full py-2.5 rounded-xl text-xs font-bold bg-[#143e29] text-white"
-                  >
-                    Return to Log In
-                  </button>
-                </div>
-              ) : (
-                <form onSubmit={handleForgotPasswordSubmit} className="space-y-4" noValidate>
-                  <div>
-                    <label className="block text-xs font-bold text-[#191c1a] mb-1">
-                      Registered Email Address <span className="text-rose-500">*</span>
-                    </label>
-                    <div className="relative">
-                      <Mail className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-[#717a75]" />
                       <input
-                        type="email"
-                        placeholder="you@example.com"
-                        value={email}
-                        onChange={(e) => setEmail(e.target.value)}
-                        className={`w-full pl-10 pr-3.5 py-2.5 text-xs sm:text-sm rounded-xl border bg-white focus:outline-none focus:ring-2 ${
-                          errors.email
-                            ? 'border-rose-400 focus:ring-rose-400'
-                            : 'border-[#d1d5db] focus:ring-[#16a34a]'
-                        }`}
+                        type="password"
+                        required
+                        placeholder="••••••••"
+                        value={confirmPassword}
+                        onChange={(e) => setConfirmPassword(e.target.value)}
+                        className="w-full px-3.5 py-2 text-sm rounded-xl border border-[#d1d5db] bg-white focus:outline-none focus:ring-2 focus:ring-[#16a34a]"
                       />
                     </div>
-                    {errors.email && (
-                      <p className="text-xs text-rose-500 mt-1">{errors.email}</p>
-                    )}
                   </div>
 
                   <button
                     type="submit"
-                    className="w-full py-3 px-5 rounded-xl font-bold text-sm bg-[#143e29] hover:bg-[#1a5336] text-white shadow-md transition-all flex items-center justify-center gap-2"
+                    disabled={loading}
+                    className="w-full inline-flex items-center justify-center gap-2 px-5 py-3 rounded-xl font-bold text-sm bg-gradient-to-r from-[#16a34a] to-[#123b26] hover:from-[#15803d] hover:to-[#0a2417] text-white shadow-md shadow-[#16a34a]/20 transition-all active:scale-[0.98] disabled:opacity-50"
                   >
-                    <span>Send Reset Instructions</span>
-                    <ArrowRight className="w-4 h-4" />
+                    {loading ? (
+                      <span className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                    ) : (
+                      <>
+                        <span>Create Customer Account</span>
+                        <ArrowRight className="w-4 h-4" />
+                      </>
+                    )}
                   </button>
+
+                  <div className="pt-3 border-t border-[#f1f3f1] text-center text-xs text-[#525955]">
+                    Already registered?{' '}
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setMode('login');
+                        setErrorMsg(null);
+                      }}
+                      className="font-bold text-[#123b26] hover:underline"
+                    >
+                      Sign in here
+                    </button>
+                  </div>
                 </form>
+              ) : mode === 'verify_phone' ? (
+                /* Phone Verification */
+                <div className="space-y-4">
+                  {!phoneOtpSent ? (
+                    <div className="space-y-4">
+                      <div>
+                        <label className="block text-xs font-bold text-[#191c1a] mb-1">
+                          10-Digit Mobile Number
+                        </label>
+                        <div className="relative flex">
+                          <span className="inline-flex items-center px-3 rounded-l-xl border border-r-0 border-[#d1d5db] bg-[#f8faf9] text-xs font-bold text-[#525955]">
+                            +91
+                          </span>
+                          <input
+                            type="tel"
+                            maxLength={10}
+                            placeholder="9876543210"
+                            value={phoneNumber}
+                            onChange={(e) => setPhoneNumber(e.target.value.replace(/\D/g, ''))}
+                            className="w-full px-3.5 py-2.5 text-sm rounded-r-xl border border-[#d1d5db] bg-white focus:outline-none focus:ring-2 focus:ring-[#16a34a]"
+                          />
+                        </div>
+                      </div>
+
+                      <button
+                        type="button"
+                        onClick={handleSendPhoneOtp}
+                        disabled={loading || phoneNumber.replace(/\D/g, '').length !== 10}
+                        className="w-full inline-flex items-center justify-center gap-2 px-5 py-3 rounded-xl font-bold text-sm bg-[#123b26] hover:bg-[#1a5336] text-white shadow-md transition-all disabled:opacity-50"
+                      >
+                        {loading ? (
+                          <span className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                        ) : (
+                          <>
+                            <Phone className="w-4 h-4" />
+                            <span>Send SMS Verification Code</span>
+                          </>
+                        )}
+                      </button>
+                    </div>
+                  ) : (
+                    <form onSubmit={handleVerifyPhoneOtp} className="space-y-4">
+                      <div>
+                        <label className="block text-xs font-bold text-[#191c1a] mb-1">
+                          Enter 6-Digit SMS Code sent to +91 {phoneNumber}
+                        </label>
+                        <input
+                          type="text"
+                          maxLength={6}
+                          required
+                          placeholder="123456"
+                          value={otpCode}
+                          onChange={(e) => setOtpCode(e.target.value.replace(/\D/g, ''))}
+                          className="w-full px-4 py-3 text-center tracking-widest text-lg font-mono font-bold rounded-xl border border-[#d1d5db] bg-white focus:outline-none focus:ring-2 focus:ring-[#16a34a]"
+                        />
+                      </div>
+
+                      <button
+                        type="submit"
+                        disabled={loading || otpCode.length < 6}
+                        className="w-full inline-flex items-center justify-center gap-2 px-5 py-3 rounded-xl font-bold text-sm bg-[#16a34a] hover:bg-[#15803d] text-white shadow-md transition-all disabled:opacity-50"
+                      >
+                        {loading ? (
+                          <span className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                        ) : (
+                          <>
+                            <CheckCircle2 className="w-4 h-4" />
+                            <span>Verify Mobile Code</span>
+                          </>
+                        )}
+                      </button>
+                    </form>
+                  )}
+
+                  <div className="pt-2 text-center text-xs">
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setMode('login');
+                        setErrorMsg(null);
+                      }}
+                      className="font-semibold text-[#717a75] hover:text-[#191c1a] flex items-center justify-center gap-1 mx-auto"
+                    >
+                      <ArrowLeft className="w-3.5 h-3.5" />
+                      <span>Return to Login</span>
+                    </button>
+                  </div>
+                </div>
+              ) : (
+                /* Forgot Password */
+                <div className="space-y-4">
+                  {!resetEmailSent ? (
+                    <form onSubmit={handleSendResetEmail} className="space-y-4">
+                      <p className="text-xs text-[#525955] leading-relaxed">
+                        Enter your registered email address and we'll send you a secure link to reset your password.
+                      </p>
+                      <div>
+                        <label className="block text-xs font-bold text-[#191c1a] mb-1">
+                          Email Address
+                        </label>
+                        <div className="relative">
+                          <Mail className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-[#717a75]" />
+                          <input
+                            type="email"
+                            required
+                            placeholder="name@example.com"
+                            value={email}
+                            onChange={(e) => setEmail(e.target.value)}
+                            className="w-full pl-10 pr-3.5 py-2.5 text-sm rounded-xl border border-[#d1d5db] bg-white focus:outline-none focus:ring-2 focus:ring-[#16a34a]"
+                          />
+                        </div>
+                      </div>
+
+                      <button
+                        type="submit"
+                        disabled={loading}
+                        className="w-full inline-flex items-center justify-center gap-2 px-5 py-3 rounded-xl font-bold text-sm bg-[#123b26] hover:bg-[#1a5336] text-white shadow-md transition-all disabled:opacity-50"
+                      >
+                        {loading ? (
+                          <span className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                        ) : (
+                          <>
+                            <KeyRound className="w-4 h-4" />
+                            <span>Send Reset Link</span>
+                          </>
+                        )}
+                      </button>
+                    </form>
+                  ) : (
+                    <div className="py-4 text-center space-y-4">
+                      <div className="w-16 h-16 rounded-2xl bg-[#eaf8ef] text-[#16a34a] mx-auto flex items-center justify-center shadow-inner">
+                        <Mail className="w-8 h-8 stroke-[2.2]" />
+                      </div>
+
+                      <div className="space-y-1.5">
+                        <h4 className="text-xl font-bold text-[#123b26]">Check Your Email</h4>
+                        <p className="text-xs sm:text-sm text-[#525955] leading-relaxed max-w-sm mx-auto">
+                          We've sent a password reset link to <strong className="text-[#191c1a]">{email}</strong>.
+                          Click the link in your email to open the reset page and create your new password.
+                        </p>
+                      </div>
+
+                      <div className="p-3 bg-gray-50 border border-gray-200 rounded-xl text-left text-xs text-[#525955] space-y-1">
+                        <p className="font-semibold text-gray-700">Didn't receive the email?</p>
+                        <p>Check your Spam or Junk folder, or click below to request another link.</p>
+                      </div>
+
+                      <div className="pt-2 flex flex-col sm:flex-row gap-2 justify-center">
+                        <button
+                          type="button"
+                          onClick={() => handleSendResetEmail()}
+                          disabled={loading}
+                          className="px-4 py-2.5 rounded-xl text-xs font-bold border border-[#d1d5db] text-[#123b26] hover:bg-gray-50 transition-colors disabled:opacity-50"
+                        >
+                          Resend Link
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setResetEmailSent(false);
+                            setMode('login');
+                          }}
+                          className="px-5 py-2.5 rounded-xl font-bold text-xs bg-[#123b26] text-white hover:bg-[#1a5336] transition-colors"
+                        >
+                          Return to Sign In
+                        </button>
+                      </div>
+                    </div>
+                  )}
+
+                  <div className="pt-2 text-center text-xs">
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setMode('login');
+                        setErrorMsg(null);
+                      }}
+                      className="font-semibold text-[#717a75] hover:text-[#191c1a] flex items-center justify-center gap-1 mx-auto"
+                    >
+                      <ArrowLeft className="w-3.5 h-3.5" />
+                      <span>Return to Login</span>
+                    </button>
+                  </div>
+                </div>
               )}
             </div>
           )}
