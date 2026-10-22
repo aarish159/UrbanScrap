@@ -43,6 +43,7 @@ interface AuthContextType {
   }) => Promise<{ error?: string; pendingApproval?: boolean }>;
   signInWithEmail: (email: string, password: string) => Promise<{ error?: string }>;
   signInWithPhone: (phone: string, password: string) => Promise<{ error?: string }>;
+  signInWithGoogle: (returnTo?: string) => Promise<{ error?: string }>;
   sendPhoneVerificationOtp: (phone: string) => Promise<{ error?: string }>;
   verifyPhoneOtp: (phone: string, token: string) => Promise<{ error?: string }>;
   sendPasswordResetCode: (email: string) => Promise<{ error?: string }>;
@@ -113,6 +114,41 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         } else {
           setDealer(null);
         }
+      } else if (!data) {
+        // Missing profile (e.g. freshly authenticated via Google OAuth):
+        // Automatically create and link customer profile from auth metadata
+        const { data: authUserData } = await supabase.auth.getUser();
+        const authUser = authUserData?.user;
+        if (authUser && authUser.id === userId) {
+          const userMeta = authUser.user_metadata || {};
+          const fullName =
+            userMeta.full_name ||
+            userMeta.name ||
+            authUser.email?.split('@')[0] ||
+            'Customer';
+          const rawPhone = userMeta.phone ? String(userMeta.phone).replace(/\D/g, '') : null;
+
+          const { data: createdProfile, error: createError } = await supabase
+            .from('profiles')
+            .upsert({
+              id: userId,
+              full_name: fullName,
+              phone: rawPhone,
+              phone_verified: false,
+              role: 'customer',
+            })
+            .select()
+            .maybeSingle();
+
+          if (!createError && createdProfile) {
+            setProfile(createdProfile);
+          } else {
+            setProfile(null);
+          }
+        } else {
+          setProfile(null);
+        }
+        setDealer(null);
       }
     } catch {
       // Safe fallback
@@ -144,13 +180,23 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     // Listen to Supabase auth state transitions
     const {
       data: { subscription },
-    } = supabase.auth.onAuthStateChange((_event, session) => {
+    } = supabase.auth.onAuthStateChange(async (_event, session) => {
       setSession(session);
       setUser(session?.user ?? null);
       if (session?.user) {
-        fetchProfile(session.user.id);
+        await fetchProfile(session.user.id);
+
+        // Check if there was a saved returnTo destination from before OAuth redirect
+        const pendingReturnTo = sessionStorage.getItem('auth_return_to');
+        if (pendingReturnTo) {
+          sessionStorage.removeItem('auth_return_to');
+          if (window.location.pathname !== pendingReturnTo) {
+            window.location.assign(pendingReturnTo);
+          }
+        }
       } else {
         setProfile(null);
+        setDealer(null);
       }
       setLoading(false);
     });
@@ -273,6 +319,67 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       return {};
     } catch {
       return { error: GENERIC_AUTH_ERROR };
+    }
+  };
+
+  // Sign In / Sign Up with Google OAuth
+  const signInWithGoogle = async (returnTo?: string) => {
+    if (returnTo) {
+      sessionStorage.setItem('auth_return_to', returnTo);
+    }
+
+    if (!isConfigured) {
+      // Demo / simulated mode fallback for seamless local testing
+      const demoUser = {
+        id: 'google-demo-user-123',
+        email: 'alex.google@example.com',
+        user_metadata: {
+          full_name: 'Alex Johnson (Google)',
+          avatar_url:
+            'https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&q=80&w=200',
+        },
+      } as unknown as User;
+      setUser(demoUser);
+      setProfile({
+        id: 'google-demo-user-123',
+        full_name: 'Alex Johnson (Google)',
+        phone: null,
+        phone_verified: false,
+        role: 'customer',
+        created_at: new Date().toISOString(),
+        updated_at: new Date().toISOString(),
+      });
+      return {};
+    }
+
+    try {
+      // Dynamic redirect URL based on current window location
+      // Works automatically across http://localhost:5174, http://localhost:5173, and production URL
+      const currentOrigin = window.location.origin;
+      const redirectTo = `${currentOrigin}/`;
+
+      const { data, error } = await supabase.auth.signInWithOAuth({
+        provider: 'google',
+        options: {
+          redirectTo,
+          queryParams: {
+            access_type: 'offline',
+            prompt: 'select_account',
+          },
+        },
+      });
+
+      if (error) {
+        return { error: error.message };
+      }
+
+      if (data?.url) {
+        window.location.href = data.url;
+      }
+
+      return {};
+    } catch {
+      return { error: 'Failed to initialize Google Sign In. Please try again.' };
     }
   };
 
@@ -538,6 +645,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         applyAsDealer,
         signInWithEmail,
         signInWithPhone,
+        signInWithGoogle,
         sendPhoneVerificationOtp,
         verifyPhoneOtp,
         sendPasswordResetCode,
