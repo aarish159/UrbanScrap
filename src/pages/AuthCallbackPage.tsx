@@ -59,7 +59,20 @@ export const AuthCallbackPage: React.FC = () => {
           }
         }
 
-        // 3. Retrieve or verify active session
+        // 3. Check for implicit hash tokens (#access_token=...&refresh_token=...)
+        const hash = window.location.hash ? window.location.hash.substring(1) : '';
+        const hashParams = new URLSearchParams(hash);
+        const accessToken = hashParams.get('access_token');
+        const refreshToken = hashParams.get('refresh_token');
+
+        if (accessToken && refreshToken) {
+          await supabase.auth.setSession({
+            access_token: accessToken,
+            refresh_token: refreshToken,
+          });
+        }
+
+        // 4. Retrieve or verify active session
         const { data: sessionData, error: sessionError } = await supabase.auth.getSession();
         if (sessionError) {
           if (isMounted) {
@@ -114,10 +127,15 @@ export const AuthCallbackPage: React.FC = () => {
       }
 
       // Read saved target destination (e.g. /book or /dealer or /bookings)
-      const targetReturn =
+      // Defaults to '/' (home page)
+      const rawTarget =
         sessionStorage.getItem('auth_return_to') ||
         searchParams.get('next') ||
         '/';
+      const targetReturn =
+        rawTarget === '/auth/callback' || rawTarget === '/reset-password'
+          ? '/'
+          : rawTarget;
 
       sessionStorage.removeItem('auth_return_to');
 
@@ -128,12 +146,12 @@ export const AuthCallbackPage: React.FC = () => {
 
       showToast('Welcome!', 'Signed in successfully with Google.', 'success');
 
-      // Small delay for smooth visual feedback before redirect
+      // Smooth visual transition before navigating to destination / home page
       setTimeout(() => {
         if (isMounted) {
           navigate(targetReturn, { replace: true });
         }
-      }, 600);
+      }, 500);
     }
 
     handleAuthCallback();

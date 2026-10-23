@@ -59,6 +59,49 @@ const AuthContext = createContext<AuthContextType | undefined>(undefined);
 // Generic error messages to prevent account enumeration / reconnaissance
 const GENERIC_AUTH_ERROR = 'Invalid email, phone number, or password. Please verify your credentials.';
 
+/**
+ * Resolves the application base URL:
+ * - Production: 'https://urbanscrap.onrender.com' (or configured VITE_APP_URL)
+ * - Local development: 'http://localhost:3000' (or current window.location.origin)
+ */
+export function getAppBaseUrl(): string {
+  const configuredAppUrl = import.meta.env.VITE_APP_URL as string | undefined;
+  if (configuredAppUrl && configuredAppUrl.trim().length > 0) {
+    return configuredAppUrl.replace(/\/$/, '');
+  }
+
+  if (typeof window !== 'undefined') {
+    const hostname = window.location.hostname;
+    const isLocalhost =
+      hostname === 'localhost' ||
+      hostname === '127.0.0.1' ||
+      hostname.startsWith('192.168.') ||
+      hostname.startsWith('10.') ||
+      hostname.endsWith('.local');
+
+    if (isLocalhost) {
+      return window.location.origin;
+    }
+
+    if (window.location.origin.includes('urbanscrap.onrender.com')) {
+      return 'https://urbanscrap.onrender.com';
+    }
+
+    return window.location.origin;
+  }
+
+  return 'https://urbanscrap.onrender.com';
+}
+
+/**
+ * Returns OAuth redirect URL:
+ * - Local development: http://localhost:3000/auth/callback
+ * - Production: https://urbanscrap.onrender.com/auth/callback
+ */
+export function getOAuthRedirectUrl(): string {
+  return `${getAppBaseUrl()}/auth/callback`;
+}
+
 export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [user, setUser] = useState<User | null>(null);
   const [session, setSession] = useState<Session | null>(null);
@@ -247,7 +290,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
             full_name: fullName.trim(),
             phone: formattedPhone,
           },
-          emailRedirectTo: `${window.location.origin}/`,
+          emailRedirectTo: `${getAppBaseUrl()}/`,
         },
       });
 
@@ -365,10 +408,10 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }
 
     try {
-      // Dynamic redirect URL based on current window location
-      // Points to dedicated /auth/callback route across localhost:3000 and production
-      const currentOrigin = window.location.origin;
-      const redirectTo = `${currentOrigin}/auth/callback`;
+      // Dynamic OAuth redirect URL:
+      // Local development: http://localhost:3000/auth/callback
+      // Production on Render: https://urbanscrap.onrender.com/auth/callback
+      const redirectTo = getOAuthRedirectUrl();
 
       const { data, error } = await supabase.auth.signInWithOAuth({
         provider: 'google',
@@ -479,7 +522,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       const { error } = await supabase.auth.resetPasswordForEmail(
         email.trim().toLowerCase(),
         {
-          redirectTo: `${window.location.origin}/reset-password`,
+          redirectTo: `${getAppBaseUrl()}/reset-password`,
         }
       );
 
@@ -596,7 +639,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
             service_area: serviceArea.trim(),
             dealer_applicant: true,
           },
-          emailRedirectTo: `${window.location.origin}/`,
+          emailRedirectTo: `${getAppBaseUrl()}/`,
         },
       });
 
