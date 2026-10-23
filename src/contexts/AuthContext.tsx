@@ -187,11 +187,23 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         await fetchProfile(session.user.id);
 
         // Check if there was a saved returnTo destination from before OAuth redirect
-        const pendingReturnTo = sessionStorage.getItem('auth_return_to');
-        if (pendingReturnTo) {
-          sessionStorage.removeItem('auth_return_to');
-          if (window.location.pathname !== pendingReturnTo) {
-            window.location.assign(pendingReturnTo);
+        // Only navigate directly if NOT on /auth/callback (which manages its own transition state)
+        if (window.location.pathname !== '/auth/callback') {
+          const pendingReturnTo = sessionStorage.getItem('auth_return_to');
+          if (pendingReturnTo) {
+            sessionStorage.removeItem('auth_return_to');
+            if (window.location.pathname !== pendingReturnTo) {
+              window.location.replace(pendingReturnTo);
+            }
+          }
+          // Clean hash fragments if Supabase redirected directly to root / with #access_token=...
+          if (
+            window.location.hash &&
+            (window.location.hash.includes('access_token') ||
+              window.location.hash.includes('refresh_token') ||
+              window.location.hash.includes('error='))
+          ) {
+            window.history.replaceState(null, '', window.location.pathname + window.location.search);
           }
         }
       } else {
@@ -354,9 +366,9 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
     try {
       // Dynamic redirect URL based on current window location
-      // Works automatically across http://localhost:5174, http://localhost:5173, and production URL
+      // Points to dedicated /auth/callback route across localhost:3000 and production
       const currentOrigin = window.location.origin;
-      const redirectTo = `${currentOrigin}/`;
+      const redirectTo = `${currentOrigin}/auth/callback`;
 
       const { data, error } = await supabase.auth.signInWithOAuth({
         provider: 'google',

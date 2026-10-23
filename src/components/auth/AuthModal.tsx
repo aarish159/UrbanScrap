@@ -526,7 +526,12 @@ export const AuthModal: React.FC<AuthModalProps> = ({
     setErrorMsg(null);
     setGoogleLoading(true);
     try {
-      const targetReturn = roleChoice === 'dealer' ? '/dealer' : (options?.returnTo || '/');
+      const currentPath = window.location.pathname;
+      const defaultReturn =
+        currentPath && currentPath !== '/auth/callback' && currentPath !== '/reset-password'
+          ? currentPath
+          : '/';
+      const targetReturn = roleChoice === 'dealer' ? '/dealer' : (options?.returnTo || defaultReturn);
       const res = await signInWithGoogle(targetReturn);
       if (res.error) {
         setErrorMsg(res.error);

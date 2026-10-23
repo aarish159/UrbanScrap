@@ -12,6 +12,7 @@ import { BookingsListPage } from './pages/BookingsListPage';
 import { DealerDashboardPage } from './pages/DealerDashboardPage';
 import { AdminDealersPage } from './pages/AdminDealersPage';
 import { ResetPasswordPage } from './pages/ResetPasswordPage';
+import { AuthCallbackPage } from './pages/AuthCallbackPage';
 import { NotFoundPage } from './pages/NotFoundPage';
 
 // Scroll to top helper on navigation
@@ -75,6 +76,7 @@ export function App() {
                     </ProtectedRoute>
                   }
                 />
+                <Route path="/auth/callback" element={<AuthCallbackPage />} />
                 <Route path="/reset-password" element={<ResetPasswordPage />} />
                 <Route path="*" element={<NotFoundPage />} />
               </Routes>
