@@ -10,6 +10,7 @@ import { PriceDirectoryPage } from './pages/PriceDirectoryPage';
 import { BookingPage } from './pages/BookingPage';
 import { BookingsListPage } from './pages/BookingsListPage';
 import { DealerDashboardPage } from './pages/DealerDashboardPage';
+import { DealerGstVerificationPage } from './pages/DealerGstVerificationPage';
 import { AdminDealersPage } from './pages/AdminDealersPage';
 import { ResetPasswordPage } from './pages/ResetPasswordPage';
 import { AuthCallbackPage } from './pages/AuthCallbackPage';
@@ -57,6 +58,14 @@ export function App() {
                   element={
                     <ProtectedRoute allowedRoles={['dealer', 'admin']} returnTo="/dealer">
                       <DealerDashboardPage />
+                    </ProtectedRoute>
+                  }
+                />
+                <Route
+                  path="/dealer/verify-gst"
+                  element={
+                    <ProtectedRoute returnTo="/dealer/verify-gst">
+                      <DealerGstVerificationPage />
                     </ProtectedRoute>
                   }
                 />

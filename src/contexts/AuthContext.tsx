@@ -3,11 +3,11 @@ import type { User, Session } from '@supabase/supabase-js';
 import { supabase, isSupabaseConfigured } from '../lib/supabase';
 import type { Database } from '../types/database';
 import { AuthModal } from '../components/auth/AuthModal';
-import { saveDealerApplication } from '../utils/storage';
+import { saveDealerApplication, getDealerApplications, submitDealerGstDetails } from '../utils/storage';
 
 export type UserProfile = Database['public']['Tables']['profiles']['Row'];
 export type DealerProfile = Database['public']['Tables']['dealers']['Row'];
-export type AuthRoleChoice = 'customer' | 'dealer' | null;
+export type AuthRoleChoice = 'customer' | 'dealer' | 'admin' | null;
 
 export interface OpenAuthModalOptions {
   initialRole?: AuthRoleChoice;
@@ -40,7 +40,15 @@ interface AuthContextType {
     phone: string;
     businessName: string;
     serviceArea: string;
-  }) => Promise<{ error?: string; pendingApproval?: boolean }>;
+  }) => Promise<{ error?: string; pendingApproval?: boolean; redirectToGst?: boolean; emailConfirmationRequired?: boolean }>;
+  submitDealerGst: (params: {
+    gstin: string;
+    legalBusinessName: string;
+    businessAddress: string;
+    state: string;
+    gstCertificateFile?: File | null;
+    gstCertificateUrl?: string | null;
+  }) => Promise<{ error?: string }>;
   signInWithEmail: (email: string, password: string) => Promise<{ error?: string }>;
   signInWithPhone: (phone: string, password: string) => Promise<{ error?: string }>;
   signInWithGoogle: (returnTo?: string) => Promise<{ error?: string }>;
@@ -65,11 +73,6 @@ const GENERIC_AUTH_ERROR = 'Invalid email, phone number, or password. Please ver
  * - Local development: 'http://localhost:3000' (or current window.location.origin)
  */
 export function getAppBaseUrl(): string {
-  const configuredAppUrl = import.meta.env.VITE_APP_URL as string | undefined;
-  if (configuredAppUrl && configuredAppUrl.trim().length > 0) {
-    return configuredAppUrl.replace(/\/$/, '');
-  }
-
   if (typeof window !== 'undefined') {
     const hostname = window.location.hostname;
     const isLocalhost =
@@ -80,14 +83,19 @@ export function getAppBaseUrl(): string {
       hostname.endsWith('.local');
 
     if (isLocalhost) {
-      return window.location.origin;
+      return window.location.port ? `http://localhost:${window.location.port}` : 'http://localhost:3000';
     }
 
-    if (window.location.origin.includes('urbanscrap.onrender.com')) {
+    if (hostname.includes('urbanscrap.onrender.com') || hostname.includes('onrender.com')) {
       return 'https://urbanscrap.onrender.com';
     }
 
-    return window.location.origin;
+    return window.location.origin.replace(/\/$/, '');
+  }
+
+  const configuredAppUrl = import.meta.env.VITE_APP_URL as string | undefined;
+  if (configuredAppUrl && configuredAppUrl.trim().length > 0) {
+    return configuredAppUrl.replace(/\/$/, '');
   }
 
   return 'https://urbanscrap.onrender.com';
@@ -100,6 +108,15 @@ export function getAppBaseUrl(): string {
  */
 export function getOAuthRedirectUrl(): string {
   return `${getAppBaseUrl()}/auth/callback`;
+}
+
+/**
+ * Returns Password Reset redirect URL:
+ * - Local development: http://localhost:3000/reset-password
+ * - Production: https://urbanscrap.onrender.com/reset-password
+ */
+export function getResetPasswordRedirectUrl(): string {
+  return `${getAppBaseUrl()}/reset-password`;
 }
 
 export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
@@ -123,7 +140,43 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   }, []);
 
   const fetchDealer = useCallback(async (userId: string) => {
-    if (!isConfigured) return;
+    if (!isConfigured) {
+      // In demo / local storage mode: find user's dealer application
+      const apps = getDealerApplications();
+      const localDealer = apps.find((d) => d.userId === userId || d.id === userId);
+      if (localDealer) {
+        setDealer({
+          id: localDealer.id,
+          user_id: userId,
+          business_name: localDealer.businessName,
+          phone: localDealer.phone,
+          service_area: localDealer.serviceArea,
+          vehicle_type: localDealer.vehicleType,
+          rating: localDealer.rating,
+          is_verified: localDealer.isVerified,
+          gstin: localDealer.gstin || null,
+          legal_business_name: localDealer.legalBusinessName || null,
+          business_address: localDealer.businessAddress || null,
+          state: localDealer.state || null,
+          gst_certificate_url: localDealer.gstCertificateUrl || null,
+          verification_status:
+            localDealer.status === 'verified' || localDealer.status === 'approved'
+              ? 'approved'
+              : localDealer.status === 'rejected'
+              ? 'rejected'
+              : 'pending',
+          rejection_reason: localDealer.rejectionReason || null,
+          review_notes: localDealer.reviewNotes || null,
+          reviewed_by: localDealer.reviewedBy || null,
+          reviewed_at: localDealer.reviewedAt || null,
+          submitted_at: localDealer.submittedAt || null,
+          created_at: localDealer.createdAt,
+          updated_at: localDealer.updatedAt,
+        });
+      }
+      return;
+    }
+
     try {
       const { data, error } = await supabase
         .from('dealers')
@@ -152,11 +205,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
       if (!error && data) {
         setProfile(data);
-        if (data.role === 'dealer' || data.role === 'admin') {
-          await fetchDealer(userId);
-        } else {
-          setDealer(null);
-        }
+        // Always check if user has a dealer registration (pending, approved, or rejected)
+        await fetchDealer(userId);
       } else if (!data) {
         // Missing profile (e.g. freshly authenticated via Google OAuth):
         // Automatically create and link customer profile from auth metadata
@@ -229,9 +279,33 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       if (session?.user) {
         await fetchProfile(session.user.id);
 
+        // Route password recovery event to /reset-password
+        if (_event === 'PASSWORD_RECOVERY') {
+          sessionStorage.setItem('is_password_recovery', 'true');
+          if (window.location.pathname !== '/reset-password') {
+            window.location.replace('/reset-password' + window.location.search + window.location.hash);
+            return;
+          }
+        }
+
+        // Check if user landed on any non-reset route with recovery parameters
+        if (window.location.pathname !== '/reset-password' && window.location.pathname !== '/auth/callback') {
+          const hash = window.location.hash || '';
+          const search = window.location.search || '';
+          if (
+            hash.includes('type=recovery') ||
+            search.includes('type=recovery') ||
+            hash.includes('otp_expired') ||
+            search.includes('otp_expired')
+          ) {
+            window.location.replace('/reset-password' + search + hash);
+            return;
+          }
+        }
+
         // Check if there was a saved returnTo destination from before OAuth redirect
-        // Only navigate directly if NOT on /auth/callback (which manages its own transition state)
-        if (window.location.pathname !== '/auth/callback') {
+        // Only navigate directly if NOT on /auth/callback and NOT on /reset-password
+        if (window.location.pathname !== '/auth/callback' && window.location.pathname !== '/reset-password') {
           const pendingReturnTo = sessionStorage.getItem('auth_return_to');
           if (pendingReturnTo) {
             sessionStorage.removeItem('auth_return_to');
@@ -239,17 +313,32 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
               window.location.replace(pendingReturnTo);
             }
           }
-          // Clean hash fragments if Supabase redirected directly to root / with #access_token=...
+          // Clean hash fragments for normal logins if Supabase redirected directly to root / with #access_token=...
           if (
             window.location.hash &&
             (window.location.hash.includes('access_token') ||
               window.location.hash.includes('refresh_token') ||
-              window.location.hash.includes('error='))
+              window.location.hash.includes('error=')) &&
+            !window.location.hash.includes('type=recovery')
           ) {
             window.history.replaceState(null, '', window.location.pathname + window.location.search);
           }
         }
       } else {
+        // Forward to /reset-password if recovery token expired or produced error on arrival
+        if (window.location.pathname !== '/reset-password' && window.location.pathname !== '/auth/callback') {
+          const hash = window.location.hash || '';
+          const search = window.location.search || '';
+          if (
+            hash.includes('type=recovery') ||
+            search.includes('type=recovery') ||
+            hash.includes('otp_expired') ||
+            search.includes('otp_expired')
+          ) {
+            window.location.replace('/reset-password' + search + hash);
+            return;
+          }
+        }
         setProfile(null);
         setDealer(null);
       }
@@ -522,18 +611,17 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       const { error } = await supabase.auth.resetPasswordForEmail(
         email.trim().toLowerCase(),
         {
-          redirectTo: `${getAppBaseUrl()}/reset-password`,
+          redirectTo: getResetPasswordRedirectUrl(),
         }
       );
 
       if (error) {
-        // Return generic success message regardless to prevent email enumeration
-        return { error: undefined };
+        return { error: error.message };
       }
 
       return {};
     } catch {
-      return {};
+      return { error: 'Failed to send reset password email. Please try again.' };
     }
   };
 
@@ -624,7 +712,46 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     });
 
     if (!isConfigured) {
-      return { pendingApproval: true };
+      const demoUserId = `dealer-demo-${Date.now()}`;
+      const demoUser = {
+        id: demoUserId,
+        email: email.trim().toLowerCase(),
+        user_metadata: { full_name: fullName.trim(), phone: cleanPhone },
+      } as unknown as User;
+      setUser(demoUser);
+      setProfile({
+        id: demoUserId,
+        full_name: fullName.trim(),
+        phone: cleanPhone,
+        phone_verified: true,
+        role: 'customer',
+        created_at: new Date().toISOString(),
+        updated_at: new Date().toISOString(),
+      });
+      setDealer({
+        id: newAppId,
+        user_id: demoUserId,
+        business_name: businessName.trim(),
+        phone: cleanPhone,
+        service_area: serviceArea.trim(),
+        vehicle_type: 'EV Loader / Three-Wheeler',
+        rating: 4.8,
+        is_verified: false,
+        verification_status: 'pending',
+        gstin: null,
+        legal_business_name: null,
+        business_address: null,
+        state: null,
+        gst_certificate_url: null,
+        rejection_reason: null,
+        review_notes: null,
+        reviewed_by: null,
+        reviewed_at: null,
+        submitted_at: null,
+        created_at: new Date().toISOString(),
+        updated_at: new Date().toISOString(),
+      });
+      return { pendingApproval: true, redirectToGst: true };
     }
 
     try {
@@ -650,22 +777,183 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       // If user session is active, insert into public.dealers as unverified
       if (data?.session?.user) {
         try {
-          await supabase.from('dealers').insert({
+          const { data: insertedDealer } = await supabase.from('dealers').insert({
             user_id: data.session.user.id,
             business_name: businessName.trim(),
             phone: cleanPhone,
             service_area: serviceArea.trim(),
             is_verified: false,
-          });
+            verification_status: 'pending',
+          }).select().maybeSingle();
+
+          if (insertedDealer) {
+            setDealer(insertedDealer);
+          }
+
+          if (insertedDealer?.id) {
+            await supabase.from('dealer_reviews').insert({
+              dealer_id: insertedDealer.id,
+              action: 'submitted',
+              notes: 'Initial dealer partner application registration.',
+            });
+          }
         } catch {
-          // Fallback if trigger already inserted
+          // Fallback if trigger or duplicate
         }
+
+        return { pendingApproval: true, redirectToGst: true };
       }
 
-      return { pendingApproval: true };
+      // If email confirmation is required by Supabase project settings
+      const requiresEmailConfirm = !data.session && !!data.user;
+      return { pendingApproval: true, emailConfirmationRequired: requiresEmailConfirm };
     } catch {
       return { error: 'Failed to submit dealer partner application. Please try again.' };
     }
+  };
+
+  // Submit / Resubmit Dealer GST Details
+  const submitDealerGst = async (params: {
+    gstin: string;
+    legalBusinessName: string;
+    businessAddress: string;
+    state: string;
+    gstCertificateFile?: File | null;
+    gstCertificateUrl?: string | null;
+  }) => {
+    // 1. Validate GSTIN format only (15 alphanumeric characters)
+    const cleanGstin = params.gstin.trim().toUpperCase();
+    const gstinRegex = /^[0-9]{2}[A-Z]{5}[0-9]{4}[A-Z]{1}[1-9A-Z]{1}Z[0-9A-Z]{1}$/;
+    if (!gstinRegex.test(cleanGstin)) {
+      return {
+        error:
+          'Invalid GSTIN format. A valid Indian GSTIN contains 15 alphanumeric characters (e.g. 29AABCU9603R1ZM).',
+      };
+    }
+
+    if (!params.legalBusinessName.trim()) {
+      return { error: 'Please enter your GST-registered legal business name.' };
+    }
+
+    if (!params.businessAddress.trim()) {
+      return { error: 'Please enter your registered business address.' };
+    }
+
+    if (!params.state.trim()) {
+      return { error: 'Please select your registration State or Union Territory.' };
+    }
+
+    let certificateUrl = params.gstCertificateUrl || null;
+
+    // 2. Upload file to Supabase Storage if file provided and Supabase configured
+    if (params.gstCertificateFile && user && isConfigured && isSupabaseConfigured()) {
+      try {
+        const fileExt = params.gstCertificateFile.name.split('.').pop();
+        const filePath = `${user.id}/gst-certificate-${Date.now()}.${fileExt}`;
+        const { error: uploadError } = await supabase.storage
+          .from('dealer-documents')
+          .upload(filePath, params.gstCertificateFile, {
+            upsert: true,
+            contentType: params.gstCertificateFile.type,
+          });
+
+        if (!uploadError) {
+          const { data: urlData } = supabase.storage
+            .from('dealer-documents')
+            .getPublicUrl(filePath);
+          certificateUrl = urlData?.publicUrl || filePath;
+        }
+      } catch (err) {
+        console.warn('Storage upload error, falling back:', err);
+      }
+    }
+
+    // Fallback URL if local file
+    if (!certificateUrl && params.gstCertificateFile) {
+      certificateUrl = URL.createObjectURL(params.gstCertificateFile);
+    }
+
+    const isResubmission = dealer?.verification_status === 'rejected';
+    const nowIso = new Date().toISOString();
+
+    // 3. Update Supabase if configured
+    if (user && isConfigured && isSupabaseConfigured()) {
+      try {
+        const { error: updateError } = await supabase
+          .from('dealers')
+          .update({
+            gstin: cleanGstin,
+            legal_business_name: params.legalBusinessName.trim(),
+            business_address: params.businessAddress.trim(),
+            state: params.state.trim(),
+            gst_certificate_url: certificateUrl,
+            verification_status: 'pending',
+            is_verified: false,
+            rejection_reason: null,
+            submitted_at: nowIso,
+            updated_at: nowIso,
+          })
+          .eq('user_id', user.id);
+
+        if (updateError) {
+          return { error: updateError.message };
+        }
+
+        // Insert into dealer_reviews audit table
+        if (dealer?.id) {
+          await supabase.from('dealer_reviews').insert({
+            dealer_id: dealer.id,
+            action: isResubmission ? 'resubmitted' : 'submitted',
+            notes: isResubmission
+              ? 'Dealer updated and resubmitted GST credentials after rejection.'
+              : 'Initial GST credentials submitted.',
+          });
+        }
+
+        await fetchDealer(user.id);
+      } catch {
+        return { error: 'Failed to save GST verification details. Please try again.' };
+      }
+    }
+
+    // Always update local storage for offline / demo mode
+    const targetDealerId = dealer?.id || user?.id || 'demo-dealer';
+    const updated = submitDealerGstDetails({
+      dealerId: targetDealerId,
+      gstin: cleanGstin,
+      legalBusinessName: params.legalBusinessName,
+      businessAddress: params.businessAddress,
+      state: params.state,
+      gstCertificateUrl: certificateUrl,
+    });
+
+    if (updated) {
+      setDealer({
+        id: updated.id,
+        user_id: user?.id || null,
+        business_name: updated.businessName,
+        phone: updated.phone,
+        service_area: updated.serviceArea,
+        vehicle_type: updated.vehicleType,
+        rating: updated.rating,
+        is_verified: false,
+        gstin: updated.gstin || null,
+        legal_business_name: updated.legalBusinessName || null,
+        business_address: updated.businessAddress || null,
+        state: updated.state || null,
+        gst_certificate_url: updated.gstCertificateUrl || null,
+        verification_status: 'pending',
+        rejection_reason: null,
+        review_notes: updated.reviewNotes || null,
+        reviewed_by: updated.reviewedBy || null,
+        reviewed_at: updated.reviewedAt || null,
+        submitted_at: updated.submittedAt || null,
+        created_at: updated.createdAt,
+        updated_at: updated.updatedAt,
+      });
+    }
+
+    return {};
   };
 
   // Sign out
@@ -698,6 +986,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         closeAuthModal,
         signUp,
         applyAsDealer,
+        submitDealerGst,
         signInWithEmail,
         signInWithPhone,
         signInWithGoogle,

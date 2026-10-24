@@ -103,7 +103,7 @@ export const Header: React.FC = () => {
       } else if (to === '/admin') {
         e.preventDefault();
         openAuthModal({
-          initialRole: 'dealer',
+          initialRole: 'admin',
           returnTo: '/admin',
           reasonMessage: 'Please sign in with your Urban Scrap administrator account.',
         });

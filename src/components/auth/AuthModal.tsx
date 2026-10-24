@@ -23,6 +23,7 @@ import {
   ChevronRight,
   LogOut,
   Info,
+  ShieldCheck,
 } from 'lucide-react';
 import { useAuth } from '../../contexts/AuthContext';
 import type {
@@ -106,10 +107,10 @@ export const AuthModal: React.FC<AuthModalProps> = ({
   // Reset state on open or when options change
   useEffect(() => {
     if (isOpen) {
-      setRoleChoice(
-        options?.initialRole !== undefined ? options.initialRole : null
-      );
-      setMode(options?.initialMode || 'login');
+      const selectedRole = options?.initialRole !== undefined ? options.initialRole : null;
+      setRoleChoice(selectedRole);
+      // Admin accounts are strictly login-only; no public signup
+      setMode(selectedRole === 'admin' ? 'login' : options?.initialMode || 'login');
       setLoginMethod('email');
       setFullName('');
       setEmail('');
@@ -212,9 +213,25 @@ export const AuthModal: React.FC<AuthModalProps> = ({
       const actualRole = profileData?.role || 'customer';
       await refreshProfile();
 
+      // Check if user chose "Admin"
+      if (roleChoice === 'admin') {
+        if (actualRole !== 'admin') {
+          // Immediately revoke session so unauthorized user is not kept logged in through admin portal attempt
+          await signOut();
+          setErrorMsg(
+            'You don’t have admin access. Only authorized Urban Scrap administrators can access this portal.'
+          );
+          return;
+        }
+
+        showToast('Admin Portal Unlocked', 'Administrative credentials verified.', 'success');
+        onClose();
+        navigate(options?.returnTo || '/admin');
+        return;
+      }
+
       // Check if user chose "Dealer"
       if (roleChoice === 'dealer') {
-        // Requirement 4 & 5:
         // Selecting "Dealer" must NOT give dealer permissions.
         // Use user's actual role from profile.
         // If account is customer or unverified dealer, show clear message and DO NOT open Dealer Dashboard.
@@ -241,12 +258,15 @@ export const AuthModal: React.FC<AuthModalProps> = ({
           await refreshDealer();
 
           if (!dealerData || !dealerData.is_verified) {
+            const isRejected = dealerData?.verification_status === 'rejected';
             setAccessNotice({
               type: 'unverified_dealer',
-              title: 'Dealer Verification Pending',
-              message: `Welcome, ${dealerData?.business_name || profileData?.full_name || 'Partner'}! Your dealer account is registered, but pending administrative review. Once verified by an Urban Scrap administrator, you will receive full access to the Dealer Dashboard.`,
-              actionLabel: 'Return to Home',
-              actionTo: '/',
+              title: isRejected ? 'Dealer Verification Rejected' : 'Dealer Verification Pending',
+              message: isRejected
+                ? `Your dealer verification was rejected: ${dealerData?.rejection_reason || 'Requires update'}. Please submit corrected GST details.`
+                : `Welcome, ${dealerData?.business_name || profileData?.full_name || 'Partner'}! Your dealer account is registered, but pending administrative GST review.`,
+              actionLabel: isRejected ? 'Resubmit GST Details' : 'View GST Verification Status',
+              actionTo: '/dealer/verify-gst',
             });
             return;
           }
@@ -288,8 +308,15 @@ export const AuthModal: React.FC<AuthModalProps> = ({
   };
 
   // Demo sign in helper (for testing when Supabase is not configured)
-  const handleDemoSignIn = (preset?: 'customer' | 'verified_dealer' | 'unverified_dealer') => {
-    const target = preset || (roleChoice === 'dealer' ? 'verified_dealer' : 'customer');
+  const handleDemoSignIn = (preset?: 'customer' | 'verified_dealer' | 'unverified_dealer' | 'admin') => {
+    const target = preset || (roleChoice === 'admin' ? 'admin' : roleChoice === 'dealer' ? 'verified_dealer' : 'customer');
+
+    if (roleChoice === 'admin' || target === 'admin') {
+      showToast('Admin Portal (Demo)', 'Signed in with Administrator privileges.', 'success');
+      onClose();
+      navigate(options?.returnTo || '/admin');
+      return;
+    }
 
     if (roleChoice === 'dealer') {
       if (target === 'customer') {
@@ -436,13 +463,21 @@ export const AuthModal: React.FC<AuthModalProps> = ({
 
       if (res.error) {
         setErrorMsg(res.error);
+      } else if (res.redirectToGst) {
+        showToast(
+          'Application Registered',
+          'Please submit your GST verification credentials to activate collection route access.',
+          'info'
+        );
+        onClose();
+        navigate('/dealer/verify-gst');
       } else {
         setAccessNotice({
           type: 'unverified_dealer',
           title: 'Dealer Application Received',
-          message: `Thank you for applying, ${businessName}! Your partner application is under administrative review. Once verified by an Urban Scrap admin, your Dealer Dashboard and collection route access will be activated.`,
-          actionLabel: 'Return to Home',
-          actionTo: '/',
+          message: `Thank you for applying, ${businessName}! Your partner application is under administrative review. Please submit your GST details to complete registration.`,
+          actionLabel: 'Submit GST Verification',
+          actionTo: '/dealer/verify-gst',
         });
       }
     } finally {
@@ -630,6 +665,8 @@ export const AuthModal: React.FC<AuthModalProps> = ({
                   ? accessNotice.title
                   : roleChoice === null
                   ? 'How would you like to continue?'
+                  : roleChoice === 'admin'
+                  ? 'Admin Portal Sign In'
                   : roleChoice === 'dealer'
                   ? mode === 'signup'
                     ? 'Apply as Dealer Partner'
@@ -820,6 +857,37 @@ export const AuthModal: React.FC<AuthModalProps> = ({
                 </div>
               </button>
 
+              {/* Choice 3: Administrator (Login only - No public signups) */}
+              <button
+                type="button"
+                onClick={() => {
+                  setRoleChoice('admin');
+                  setMode('login');
+                  setErrorMsg(null);
+                }}
+                className="w-full text-left p-3.5 rounded-2xl border-2 border-slate-200 bg-gradient-to-br from-slate-50 to-white hover:border-slate-800 hover:shadow-md transition-all duration-150 group active:scale-[0.99] focus:outline-none focus:ring-2 focus:ring-slate-800"
+              >
+                <div className="flex items-start gap-3.5">
+                  <div className="w-11 h-11 rounded-xl bg-slate-900 text-amber-400 flex items-center justify-center shrink-0 group-hover:scale-105 transition-transform duration-150">
+                    <ShieldCheck className="w-5 h-5 stroke-[2.3]" />
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center justify-between">
+                      <span className="font-extrabold text-sm text-slate-900">
+                        Admin Portal
+                      </span>
+                      <ChevronRight className="w-4 h-4 text-slate-400 group-hover:text-slate-900 group-hover:translate-x-0.5 transition-all" />
+                    </div>
+                    <span className="inline-block px-1.5 py-0.5 text-[9px] font-bold rounded bg-slate-200 text-slate-800 mt-0.5">
+                      Staff & Reviewers Only
+                    </span>
+                    <p className="text-[11px] text-[#525955] mt-1 leading-relaxed">
+                      Review dealer partner applications, inspect GST credentials, and manage operations.
+                    </p>
+                  </div>
+                </div>
+              </button>
+
               <div className="pt-2 text-center text-[11px] text-[#717a75]">
                 Scrap prices and the directory are publicly accessible without signing in.
               </div>
@@ -858,7 +926,12 @@ export const AuthModal: React.FC<AuthModalProps> = ({
               {/* Role Indicator & Switch Button */}
               <div className="flex items-center justify-between p-2.5 rounded-xl bg-[#f4f6f4] border border-[#e5e8e5] text-xs mb-4">
                 <div className="flex items-center gap-1.5 text-[#123b26] font-semibold">
-                  {roleChoice === 'dealer' ? (
+                  {roleChoice === 'admin' ? (
+                    <>
+                      <ShieldCheck className="w-4 h-4 text-slate-900" />
+                      <span>Role: <strong>Administrator</strong></span>
+                    </>
+                  ) : roleChoice === 'dealer' ? (
                     <>
                       <Store className="w-4 h-4 text-[#123b26]" />
                       <span>Role: <strong>Authorized Dealer</strong></span>
@@ -1034,11 +1107,22 @@ export const AuthModal: React.FC<AuthModalProps> = ({
                 </form>
               ) : mode === 'login' ? (
                 /* ========================================================== */
-                /* LOGIN FORM (Customer or Dealer)                            */
+                /* LOGIN FORM (Customer, Dealer, or Admin)                    */
                 /* ========================================================== */
                 <form onSubmit={handleSignIn} className="space-y-4">
-                  {/* Google OAuth Button */}
-                  {renderGoogleButton(roleChoice === 'dealer' ? 'Sign in with Google' : 'Continue with Google')}
+                  {/* Google OAuth Button - Available for Customer & Dealer */}
+                  {roleChoice !== 'admin' && renderGoogleButton(roleChoice === 'dealer' ? 'Sign in with Google' : 'Continue with Google')}
+
+                  {/* Admin Information Notice */}
+                  {roleChoice === 'admin' && (
+                    <div className="p-3 rounded-xl bg-slate-50 border border-slate-200 text-xs text-slate-700 leading-relaxed flex items-start gap-2.5">
+                      <ShieldCheck className="w-4 h-4 text-slate-900 shrink-0 mt-0.5" />
+                      <div>
+                        <span className="font-bold text-slate-900">Administrator Portal: </span>
+                        Sign in with your configured Urban Scrap account credentials. Administrator privileges must be assigned through database authorization policies.
+                      </div>
+                    </div>
+                  )}
 
                   {/* Method Toggle: Email vs Phone */}
                   <div className="grid grid-cols-2 p-1 rounded-xl bg-[#f1f3f1] text-xs font-bold text-[#525955]">
@@ -1075,7 +1159,11 @@ export const AuthModal: React.FC<AuthModalProps> = ({
                   {loginMethod === 'email' ? (
                     <div>
                       <label className="block text-xs font-bold text-[#191c1a] mb-1">
-                        {roleChoice === 'dealer' ? 'Registered Dealer Email' : 'Email Address'}
+                        {roleChoice === 'admin'
+                          ? 'Administrator Email'
+                          : roleChoice === 'dealer'
+                          ? 'Registered Dealer Email'
+                          : 'Email Address'}
                       </label>
                       <div className="relative">
                         <Mail className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-[#717a75]" />
@@ -1092,7 +1180,9 @@ export const AuthModal: React.FC<AuthModalProps> = ({
                   ) : (
                     <div>
                       <label className="block text-xs font-bold text-[#191c1a] mb-1">
-                        Verified Mobile Number
+                        {roleChoice === 'admin'
+                          ? 'Administrator Mobile Number'
+                          : 'Verified Mobile Number'}
                       </label>
                       <div className="relative flex">
                         <span className="inline-flex items-center px-3 rounded-l-xl border border-r-0 border-[#d1d5db] bg-[#f8faf9] text-xs font-bold text-[#525955]">
@@ -1154,7 +1244,9 @@ export const AuthModal: React.FC<AuthModalProps> = ({
                     type="submit"
                     disabled={loading}
                     className={`w-full inline-flex items-center justify-center gap-2 px-5 py-3 rounded-xl font-bold text-sm text-white shadow-md transition-all active:scale-[0.98] disabled:opacity-50 ${
-                      roleChoice === 'dealer'
+                      roleChoice === 'admin'
+                        ? 'bg-slate-900 hover:bg-slate-800 shadow-slate-900/20'
+                        : roleChoice === 'dealer'
                         ? 'bg-[#123b26] hover:bg-[#1a5336] shadow-[#123b26]/20'
                         : 'bg-gradient-to-r from-[#16a34a] to-[#123b26] hover:from-[#15803d] hover:to-[#0a2417] shadow-[#16a34a]/20'
                     }`}
@@ -1163,38 +1255,56 @@ export const AuthModal: React.FC<AuthModalProps> = ({
                       <span className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
                     ) : (
                       <>
-                        <span>{roleChoice === 'dealer' ? 'Sign In as Dealer' : 'Sign In'}</span>
+                        <span>
+                          {roleChoice === 'admin'
+                            ? 'Sign In as Administrator'
+                            : roleChoice === 'dealer'
+                            ? 'Sign In as Dealer'
+                            : 'Sign In'}
+                        </span>
                         <ArrowRight className="w-4 h-4" />
                       </>
                     )}
                   </button>
 
                   {/* Demo test helper in demo mode */}
-                  {!isConfigured && roleChoice === 'dealer' && (
+                  {!isConfigured && (roleChoice === 'dealer' || roleChoice === 'admin') && (
                     <div className="pt-2 p-2.5 rounded-xl bg-slate-50 border border-slate-200 text-xs text-slate-700 space-y-1.5">
                       <div className="font-bold text-[11px] text-slate-900">Demo Testing Shortcuts:</div>
                       <div className="flex flex-wrap gap-1.5">
-                        <button
-                          type="button"
-                          onClick={() => handleDemoSignIn('verified_dealer')}
-                          className="px-2 py-1 bg-emerald-100 hover:bg-emerald-200 text-emerald-900 rounded font-semibold text-[11px]"
-                        >
-                          Simulate Verified Dealer
-                        </button>
-                        <button
-                          type="button"
-                          onClick={() => handleDemoSignIn('customer')}
-                          className="px-2 py-1 bg-rose-100 hover:bg-rose-200 text-rose-900 rounded font-semibold text-[11px]"
-                        >
-                          Simulate Customer Block
-                        </button>
-                        <button
-                          type="button"
-                          onClick={() => handleDemoSignIn('unverified_dealer')}
-                          className="px-2 py-1 bg-amber-100 hover:bg-amber-200 text-amber-900 rounded font-semibold text-[11px]"
-                        >
-                          Simulate Pending Dealer
-                        </button>
+                        {roleChoice === 'admin' ? (
+                          <button
+                            type="button"
+                            onClick={() => handleDemoSignIn('admin')}
+                            className="px-2.5 py-1 bg-slate-900 hover:bg-slate-800 text-amber-400 rounded font-semibold text-[11px]"
+                          >
+                            Sign in as Demo Administrator
+                          </button>
+                        ) : (
+                          <>
+                            <button
+                              type="button"
+                              onClick={() => handleDemoSignIn('verified_dealer')}
+                              className="px-2 py-1 bg-emerald-100 hover:bg-emerald-200 text-emerald-900 rounded font-semibold text-[11px]"
+                            >
+                              Simulate Verified Dealer
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => handleDemoSignIn('customer')}
+                              className="px-2 py-1 bg-rose-100 hover:bg-rose-200 text-rose-900 rounded font-semibold text-[11px]"
+                            >
+                              Simulate Customer Block
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => handleDemoSignIn('unverified_dealer')}
+                              className="px-2 py-1 bg-amber-100 hover:bg-amber-200 text-amber-900 rounded font-semibold text-[11px]"
+                            >
+                              Simulate Pending Dealer
+                            </button>
+                          </>
+                        )}
                       </div>
                     </div>
                   )}
@@ -1213,6 +1323,13 @@ export const AuthModal: React.FC<AuthModalProps> = ({
                       >
                         Create one now
                       </button>
+                    </div>
+                  )}
+
+                  {/* Administrator notice: public signup strictly disabled */}
+                  {roleChoice === 'admin' && (
+                    <div className="pt-3 border-t border-[#f1f3f1] text-center text-[11px] text-[#717a75] leading-relaxed">
+                      Public registration is disabled. Admin accounts are provisioned directly in the database.
                     </div>
                   )}
                 </form>

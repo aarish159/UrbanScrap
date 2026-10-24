@@ -9,7 +9,6 @@ import {
   Phone,
   Mail,
   MapPin,
-  Truck,
   Eye,
   Database,
   Sparkles,
@@ -17,13 +16,21 @@ import {
   Plus,
   Filter,
   X,
+  ExternalLink,
+  FileText,
+  Copy,
+  Check,
+  AlertTriangle,
+  History,
+  Calendar,
 } from 'lucide-react';
-import type { DealerApplication } from '../types';
+import type { DealerApplication, DealerReview } from '../types';
 import {
   getDealerApplications,
   updateDealerApplicationStatus,
   saveDealerApplication,
   subscribeToDealerChanges,
+  getDealerReviews,
 } from '../utils/storage';
 import { useToast } from '../components/ui/Toast';
 import { useAuth } from '../contexts/AuthContext';
@@ -40,11 +47,14 @@ export const AdminDealersPage: React.FC = () => {
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState<'all' | 'pending' | 'verified' | 'rejected'>('all');
 
-  // Modal states
+  // Modal & review states
   const [selectedApp, setSelectedApp] = useState<DealerApplication | null>(null);
-  const [rejectModalApp, setRejectModalApp] = useState<DealerApplication | null>(null);
+  const [reviewNotes, setReviewNotes] = useState('');
   const [rejectionReason, setRejectionReason] = useState('');
+  const [showRejectInput, setShowRejectInput] = useState(false);
   const [isProcessing, setIsProcessing] = useState(false);
+  const [copiedGstin, setCopiedGstin] = useState(false);
+  const [auditReviews, setAuditReviews] = useState<DealerReview[]>([]);
 
   // Load applications from Supabase if live, or local storage
   const loadApplications = useCallback(async () => {
@@ -58,6 +68,17 @@ export const AdminDealersPage: React.FC = () => {
             id,
             user_id,
             business_name,
+            legal_business_name,
+            gstin,
+            business_address,
+            state,
+            gst_certificate_url,
+            verification_status,
+            rejection_reason,
+            review_notes,
+            reviewed_by,
+            reviewed_at,
+            submitted_at,
             phone,
             service_area,
             vehicle_type,
@@ -69,22 +90,41 @@ export const AdminDealersPage: React.FC = () => {
           .order('created_at', { ascending: false });
 
         if (!error && dealersData) {
-          // Map to DealerApplication
-          const mapped: DealerApplication[] = dealersData.map((d) => ({
-            id: d.id,
-            userId: d.user_id,
-            businessName: d.business_name,
-            applicantName: 'Authorized Partner',
-            email: 'partner@urbanscrap.in',
-            phone: d.phone,
-            serviceArea: d.service_area,
-            vehicleType: d.vehicle_type,
-            rating: Number(d.rating),
-            isVerified: d.is_verified,
-            status: d.is_verified ? 'verified' : 'pending',
-            createdAt: d.created_at,
-            updatedAt: d.updated_at,
-          }));
+          const mapped: DealerApplication[] = dealersData.map((d) => {
+            const rawStatus = d.verification_status as string | undefined;
+            const status: 'pending' | 'verified' | 'rejected' =
+              rawStatus === 'approved' || (d.is_verified && !rawStatus)
+                ? 'verified'
+                : rawStatus === 'rejected'
+                ? 'rejected'
+                : 'pending';
+
+            return {
+              id: d.id,
+              userId: d.user_id,
+              businessName: d.business_name,
+              legalBusinessName: d.legal_business_name || undefined,
+              gstin: d.gstin || undefined,
+              businessAddress: d.business_address || undefined,
+              state: d.state || undefined,
+              gstCertificateUrl: d.gst_certificate_url || undefined,
+              applicantName: d.business_name || 'Dealer Partner',
+              email: 'partner@urbanscrap.in',
+              phone: d.phone,
+              serviceArea: d.service_area,
+              vehicleType: d.vehicle_type,
+              rating: Number(d.rating || 4.8),
+              isVerified: d.is_verified,
+              status,
+              rejectionReason: d.rejection_reason || undefined,
+              reviewNotes: d.review_notes || undefined,
+              reviewedBy: d.reviewed_by || undefined,
+              reviewedAt: d.reviewed_at || undefined,
+              submittedAt: d.submitted_at || d.created_at,
+              createdAt: d.created_at,
+              updatedAt: d.updated_at,
+            };
+          });
 
           setApplications(mapped);
           setLoading(false);
@@ -106,6 +146,53 @@ export const AdminDealersPage: React.FC = () => {
     return () => unsubscribe();
   }, [loadApplications]);
 
+  // Load audit history whenever selectedApp changes
+  useEffect(() => {
+    if (!selectedApp) {
+      setAuditReviews([]);
+      setReviewNotes('');
+      setRejectionReason('');
+      setShowRejectInput(false);
+      return;
+    }
+
+    setReviewNotes(selectedApp.reviewNotes || '');
+    setRejectionReason(selectedApp.rejectionReason || '');
+
+    const fetchAudit = async () => {
+      if (isConfigured && isSupabaseConfigured()) {
+        try {
+          const { data } = await supabase
+            .from('dealer_reviews')
+            .select('*')
+            .eq('dealer_id', selectedApp.id)
+            .order('created_at', { ascending: false });
+
+          if (data && data.length > 0) {
+            setAuditReviews(
+              data.map((r) => ({
+                id: r.id,
+                dealerId: r.dealer_id,
+                adminId: r.admin_id,
+                action: r.action,
+                rejectionReason: r.rejection_reason,
+                notes: r.notes,
+                createdAt: r.created_at,
+              }))
+            );
+            return;
+          }
+        } catch {
+          // ignore error, fall back to storage
+        }
+      }
+
+      setAuditReviews(getDealerReviews(selectedApp.id));
+    };
+
+    fetchAudit();
+  }, [selectedApp, isConfigured]);
+
   // Compute metrics
   const metrics = useMemo(() => {
     const total = applications.length;
@@ -123,6 +210,8 @@ export const AdminDealersPage: React.FC = () => {
       const matchSearch =
         q === '' ||
         app.businessName.toLowerCase().includes(q) ||
+        (app.legalBusinessName && app.legalBusinessName.toLowerCase().includes(q)) ||
+        (app.gstin && app.gstin.toLowerCase().includes(q)) ||
         app.applicantName.toLowerCase().includes(q) ||
         app.phone.includes(q) ||
         app.serviceArea.toLowerCase().includes(q) ||
@@ -131,17 +220,32 @@ export const AdminDealersPage: React.FC = () => {
     });
   }, [applications, statusFilter, searchTerm]);
 
+  const copyToClipboard = (text: string) => {
+    navigator.clipboard.writeText(text);
+    setCopiedGstin(true);
+    showToast('Copied', `GSTIN ${text} copied to clipboard`, 'info');
+    setTimeout(() => setCopiedGstin(false), 2000);
+  };
+
   // Approve Dealer Application
   const handleApprove = async (app: DealerApplication) => {
     setIsProcessing(true);
+    const now = new Date().toISOString();
+    const adminNotes = reviewNotes.trim() || 'Approved after manual verification on official GST portal.';
+
     try {
       if (isConfigured && isSupabaseConfigured() && user) {
-        // 1. Update public.dealers set is_verified = true
+        // 1. Update public.dealers set is_verified = true, verification_status = 'approved'
         const { error: dealerErr } = await supabase
           .from('dealers')
           .update({
             is_verified: true,
-            updated_at: new Date().toISOString(),
+            verification_status: 'approved',
+            rejection_reason: null,
+            review_notes: adminNotes,
+            reviewed_by: user.id,
+            reviewed_at: now,
+            updated_at: now,
           })
           .eq('id', app.id);
 
@@ -151,7 +255,7 @@ export const AdminDealersPage: React.FC = () => {
           return;
         }
 
-        // 2. If dealer has a linked user_id, promote user's profile role to 'dealer'
+        // 2. Promote user's profile role to 'dealer'
         if (app.userId) {
           const { error: profileErr } = await supabase
             .from('profiles')
@@ -162,41 +266,67 @@ export const AdminDealersPage: React.FC = () => {
             console.warn('Profile role escalation note:', profileErr.message);
           }
         }
+
+        // 3. Log to dealer_reviews audit history
+        await supabase.from('dealer_reviews').insert({
+          dealer_id: app.id,
+          admin_id: user.id,
+          action: 'approved',
+          rejection_reason: null,
+          notes: adminNotes,
+          created_at: now,
+        });
       }
 
-      // Update local storage
-      updateDealerApplicationStatus(app.id, 'verified');
+      // Update local storage (updateDealerApplicationStatus automatically saves dealer review audit record)
+      updateDealerApplicationStatus(app.id, 'approved', {
+        reviewNotes: adminNotes,
+        adminId: user?.id || 'admin-root',
+      });
+
       showToast(
         'Dealer Approved & Activated!',
-        `${app.businessName} is now a verified partner. Dealer Dashboard access is unlocked.`,
+        `${app.businessName} (GST: ${app.gstin || 'N/A'}) is now an authorized dealer partner.`,
         'success'
       );
+
       await loadApplications();
-      if (selectedApp && selectedApp.id === app.id) {
-        setSelectedApp({ ...selectedApp, status: 'verified', isVerified: true });
-      }
-    } catch {
-      showToast('Error', 'An error occurred while approving application.', 'error');
+      setSelectedApp(null);
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : 'An error occurred while approving application.';
+      showToast('Error', msg, 'error');
     } finally {
       setIsProcessing(false);
     }
   };
 
   // Reject Dealer Application
-  const handleConfirmReject = async () => {
-    if (!rejectModalApp) return;
+  const handleConfirmReject = async (app: DealerApplication) => {
+    const reason = rejectionReason.trim();
+    if (!reason) {
+      showToast('Rejection Reason Required', 'Please provide a clear reason explaining why this application was rejected.', 'error');
+      return;
+    }
 
     setIsProcessing(true);
+    const now = new Date().toISOString();
+    const adminNotes = reviewNotes.trim() || undefined;
+
     try {
       if (isConfigured && isSupabaseConfigured() && user) {
-        // Update public.dealers set is_verified = false
+        // 1. Update public.dealers set is_verified = false, verification_status = 'rejected'
         const { error: dealerErr } = await supabase
           .from('dealers')
           .update({
             is_verified: false,
-            updated_at: new Date().toISOString(),
+            verification_status: 'rejected',
+            rejection_reason: reason,
+            review_notes: adminNotes || null,
+            reviewed_by: user.id,
+            reviewed_at: now,
+            updated_at: now,
           })
-          .eq('id', rejectModalApp.id);
+          .eq('id', app.id);
 
         if (dealerErr) {
           showToast('Rejection Failed', dealerErr.message, 'error');
@@ -204,60 +334,67 @@ export const AdminDealersPage: React.FC = () => {
           return;
         }
 
-        // Keep or reset user profile role to customer
-        if (rejectModalApp.userId) {
+        // 2. Keep/reset user profile role to customer
+        if (app.userId) {
           await supabase
             .from('profiles')
             .update({ role: 'customer' })
-            .eq('id', rejectModalApp.userId);
+            .eq('id', app.userId);
         }
+
+        // 3. Log to dealer_reviews audit history
+        await supabase.from('dealer_reviews').insert({
+          dealer_id: app.id,
+          admin_id: user.id,
+          action: 'rejected',
+          rejection_reason: reason,
+          notes: adminNotes || null,
+          created_at: now,
+        });
       }
 
-      // Update local storage
-      updateDealerApplicationStatus(
-        rejectModalApp.id,
-        'rejected',
-        rejectionReason.trim() || 'Application did not meet service area requirements.'
-      );
+      // Update local storage (updateDealerApplicationStatus automatically saves dealer review audit record)
+      updateDealerApplicationStatus(app.id, 'rejected', {
+        rejectionReason: reason,
+        reviewNotes: adminNotes,
+        adminId: user?.id || 'admin-root',
+      });
 
       showToast(
         'Application Rejected',
-        `${rejectModalApp.businessName} has been rejected.`,
+        `${app.businessName} has been rejected. The dealer will see your reason and can correct details.`,
         'info'
       );
 
-      setRejectModalApp(null);
-      setRejectionReason('');
       await loadApplications();
-      if (selectedApp && selectedApp.id === rejectModalApp.id) {
-        setSelectedApp({
-          ...selectedApp,
-          status: 'rejected',
-          isVerified: false,
-          rejectionReason: rejectionReason.trim(),
-        });
-      }
-    } catch {
-      showToast('Error', 'An error occurred while rejecting application.', 'error');
+      setSelectedApp(null);
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : 'An error occurred while rejecting application.';
+      showToast('Error', msg, 'error');
     } finally {
       setIsProcessing(false);
     }
   };
 
-  // Quick helper to simulate a new applicant for instant testing
+  // Helper to simulate a new applicant with GST details for instant testing
   const handleSimulateNewApplicant = () => {
     const randomNum = Math.floor(100 + Math.random() * 900);
     const mockApplicant: DealerApplication = {
       id: `dealer-app-${Date.now()}`,
-      businessName: `Bengaluru Eco Scrappers #${randomNum}`,
+      businessName: `Bengaluru Green Metals #${randomNum}`,
+      legalBusinessName: `BENGALURU GREEN METALS RECYCLERS PRIVATE LIMITED`,
+      gstin: `29ABCDE${randomNum}1Z5`,
+      businessAddress: `${randomNum}, 4th Cross, Peenya Industrial Area, Phase II`,
+      state: 'Karnataka',
       applicantName: `Vikram Shenoy`,
-      email: `vikram.${randomNum}@ecoscrap.in`,
+      email: `vikram.${randomNum}@greenmetals.in`,
       phone: `98440${randomNum}12`,
-      serviceArea: 'Whitefield & Marathahalli, Bengaluru',
+      serviceArea: 'Peenya & Yeshwanthpur, Bengaluru',
       vehicleType: 'Electric Three-Wheeler (EV Loader)',
       rating: 4.8,
       isVerified: false,
       status: 'pending',
+      submittedAt: new Date().toISOString(),
       createdAt: new Date().toISOString(),
       updatedAt: new Date().toISOString(),
     };
@@ -265,7 +402,7 @@ export const AdminDealersPage: React.FC = () => {
     saveDealerApplication(mockApplicant);
     showToast(
       'Test Application Created',
-      `Simulated pending dealer: ${mockApplicant.businessName}`,
+      `Simulated pending dealer with GST: ${mockApplicant.businessName}`,
       'success'
     );
     loadApplications();
@@ -279,7 +416,7 @@ export const AdminDealersPage: React.FC = () => {
           <div className="flex items-center gap-2 mb-2 flex-wrap">
             <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-emerald-100 text-emerald-950 border border-emerald-300 text-xs font-bold">
               <ShieldCheck className="w-3.5 h-3.5 text-emerald-700 shrink-0" />
-              <span>Administration Portal</span>
+              <span>Admin Verification Dashboard</span>
             </div>
 
             {isConfigured && isSupabaseConfigured() ? (
@@ -295,10 +432,10 @@ export const AdminDealersPage: React.FC = () => {
             )}
           </div>
           <h1 className="text-2xl sm:text-3xl font-extrabold text-[#123b26] tracking-tight">
-            Dealer Partner Verification & Applications
+            Dealer Applications & GST Review
           </h1>
           <p className="text-xs sm:text-sm text-[#525955] mt-1 max-w-2xl">
-            Review incoming scrap merchant applications, verify business credentials, and grant or revoke access to the Urban Scrap Dealer Dashboard.
+            Review incoming scrap merchant applications, manually verify GST credentials against the official portal, and record verification decisions.
           </p>
         </div>
 
@@ -342,14 +479,14 @@ export const AdminDealersPage: React.FC = () => {
         <div className="p-4 sm:p-5 rounded-2xl bg-amber-50/70 border border-amber-200 shadow-xs">
           <div className="flex items-center justify-between">
             <span className="text-xs font-bold text-amber-800 uppercase tracking-wider">
-              Pending Review
+              Pending GST Review
             </span>
             <Clock className="w-5 h-5 text-amber-600 animate-pulse" />
           </div>
           <div className="mt-2 text-2xl sm:text-3xl font-extrabold text-amber-900">
             {metrics.pending}
           </div>
-          <div className="text-[11px] text-amber-700 mt-0.5">Requires admin approval</div>
+          <div className="text-[11px] text-amber-700 mt-0.5">Awaiting manual admin audit</div>
         </div>
 
         {/* Verified */}
@@ -377,7 +514,7 @@ export const AdminDealersPage: React.FC = () => {
           <div className="mt-2 text-2xl sm:text-3xl font-extrabold text-rose-900">
             {metrics.rejected}
           </div>
-          <div className="text-[11px] text-rose-700 mt-0.5">Access denied</div>
+          <div className="text-[11px] text-rose-700 mt-0.5">Access denied / Resubmission open</div>
         </div>
       </div>
 
@@ -432,11 +569,11 @@ export const AdminDealersPage: React.FC = () => {
         </div>
 
         {/* Search Input */}
-        <div className="relative w-full sm:w-72">
+        <div className="relative w-full sm:w-80">
           <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-[#717a75]" />
           <input
             type="text"
-            placeholder="Search business, phone, area..."
+            placeholder="Search business, GSTIN, legal name..."
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
             className="w-full pl-9 pr-3.5 py-2 text-xs rounded-xl border border-[#d1d5db] bg-white focus:outline-none focus:ring-2 focus:ring-[#16a34a]"
@@ -454,7 +591,7 @@ export const AdminDealersPage: React.FC = () => {
           <p className="text-xs text-[#525955] max-w-sm mx-auto">
             {searchTerm
               ? `No applicants matched "${searchTerm}". Try adjusting your search term.`
-              : `There are currently no dealer applications matching the selected status.`}
+              : `There are currently no dealer applications matching the selected filter.`}
           </p>
           <button
             type="button"
@@ -472,11 +609,11 @@ export const AdminDealersPage: React.FC = () => {
               <thead>
                 <tr className="border-b border-[#e6e8e5] bg-[#f8faf9] text-[11px] font-bold text-[#525955] uppercase tracking-wider">
                   <th className="py-3.5 px-4 sm:px-6">Business / Yard Name</th>
+                  <th className="py-3.5 px-4">GSTIN & Legal Name</th>
                   <th className="py-3.5 px-4">Contact Person</th>
                   <th className="py-3.5 px-4">Operational Area</th>
-                  <th className="py-3.5 px-4">Fleet Type</th>
                   <th className="py-3.5 px-4 text-center">Status</th>
-                  <th className="py-3.5 px-4 sm:px-6 text-right">Admin Actions</th>
+                  <th className="py-3.5 px-4 sm:px-6 text-right">Review Action</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-[#f1f3f1] text-xs">
@@ -497,6 +634,29 @@ export const AdminDealersPage: React.FC = () => {
                           </span>
                         </div>
                       </div>
+                    </td>
+
+                    {/* GSTIN & Legal Name */}
+                    <td className="py-4 px-4">
+                      {app.gstin ? (
+                        <div className="space-y-0.5">
+                          <span className="inline-block px-2 py-0.5 rounded bg-blue-50 text-blue-900 border border-blue-200 font-mono font-bold text-[11px]">
+                            {app.gstin}
+                          </span>
+                          <p className="text-[11px] text-[#525955] font-medium line-clamp-1">
+                            {app.legalBusinessName || 'Not specified'}
+                          </p>
+                          {app.gstCertificateUrl && (
+                            <span className="inline-flex items-center gap-1 text-[10px] text-emerald-700 font-semibold">
+                              <FileText className="w-3 h-3" /> Certificate Uploaded
+                            </span>
+                          )}
+                        </div>
+                      ) : (
+                        <span className="inline-block px-2 py-0.5 rounded bg-gray-100 text-[#717a75] text-[11px] font-medium">
+                          No GST Provided
+                        </span>
+                      )}
                     </td>
 
                     {/* Contact Person */}
@@ -526,14 +686,6 @@ export const AdminDealersPage: React.FC = () => {
                       </div>
                     </td>
 
-                    {/* Fleet Type */}
-                    <td className="py-4 px-4">
-                      <div className="flex items-center gap-1.5 text-[#525955]">
-                        <Truck className="w-3.5 h-3.5 text-[#717a75] shrink-0" />
-                        <span>{app.vehicleType}</span>
-                      </div>
-                    </td>
-
                     {/* Status Badge */}
                     <td className="py-4 px-4 text-center">
                       {app.status === 'pending' ? (
@@ -556,67 +708,14 @@ export const AdminDealersPage: React.FC = () => {
 
                     {/* Actions */}
                     <td className="py-4 px-4 sm:px-6 text-right whitespace-nowrap">
-                      <div className="flex items-center justify-end gap-1.5">
-                        <button
-                          type="button"
-                          onClick={() => setSelectedApp(app)}
-                          className="p-1.5 rounded-lg text-[#525955] hover:text-[#123b26] hover:bg-[#f1f3f1] transition-colors"
-                          title="View Details"
-                        >
-                          <Eye className="w-4 h-4" />
-                        </button>
-
-                        {app.status === 'pending' ? (
-                          <>
-                            <button
-                              type="button"
-                              disabled={isProcessing}
-                              onClick={() => handleApprove(app)}
-                              className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-xs font-bold bg-[#16a34a] hover:bg-[#15803d] text-white shadow-2xs transition-all active:scale-[0.98] disabled:opacity-50"
-                              title="Approve and Grant Dealer Access"
-                            >
-                              <CheckCircle2 className="w-3.5 h-3.5" />
-                              <span>Approve</span>
-                            </button>
-                            <button
-                              type="button"
-                              disabled={isProcessing}
-                              onClick={() => {
-                                setRejectModalApp(app);
-                                setRejectionReason('');
-                              }}
-                              className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-xs font-bold bg-rose-600 hover:bg-rose-700 text-white shadow-2xs transition-all active:scale-[0.98] disabled:opacity-50"
-                              title="Reject Application"
-                            >
-                              <XCircle className="w-3.5 h-3.5" />
-                              <span>Reject</span>
-                            </button>
-                          </>
-                        ) : app.status === 'rejected' ? (
-                          <button
-                            type="button"
-                            disabled={isProcessing}
-                            onClick={() => handleApprove(app)}
-                            className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-xs font-bold bg-white text-[#16a34a] border border-[#16a34a] hover:bg-emerald-50 transition-all"
-                            title="Re-verify and Approve"
-                          >
-                            <span>Re-approve</span>
-                          </button>
-                        ) : (
-                          <button
-                            type="button"
-                            disabled={isProcessing}
-                            onClick={() => {
-                              setRejectModalApp(app);
-                              setRejectionReason('');
-                            }}
-                            className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-xs font-medium text-rose-700 hover:bg-rose-50 border border-rose-200 transition-all"
-                            title="Revoke Verification"
-                          >
-                            <span>Revoke</span>
-                          </button>
-                        )}
-                      </div>
+                      <button
+                        type="button"
+                        onClick={() => setSelectedApp(app)}
+                        className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-bold bg-[#123b26] hover:bg-[#1a5336] text-white shadow-2xs transition-all active:scale-[0.98]"
+                      >
+                        <Eye className="w-3.5 h-3.5" />
+                        <span>Review & Verify</span>
+                      </button>
                     </td>
                   </tr>
                 ))}
@@ -627,21 +726,37 @@ export const AdminDealersPage: React.FC = () => {
       )}
 
       {/* ============================================================== */}
-      {/* DETAILS MODAL                                                 */}
+      {/* REVIEW & VERIFICATION MODAL                                    */}
       {/* ============================================================== */}
       {selectedApp && (
-        <div className="fixed inset-0 z-[9999] flex items-center justify-center p-4">
+        <div className="fixed inset-0 z-[9999] flex items-center justify-center p-4 overflow-y-auto">
           <div
             className="fixed inset-0 bg-[#0a2417]/65 backdrop-blur-xs"
             onClick={() => setSelectedApp(null)}
           />
-          <div className="relative w-full max-w-lg rounded-3xl bg-white p-6 sm:p-8 shadow-2xl border border-[#e6e8e5] animate-in zoom-in-95 space-y-6">
+          <div className="relative w-full max-w-2xl max-h-[90vh] overflow-y-auto rounded-3xl bg-white p-6 sm:p-8 shadow-2xl border border-[#e6e8e5] animate-in zoom-in-95 space-y-6">
+            {/* Header */}
             <div className="flex items-start justify-between border-b border-[#f1f3f1] pb-4">
               <div>
-                <span className="text-[11px] font-bold text-[#16a34a] uppercase tracking-wider">
-                  Dealer Partner Profile
-                </span>
-                <h3 className="text-xl font-extrabold text-[#123b26] mt-0.5">
+                <div className="flex items-center gap-2 mb-1">
+                  <span className="text-[11px] font-bold text-[#16a34a] uppercase tracking-wider">
+                    Dealer Verification Review
+                  </span>
+                  {selectedApp.status === 'verified' ? (
+                    <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-100 text-emerald-950">
+                      <CheckCircle2 className="w-3 h-3 text-emerald-700" /> Verified Partner
+                    </span>
+                  ) : selectedApp.status === 'pending' ? (
+                    <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold bg-amber-100 text-amber-900">
+                      <Clock className="w-3 h-3 text-amber-600" /> Pending Review
+                    </span>
+                  ) : (
+                    <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold bg-rose-100 text-rose-900">
+                      <XCircle className="w-3 h-3 text-rose-600" /> Rejected
+                    </span>
+                  )}
+                </div>
+                <h3 className="text-xl font-extrabold text-[#123b26]">
                   {selectedApp.businessName}
                 </h3>
               </div>
@@ -654,144 +769,246 @@ export const AdminDealersPage: React.FC = () => {
               </button>
             </div>
 
-            <div className="grid grid-cols-2 gap-4 text-xs">
-              <div className="p-3 rounded-xl bg-[#f8faf9] border border-[#e5e8e5]">
-                <span className="text-[#717a75] block font-semibold mb-1">Status</span>
-                {selectedApp.status === 'verified' ? (
-                  <span className="font-bold text-emerald-700 flex items-center gap-1">
-                    <CheckCircle2 className="w-3.5 h-3.5" /> Verified & Active
-                  </span>
-                ) : selectedApp.status === 'pending' ? (
-                  <span className="font-bold text-amber-700 flex items-center gap-1">
-                    <Clock className="w-3.5 h-3.5" /> Pending Admin Review
-                  </span>
+            {/* Official GST Portal Manual Verification Banner */}
+            <div className="p-4 rounded-2xl bg-amber-50/80 border border-amber-300 text-amber-950 space-y-2.5">
+              <div className="flex items-start gap-2.5">
+                <AlertTriangle className="w-5 h-5 text-amber-700 shrink-0 mt-0.5" />
+                <div className="text-xs">
+                  <h4 className="font-extrabold text-amber-950">
+                    Mandatory Manual Verification Protocol
+                  </h4>
+                  <p className="text-amber-900/90 mt-0.5 leading-relaxed">
+                    Urban Scrap does not perform automated government lookups. The administrator must manually cross-verify the submitted GSTIN, legal business name, and active registration status on the official GST portal before granting approval.
+                  </p>
+                </div>
+              </div>
+
+              <div className="pt-1 flex flex-wrap items-center gap-2">
+                <a
+                  href="https://services.gst.gov.in/services/searchtp"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl text-xs font-bold bg-[#123b26] hover:bg-[#1a5336] text-white shadow-xs transition-colors"
+                >
+                  <ExternalLink className="w-3.5 h-3.5" />
+                  <span>Open Official GST Portal (searchtp)</span>
+                </a>
+                {selectedApp.gstin && (
+                  <button
+                    type="button"
+                    onClick={() => copyToClipboard(selectedApp.gstin!)}
+                    className="inline-flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-semibold bg-white text-[#123b26] border border-amber-300 hover:bg-amber-100/50 transition-colors"
+                  >
+                    {copiedGstin ? <Check className="w-3.5 h-3.5 text-emerald-600" /> : <Copy className="w-3.5 h-3.5" />}
+                    <span>{copiedGstin ? 'Copied GSTIN' : 'Copy GSTIN'}</span>
+                  </button>
+                )}
+              </div>
+            </div>
+
+            {/* Application Data Grid */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 text-xs">
+              {/* GSTIN Box */}
+              <div className="p-3.5 rounded-xl bg-[#f8faf9] border border-[#e5e8e5] sm:col-span-2">
+                <div className="flex items-center justify-between mb-1">
+                  <span className="text-[#717a75] font-semibold">Submitted GSTIN</span>
+                  {selectedApp.gstin && (
+                    <button
+                      type="button"
+                      onClick={() => copyToClipboard(selectedApp.gstin!)}
+                      className="text-[#16a34a] hover:underline font-bold inline-flex items-center gap-1"
+                    >
+                      <Copy className="w-3 h-3" /> Copy
+                    </button>
+                  )}
+                </div>
+                <div className="text-base font-mono font-extrabold text-[#123b26]">
+                  {selectedApp.gstin || 'No GSTIN submitted'}
+                </div>
+              </div>
+
+              {/* Legal Name */}
+              <div className="p-3.5 rounded-xl bg-[#f8faf9] border border-[#e5e8e5]">
+                <span className="text-[#717a75] block font-semibold mb-1">GST-Registered Legal Name</span>
+                <span className="font-bold text-[#123b26] block">
+                  {selectedApp.legalBusinessName || selectedApp.businessName}
+                </span>
+              </div>
+
+              {/* State */}
+              <div className="p-3.5 rounded-xl bg-[#f8faf9] border border-[#e5e8e5]">
+                <span className="text-[#717a75] block font-semibold mb-1">Registered State</span>
+                <span className="font-bold text-[#123b26] block">
+                  {selectedApp.state || 'Karnataka'}
+                </span>
+              </div>
+
+              {/* Registered Address */}
+              <div className="p-3.5 rounded-xl bg-[#f8faf9] border border-[#e5e8e5] sm:col-span-2">
+                <span className="text-[#717a75] block font-semibold mb-1">Registered Business Address</span>
+                <span className="text-[#191c1a] block leading-relaxed">
+                  {selectedApp.businessAddress || 'Not provided'}
+                </span>
+              </div>
+
+              {/* Certificate Download/View */}
+              <div className="p-3.5 rounded-xl bg-[#f8faf9] border border-[#e5e8e5] sm:col-span-2">
+                <span className="text-[#717a75] block font-semibold mb-1">GST Registration Certificate</span>
+                {selectedApp.gstCertificateUrl ? (
+                  <a
+                    href={selectedApp.gstCertificateUrl}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold bg-white text-[#16a34a] border border-[#16a34a] hover:bg-emerald-50 transition-colors"
+                  >
+                    <FileText className="w-3.5 h-3.5" />
+                    <span>View Submitted Certificate (PDF/Image)</span>
+                    <ExternalLink className="w-3 h-3" />
+                  </a>
                 ) : (
-                  <span className="font-bold text-rose-700 flex items-center gap-1">
-                    <XCircle className="w-3.5 h-3.5" /> Application Rejected
-                  </span>
+                  <span className="text-[#717a75] italic">No document file uploaded</span>
                 )}
               </div>
 
-              <div className="p-3 rounded-xl bg-[#f8faf9] border border-[#e5e8e5]">
-                <span className="text-[#717a75] block font-semibold mb-1">Fleet Type</span>
-                <span className="font-bold text-[#123b26]">{selectedApp.vehicleType}</span>
-              </div>
-
-              <div className="p-3 rounded-xl bg-[#f8faf9] border border-[#e5e8e5]">
+              {/* Contact and Operational info */}
+              <div className="p-3.5 rounded-xl bg-[#f8faf9] border border-[#e5e8e5]">
                 <span className="text-[#717a75] block font-semibold mb-1">Contact Person</span>
                 <span className="font-bold text-[#123b26]">{selectedApp.applicantName}</span>
+                <div className="text-[#525955] mt-1">+91 {selectedApp.phone}</div>
               </div>
 
-              <div className="p-3 rounded-xl bg-[#f8faf9] border border-[#e5e8e5]">
-                <span className="text-[#717a75] block font-semibold mb-1">Phone Number</span>
-                <span className="font-bold text-[#123b26]">+91 {selectedApp.phone}</span>
+              <div className="p-3.5 rounded-xl bg-[#f8faf9] border border-[#e5e8e5]">
+                <span className="text-[#717a75] block font-semibold mb-1">Operational Fleet</span>
+                <span className="font-bold text-[#123b26]">{selectedApp.vehicleType}</span>
+                <div className="text-[#525955] mt-1">{selectedApp.serviceArea}</div>
               </div>
 
-              <div className="p-3 rounded-xl bg-[#f8faf9] border border-[#e5e8e5] col-span-2">
-                <span className="text-[#717a75] block font-semibold mb-1">Operational Area</span>
-                <span className="font-bold text-[#123b26]">{selectedApp.serviceArea}</span>
+              {/* Submission Date */}
+              <div className="p-3.5 rounded-xl bg-[#f8faf9] border border-[#e5e8e5] sm:col-span-2">
+                <div className="flex items-center gap-2 text-[#717a75]">
+                  <Calendar className="w-3.5 h-3.5" />
+                  <span>
+                    Application Submitted:{' '}
+                    <strong className="text-[#191c1a]">
+                      {new Date(selectedApp.submittedAt || selectedApp.createdAt).toLocaleString()}
+                    </strong>
+                  </span>
+                </div>
+              </div>
+            </div>
+
+            {/* Audit History (if any) */}
+            {auditReviews.length > 0 && (
+              <div className="p-4 rounded-2xl bg-[#f8faf9] border border-[#e5e8e5] space-y-2 text-xs">
+                <div className="flex items-center gap-1.5 font-bold text-[#123b26]">
+                  <History className="w-3.5 h-3.5 text-[#16a34a]" />
+                  <span>Previous Review History</span>
+                </div>
+                <div className="divide-y divide-[#e5e8e5]">
+                  {auditReviews.map((rev) => (
+                    <div key={rev.id} className="py-2 space-y-1">
+                      <div className="flex items-center justify-between">
+                        <span className={`font-bold uppercase text-[10px] px-2 py-0.5 rounded-full ${
+                          rev.action === 'approved'
+                            ? 'bg-emerald-100 text-emerald-950'
+                            : 'bg-rose-100 text-rose-950'
+                        }`}>
+                          {rev.action}
+                        </span>
+                        <span className="text-[10px] text-[#717a75]">
+                          {new Date(rev.createdAt).toLocaleString()}
+                        </span>
+                      </div>
+                      {rev.notes && (
+                        <p className="text-[#525955] italic text-[11px]">{rev.notes}</p>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {/* Admin Review Notes & Actions */}
+            <div className="space-y-3 pt-2 border-t border-[#f1f3f1]">
+              <div>
+                <label className="block text-xs font-bold text-[#123b26] mb-1">
+                  Internal Review Notes (Optional for approval, recorded in audit log)
+                </label>
+                <textarea
+                  rows={2}
+                  placeholder="e.g. Cross-checked with GST portal. Name and address verified against Peenya tax jurisdiction."
+                  value={reviewNotes}
+                  onChange={(e) => setReviewNotes(e.target.value)}
+                  className="w-full p-2.5 text-xs rounded-xl border border-[#d1d5db] bg-white focus:outline-none focus:ring-2 focus:ring-[#16a34a]"
+                />
               </div>
 
-              {selectedApp.rejectionReason && (
-                <div className="p-3 rounded-xl bg-rose-50 border border-rose-200 text-rose-900 col-span-2">
-                  <span className="font-bold block mb-1">Rejection Reason:</span>
-                  <span>{selectedApp.rejectionReason}</span>
+              {/* If rejecting, show required rejection reason */}
+              {showRejectInput && (
+                <div className="p-4 rounded-2xl bg-rose-50/70 border border-rose-300 space-y-2 animate-in fade-in">
+                  <div className="flex items-center gap-1.5 text-rose-900 font-bold text-xs">
+                    <XCircle className="w-4 h-4 text-rose-600 shrink-0" />
+                    <span>Rejection Reason (Required — shown to dealer for resubmission)</span>
+                  </div>
+                  <textarea
+                    rows={2}
+                    placeholder="e.g. GSTIN provided does not match the legal business name or is marked inactive/cancelled on the GST portal."
+                    value={rejectionReason}
+                    onChange={(e) => setRejectionReason(e.target.value)}
+                    className="w-full p-2.5 text-xs rounded-xl border border-rose-300 bg-white focus:outline-none focus:ring-2 focus:ring-rose-500"
+                  />
+                  <div className="flex justify-end gap-2">
+                    <button
+                      type="button"
+                      onClick={() => setShowRejectInput(false)}
+                      className="px-3 py-1.5 rounded-lg text-xs font-semibold text-[#525955] hover:bg-white"
+                    >
+                      Cancel Reject
+                    </button>
+                    <button
+                      type="button"
+                      disabled={isProcessing || !rejectionReason.trim()}
+                      onClick={() => handleConfirmReject(selectedApp)}
+                      className="px-4 py-1.5 rounded-lg text-xs font-bold bg-rose-600 hover:bg-rose-700 text-white shadow-xs disabled:opacity-50"
+                    >
+                      {isProcessing ? 'Rejecting...' : 'Confirm Rejection'}
+                    </button>
+                  </div>
                 </div>
               )}
-            </div>
 
-            <div className="flex items-center justify-end gap-2.5 pt-2 border-t border-[#f1f3f1]">
-              {selectedApp.status === 'pending' ? (
-                <>
+              {/* Action Buttons */}
+              {!showRejectInput && (
+                <div className="flex items-center justify-between pt-2">
                   <button
                     type="button"
-                    onClick={() => {
-                      const app = selectedApp;
-                      setSelectedApp(null);
-                      setRejectModalApp(app);
-                    }}
-                    className="px-4 py-2 rounded-xl text-xs font-bold text-rose-600 hover:bg-rose-50 border border-rose-200"
+                    onClick={() => setSelectedApp(null)}
+                    className="px-4 py-2 rounded-xl text-xs font-semibold text-[#525955] hover:bg-[#f1f3f1]"
                   >
-                    Reject Application
+                    Close
                   </button>
-                  <button
-                    type="button"
-                    onClick={() => {
-                      handleApprove(selectedApp);
-                      setSelectedApp(null);
-                    }}
-                    className="px-5 py-2 rounded-xl text-xs font-bold bg-[#16a34a] hover:bg-[#15803d] text-white shadow-md"
-                  >
-                    Approve Partner
-                  </button>
-                </>
-              ) : (
-                <button
-                  type="button"
-                  onClick={() => setSelectedApp(null)}
-                  className="px-5 py-2 rounded-xl text-xs font-bold bg-[#123b26] text-white"
-                >
-                  Close
-                </button>
+
+                  <div className="flex items-center gap-2">
+                    <button
+                      type="button"
+                      disabled={isProcessing}
+                      onClick={() => setShowRejectInput(true)}
+                      className="px-4 py-2 rounded-xl text-xs font-bold text-rose-700 bg-rose-50 hover:bg-rose-100 border border-rose-200 transition-colors"
+                    >
+                      Reject Application
+                    </button>
+                    <button
+                      type="button"
+                      disabled={isProcessing}
+                      onClick={() => handleApprove(selectedApp)}
+                      className="inline-flex items-center gap-1.5 px-5 py-2 rounded-xl text-xs font-bold bg-[#16a34a] hover:bg-[#15803d] text-white shadow-md transition-all active:scale-[0.98] disabled:opacity-50"
+                    >
+                      <CheckCircle2 className="w-4 h-4" />
+                      <span>{isProcessing ? 'Approving...' : 'Approve & Unlock Portal'}</span>
+                    </button>
+                  </div>
+                </div>
               )}
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* ============================================================== */}
-      {/* REJECTION CONFIRMATION MODAL                                   */}
-      {/* ============================================================== */}
-      {rejectModalApp && (
-        <div className="fixed inset-0 z-[9999] flex items-center justify-center p-4">
-          <div
-            className="fixed inset-0 bg-[#0a2417]/65 backdrop-blur-xs"
-            onClick={() => setRejectModalApp(null)}
-          />
-          <div className="relative w-full max-w-md rounded-3xl bg-white p-6 sm:p-8 shadow-2xl border border-[#e6e8e5] animate-in zoom-in-95 space-y-4">
-            <div className="w-12 h-12 rounded-2xl bg-rose-50 text-rose-600 flex items-center justify-center">
-              <XCircle className="w-7 h-7 stroke-[2.2]" />
-            </div>
-
-            <div className="space-y-1">
-              <h3 className="text-xl font-extrabold text-[#123b26]">
-                Reject Dealer Application?
-              </h3>
-              <p className="text-xs text-[#525955] leading-relaxed">
-                You are about to reject the application for{' '}
-                <strong className="text-[#191c1a]">{rejectModalApp.businessName}</strong>. The applicant will not receive Dealer Dashboard access.
-              </p>
-            </div>
-
-            <div>
-              <label className="block text-xs font-bold text-[#191c1a] mb-1">
-                Reason for Rejection (Optional)
-              </label>
-              <textarea
-                rows={3}
-                placeholder="e.g. Incomplete GST credentials or outside operational city boundaries."
-                value={rejectionReason}
-                onChange={(e) => setRejectionReason(e.target.value)}
-                className="w-full p-3 text-xs rounded-xl border border-[#d1d5db] bg-white focus:outline-none focus:ring-2 focus:ring-rose-500"
-              />
-            </div>
-
-            <div className="flex items-center justify-end gap-2 pt-2">
-              <button
-                type="button"
-                onClick={() => setRejectModalApp(null)}
-                className="px-4 py-2 rounded-xl text-xs font-semibold text-[#525955] hover:bg-[#f1f3f1]"
-              >
-                Cancel
-              </button>
-              <button
-                type="button"
-                disabled={isProcessing}
-                onClick={handleConfirmReject}
-                className="px-5 py-2 rounded-xl text-xs font-bold bg-rose-600 hover:bg-rose-700 text-white shadow-md disabled:opacity-50"
-              >
-                {isProcessing ? 'Rejecting...' : 'Confirm Rejection'}
-              </button>
             </div>
           </div>
         </div>

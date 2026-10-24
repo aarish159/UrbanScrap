@@ -23,9 +23,23 @@ function renderSpaFallbackPlugin(): Plugin {
         fs.copyFileSync(indexHtmlPath, path.join(distDir, '404.html'))
         fs.copyFileSync(indexHtmlPath, path.join(distDir, '200.html'))
 
-        const callbackDir = path.join(distDir, 'auth', 'callback')
-        fs.mkdirSync(callbackDir, { recursive: true })
-        fs.copyFileSync(indexHtmlPath, path.join(callbackDir, 'index.html'))
+        const routes = [
+          path.join('auth', 'callback'),
+          path.join('dealer', 'verify-gst'),
+          'dealer',
+          'admin',
+          path.join('admin', 'dealers'),
+          'prices',
+          'book',
+          'bookings',
+          'reset-password',
+        ]
+
+        for (const route of routes) {
+          const targetDir = path.join(distDir, route)
+          fs.mkdirSync(targetDir, { recursive: true })
+          fs.copyFileSync(indexHtmlPath, path.join(targetDir, 'index.html'))
+        }
       }
     },
   }

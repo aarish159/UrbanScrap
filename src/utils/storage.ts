@@ -1,4 +1,4 @@
-import type { Booking, BookingStatus, DealerApplication } from '../types';
+import type { Booking, BookingStatus, DealerApplication, DealerReview } from '../types';
 import { SEED_BOOKINGS, DEMO_DEALER, SAMPLE_DEALER_APPLICATIONS } from '../data/mockData';
 
 const STORAGE_KEY = 'urban_scrap_bookings_v1';
@@ -191,21 +191,70 @@ export function saveDealerApplication(app: DealerApplication): void {
   );
 }
 
-export function updateDealerApplicationStatus(
-  id: string,
-  newStatus: 'verified' | 'rejected',
-  rejectionReason?: string
-): DealerApplication | null {
+const REVIEWS_STORAGE_KEY = 'urban_scrap_dealer_reviews_v1';
+let memoryReviews: DealerReview[] | null = null;
+
+export function getDealerReviews(dealerId?: string): DealerReview[] {
+  let all: DealerReview[] = [];
+  if (!isLocalStorageAvailable()) {
+    all = memoryReviews || [];
+  } else {
+    try {
+      const stored = window.localStorage.getItem(REVIEWS_STORAGE_KEY);
+      all = stored ? JSON.parse(stored) : [];
+    } catch {
+      all = [];
+    }
+  }
+
+  if (dealerId) {
+    return all.filter((r) => r.dealerId === dealerId).sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+  }
+  return all.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+}
+
+export function saveDealerReview(review: DealerReview): void {
+  const current = getDealerReviews();
+  const updated = [review, ...current];
+
+  if (!isLocalStorageAvailable()) {
+    memoryReviews = updated;
+  } else {
+    try {
+      window.localStorage.setItem(REVIEWS_STORAGE_KEY, JSON.stringify(updated));
+    } catch (e) {
+      console.error('LocalStorage write error for reviews:', e);
+      memoryReviews = updated;
+    }
+  }
+}
+
+export function submitDealerGstDetails(params: {
+  dealerId: string;
+  gstin: string;
+  legalBusinessName: string;
+  businessAddress: string;
+  state: string;
+  gstCertificateUrl?: string | null;
+}): DealerApplication | null {
   const current = getDealerApplications();
-  const index = current.findIndex((d) => d.id === id);
+  const index = current.findIndex((d) => d.id === params.dealerId || d.userId === params.dealerId);
   if (index === -1) return null;
 
   const target = current[index];
+  const isResubmission = target.status === 'rejected';
+
   const updatedApp: DealerApplication = {
     ...target,
-    status: newStatus,
-    isVerified: newStatus === 'verified',
-    rejectionReason: newStatus === 'rejected' ? rejectionReason || 'Application rejected by administration.' : undefined,
+    gstin: params.gstin.trim().toUpperCase(),
+    legalBusinessName: params.legalBusinessName.trim(),
+    businessAddress: params.businessAddress.trim(),
+    state: params.state.trim(),
+    gstCertificateUrl: params.gstCertificateUrl || target.gstCertificateUrl || null,
+    status: 'pending',
+    isVerified: false,
+    rejectionReason: null, // Cleared on resubmission
+    submittedAt: new Date().toISOString(),
     updatedAt: new Date().toISOString(),
   };
 
@@ -221,6 +270,73 @@ export function updateDealerApplicationStatus(
       memoryDealers = current;
     }
   }
+
+  // Audit review trail
+  saveDealerReview({
+    id: `rev-${Date.now()}-${Math.random().toString(36).substring(2, 7)}`,
+    dealerId: target.id,
+    action: isResubmission ? 'resubmitted' : 'submitted',
+    notes: isResubmission ? 'Dealer updated and resubmitted GST credentials after rejection.' : 'Initial GST registration credentials submitted.',
+    createdAt: new Date().toISOString(),
+  });
+
+  window.dispatchEvent(
+    new CustomEvent(DEALER_EVENT_NAME, { detail: { action: 'update', app: updatedApp } })
+  );
+  return updatedApp;
+}
+
+export function updateDealerApplicationStatus(
+  id: string,
+  newStatus: 'approved' | 'rejected' | 'verified',
+  options?: {
+    rejectionReason?: string;
+    reviewNotes?: string;
+    adminId?: string;
+  }
+): DealerApplication | null {
+  const current = getDealerApplications();
+  const index = current.findIndex((d) => d.id === id);
+  if (index === -1) return null;
+
+  const target = current[index];
+  const canonicalStatus = newStatus === 'verified' || newStatus === 'approved' ? 'approved' : 'rejected';
+  const nowIso = new Date().toISOString();
+
+  const updatedApp: DealerApplication = {
+    ...target,
+    status: canonicalStatus,
+    isVerified: canonicalStatus === 'approved',
+    rejectionReason: canonicalStatus === 'rejected' ? options?.rejectionReason || 'Application rejected by administration.' : null,
+    reviewNotes: options?.reviewNotes || null,
+    reviewedBy: options?.adminId || 'admin',
+    reviewedAt: nowIso,
+    updatedAt: nowIso,
+  };
+
+  current[index] = updatedApp;
+
+  if (!isLocalStorageAvailable()) {
+    memoryDealers = current;
+  } else {
+    try {
+      window.localStorage.setItem(DEALERS_STORAGE_KEY, JSON.stringify(current));
+    } catch (e) {
+      console.error('LocalStorage update error:', e);
+      memoryDealers = current;
+    }
+  }
+
+  // Audit review trail
+  saveDealerReview({
+    id: `rev-${Date.now()}-${Math.random().toString(36).substring(2, 7)}`,
+    dealerId: target.id,
+    adminId: options?.adminId || 'admin',
+    action: canonicalStatus,
+    rejectionReason: canonicalStatus === 'rejected' ? options?.rejectionReason : undefined,
+    notes: options?.reviewNotes,
+    createdAt: nowIso,
+  });
 
   window.dispatchEvent(
     new CustomEvent(DEALER_EVENT_NAME, { detail: { action: 'update', app: updatedApp } })

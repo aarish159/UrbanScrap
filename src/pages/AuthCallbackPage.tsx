@@ -18,14 +18,32 @@ export const AuthCallbackPage: React.FC = () => {
     let isMounted = true;
 
     async function handleAuthCallback() {
+      const hash = window.location.hash ? window.location.hash.substring(1) : '';
+      const hashParams = new URLSearchParams(hash);
+
+      // Check if callback was triggered for recovery/password reset
+      const isRecovery =
+        searchParams.get('type') === 'recovery' ||
+        hashParams.get('type') === 'recovery' ||
+        searchParams.get('next')?.includes('reset-password') ||
+        sessionStorage.getItem('is_password_recovery') === 'true';
+
       // 1. Check for errors in query parameters or hash fragment
       const searchError = searchParams.get('error') || searchParams.get('error_code');
       const searchDesc = searchParams.get('error_description');
-
-      const hash = window.location.hash ? window.location.hash.substring(1) : '';
-      const hashParams = new URLSearchParams(hash);
       const hashError = hashParams.get('error') || hashParams.get('error_code');
       const hashDesc = hashParams.get('error_description');
+
+      if (
+        isRecovery ||
+        searchError === 'otp_expired' ||
+        hashError === 'otp_expired' ||
+        searchDesc?.toLowerCase().includes('recovery') ||
+        hashDesc?.toLowerCase().includes('recovery')
+      ) {
+        navigate('/reset-password' + window.location.search + window.location.hash, { replace: true });
+        return;
+      }
 
       if (searchError || hashError) {
         const rawDesc = searchDesc || hashDesc || 'Authentication was cancelled or failed with provider.';

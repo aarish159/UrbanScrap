@@ -76,6 +76,18 @@ export interface DealerMetrics {
   indicativeEarnings: number;
 }
 
+export type DealerVerificationStatus = 'pending' | 'approved' | 'rejected' | 'verified';
+
+export interface DealerReview {
+  id: string;
+  dealerId: string;
+  adminId?: string | null;
+  action: 'submitted' | 'resubmitted' | 'approved' | 'rejected';
+  rejectionReason?: string | null;
+  notes?: string | null;
+  createdAt: string;
+}
+
 export interface DealerApplication {
   id: string;
   userId?: string | null;
@@ -87,8 +99,18 @@ export interface DealerApplication {
   vehicleType: string;
   rating: number;
   isVerified: boolean;
-  status: 'pending' | 'verified' | 'rejected';
-  rejectionReason?: string;
+  status: DealerVerificationStatus;
+  gstin?: string | null;
+  legalBusinessName?: string | null;
+  businessAddress?: string | null;
+  state?: string | null;
+  gstCertificateUrl?: string | null;
+  rejectionReason?: string | null;
+  reviewNotes?: string | null;
+  reviewedBy?: string | null;
+  reviewedAt?: string | null;
+  submittedAt?: string | null;
   createdAt: string;
   updatedAt: string;
 }
+
