@@ -69,10 +69,14 @@ const GENERIC_AUTH_ERROR = 'Invalid email, phone number, or password. Please ver
 
 /**
  * Resolves the application base URL:
- * - Production: 'https://urbanscrap.onrender.com' (or configured VITE_APP_URL)
- * - Local development: 'http://localhost:3000' (or current window.location.origin)
+ * - Production on Render: 'https://urbanscrap.onrender.com' (or non-localhost VITE_APP_URL)
+ * - Local development: 'http://localhost:3000' (or current window.location.origin on local loopback)
+ *
+ * GUARANTEE: In production or when accessed via public hosts, this function will NEVER
+ * return a localhost URL, even if VITE_APP_URL was mistakenly set to localhost.
  */
 export function getAppBaseUrl(): string {
+  // 1. In browser window context
   if (typeof window !== 'undefined') {
     const hostname = window.location.hostname;
     const isLocalhost =
@@ -82,20 +86,43 @@ export function getAppBaseUrl(): string {
       hostname.startsWith('10.') ||
       hostname.endsWith('.local');
 
+    // ONLY allow localhost URLs when actively running on a local development machine
     if (isLocalhost) {
       return window.location.port ? `http://localhost:${window.location.port}` : 'http://localhost:3000';
     }
 
+    // Explicit check for Render production domain
     if (hostname.includes('urbanscrap.onrender.com') || hostname.includes('onrender.com')) {
       return 'https://urbanscrap.onrender.com';
     }
 
-    return window.location.origin.replace(/\/$/, '');
+    // Check configured VITE_APP_URL - ONLY use if it's NOT a localhost URL
+    const envUrl = (import.meta.env.VITE_APP_URL as string | undefined)?.trim();
+    if (envUrl && !envUrl.includes('localhost') && !envUrl.includes('127.0.0.1')) {
+      return envUrl.replace(/\/$/, '');
+    }
+
+    // If window.location.origin is available and not localhost
+    if (
+      window.location.origin &&
+      !window.location.origin.includes('localhost') &&
+      !window.location.origin.includes('127.0.0.1')
+    ) {
+      return window.location.origin.replace(/\/$/, '');
+    }
+
+    // Default to production origin
+    return 'https://urbanscrap.onrender.com';
   }
 
-  const configuredAppUrl = import.meta.env.VITE_APP_URL as string | undefined;
-  if (configuredAppUrl && configuredAppUrl.trim().length > 0) {
-    return configuredAppUrl.replace(/\/$/, '');
+  // 2. Non-browser context (SSR / build / test)
+  const envUrl = (import.meta.env.VITE_APP_URL as string | undefined)?.trim();
+  if (envUrl && !envUrl.includes('localhost') && !envUrl.includes('127.0.0.1')) {
+    return envUrl.replace(/\/$/, '');
+  }
+
+  if (import.meta.env.DEV) {
+    return 'http://localhost:3000';
   }
 
   return 'https://urbanscrap.onrender.com';
@@ -107,7 +134,10 @@ export function getAppBaseUrl(): string {
  * - Production: https://urbanscrap.onrender.com/auth/callback
  */
 export function getOAuthRedirectUrl(): string {
-  return `${getAppBaseUrl()}/auth/callback`;
+  const base = getAppBaseUrl();
+  const isHashRouting = typeof window !== 'undefined' && window.location.hash.startsWith('#/');
+  const route = isHashRouting ? '#/auth/callback' : 'auth/callback';
+  return `${base}/${route}`;
 }
 
 /**
@@ -116,7 +146,10 @@ export function getOAuthRedirectUrl(): string {
  * - Production: https://urbanscrap.onrender.com/reset-password
  */
 export function getResetPasswordRedirectUrl(): string {
-  return `${getAppBaseUrl()}/reset-password`;
+  const base = getAppBaseUrl();
+  const isHashRouting = typeof window !== 'undefined' && window.location.hash.startsWith('#/');
+  const route = isHashRouting ? '#/reset-password' : 'reset-password';
+  return `${base}/${route}`;
 }
 
 export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
