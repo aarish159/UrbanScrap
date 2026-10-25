@@ -11,9 +11,14 @@ export type MaterialCategory = 'paper' | 'plastic' | 'metal' | 'ewaste';
 export type BookingStatus =
   | 'requested'
   | 'dealer_assigned'
-  | 'in_progress'
+  | 'scheduled'
+  | 'on_the_way'
+  | 'collected_weighed'
+  | 'payment_completed'
   | 'completed'
-  | 'cancelled';
+  | 'rescheduled'
+  | 'cancelled'
+  | 'in_progress';
 
 export interface Database {
   public: {
@@ -169,6 +174,7 @@ export interface Database {
           assigned_dealer_id: string | null;
           status: BookingStatus;
           estimated_total: number;
+          actual_total: number | null;
           customer_name: string;
           phone_number: string;
           email: string | null;
@@ -178,6 +184,17 @@ export interface Database {
           pincode: string;
           preferred_date: string;
           time_slot: string;
+          scheduled_pickup_at: string | null;
+          scheduled_date: string | null;
+          scheduled_time_slot: string | null;
+          payment_method: 'cash' | 'upi' | 'bank_transfer' | null;
+          payment_amount: number | null;
+          payment_reference: string | null;
+          driver_note: string | null;
+          cancellation_reason: string | null;
+          reschedule_reason: string | null;
+          rescheduled_date: string | null;
+          rescheduled_time_slot: string | null;
           notes: string | null;
           created_at: string;
           updated_at: string;
@@ -188,6 +205,7 @@ export interface Database {
           assigned_dealer_id?: string | null;
           status?: BookingStatus;
           estimated_total?: number;
+          actual_total?: number | null;
           customer_name: string;
           phone_number: string;
           email?: string | null;
@@ -197,6 +215,17 @@ export interface Database {
           pincode: string;
           preferred_date: string;
           time_slot: string;
+          scheduled_pickup_at?: string | null;
+          scheduled_date?: string | null;
+          scheduled_time_slot?: string | null;
+          payment_method?: 'cash' | 'upi' | 'bank_transfer' | null;
+          payment_amount?: number | null;
+          payment_reference?: string | null;
+          driver_note?: string | null;
+          cancellation_reason?: string | null;
+          reschedule_reason?: string | null;
+          rescheduled_date?: string | null;
+          rescheduled_time_slot?: string | null;
           notes?: string | null;
           created_at?: string;
           updated_at?: string;
@@ -207,6 +236,7 @@ export interface Database {
           assigned_dealer_id?: string | null;
           status?: BookingStatus;
           estimated_total?: number;
+          actual_total?: number | null;
           customer_name?: string;
           phone_number?: string;
           email?: string | null;
@@ -216,6 +246,17 @@ export interface Database {
           pincode?: string;
           preferred_date?: string;
           time_slot?: string;
+          scheduled_pickup_at?: string | null;
+          scheduled_date?: string | null;
+          scheduled_time_slot?: string | null;
+          payment_method?: 'cash' | 'upi' | 'bank_transfer' | null;
+          payment_amount?: number | null;
+          payment_reference?: string | null;
+          driver_note?: string | null;
+          cancellation_reason?: string | null;
+          reschedule_reason?: string | null;
+          rescheduled_date?: string | null;
+          rescheduled_time_slot?: string | null;
           notes?: string | null;
           created_at?: string;
           updated_at?: string;
@@ -233,6 +274,9 @@ export interface Database {
           unit: 'kg' | 'piece';
           rate_per_unit: number;
           estimated_subtotal: number;
+          actual_quantity: number | null;
+          actual_rate: number | null;
+          actual_subtotal: number | null;
           created_at: string;
         };
         Insert: {
@@ -245,6 +289,9 @@ export interface Database {
           unit?: 'kg' | 'piece';
           rate_per_unit?: number;
           estimated_subtotal?: number;
+          actual_quantity?: number | null;
+          actual_rate?: number | null;
+          actual_subtotal?: number | null;
           created_at?: string;
         };
         Update: {
@@ -257,6 +304,9 @@ export interface Database {
           unit?: 'kg' | 'piece';
           rate_per_unit?: number;
           estimated_subtotal?: number;
+          actual_quantity?: number | null;
+          actual_rate?: number | null;
+          actual_subtotal?: number | null;
           created_at?: string;
         };
         Relationships: [];

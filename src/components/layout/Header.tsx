@@ -17,6 +17,8 @@ import { getBookings, subscribeToBookingChanges } from '../../utils/storage';
 import { useAuth } from '../../contexts/AuthContext';
 import { useToast } from '../ui/Toast';
 import { supabase, isSupabaseConfigured } from '../../lib/supabase';
+import type { BookingStatus } from '../../types';
+
 
 export const Header: React.FC = () => {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
@@ -28,12 +30,23 @@ export const Header: React.FC = () => {
 
   useEffect(() => {
     const updateCount = async () => {
+      const activeStatuses: BookingStatus[] = [
+        'requested',
+        'dealer_assigned',
+        'scheduled',
+        'on_the_way',
+        'in_progress',
+        'collected_weighed',
+        'payment_completed',
+        'rescheduled',
+      ];
+
       if (isSupabaseConfigured() && user) {
         try {
           const { count } = await supabase
             .from('bookings')
             .select('*', { count: 'exact', head: true })
-            .in('status', ['requested', 'dealer_assigned', 'in_progress']);
+            .in('status', activeStatuses);
 
           setBookingsCount(count || 0);
           return;
@@ -43,12 +56,7 @@ export const Header: React.FC = () => {
       }
 
       const all = getBookings();
-      const active = all.filter(
-        (b) =>
-          b.status === 'requested' ||
-          b.status === 'dealer_assigned' ||
-          b.status === 'in_progress'
-      );
+      const active = all.filter((b) => activeStatuses.includes(b.status));
       setBookingsCount(active.length);
     };
 

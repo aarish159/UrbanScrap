@@ -15,9 +15,14 @@ export interface Material {
 export type BookingStatus =
   | 'requested'
   | 'dealer_assigned'
-  | 'in_progress'
+  | 'scheduled'
+  | 'on_the_way'
+  | 'collected_weighed'
+  | 'payment_completed'
   | 'completed'
-  | 'cancelled';
+  | 'rescheduled'
+  | 'cancelled'
+  | 'in_progress';
 
 export interface SelectedMaterialItem {
   materialId: string;
@@ -27,6 +32,9 @@ export interface SelectedMaterialItem {
   unit: 'kg' | 'piece';
   ratePerUnit: number;
   estimatedSubtotal: number;
+  actualQuantity?: number;
+  actualRate?: number;
+  actualSubtotal?: number;
 }
 
 export interface PickupAddress {
@@ -59,8 +67,20 @@ export interface Booking {
   status: BookingStatus;
   materials: SelectedMaterialItem[];
   estimatedTotal: number;
+  actualTotal?: number;
   address: PickupAddress;
   assignedDealer?: AssignedDealer;
+  scheduledPickupAt?: string;
+  scheduledDate?: string;
+  scheduledTimeSlot?: string;
+  paymentMethod?: 'cash' | 'upi' | 'bank_transfer';
+  paymentAmount?: number;
+  paymentReference?: string;
+  driverNote?: string;
+  cancellationReason?: string;
+  rescheduleReason?: string;
+  rescheduledDate?: string;
+  rescheduledTimeSlot?: string;
   statusHistory: {
     status: BookingStatus;
     timestamp: string;

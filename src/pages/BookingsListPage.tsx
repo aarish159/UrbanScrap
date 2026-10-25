@@ -8,11 +8,11 @@ import {
   Sparkles,
   ChevronRight,
   Plus,
-  Scale,
-  Phone,
   Database,
   RefreshCw,
+  AlertTriangle,
 } from 'lucide-react';
+
 import type { Booking, BookingStatus } from '../types';
 import {
   getBookings,
@@ -21,11 +21,11 @@ import {
 } from '../utils/storage';
 import { formatINR, formatDate, formatDateTime, getStatusDetails } from '../utils/formatters';
 import { Modal } from '../components/ui/Modal';
-import { ConfirmDialog } from '../components/ui/ConfirmDialog';
 import { useToast } from '../components/ui/Toast';
 import { useScrollAnimation } from '../utils/useScrollAnimation';
 import { supabase, isSupabaseConfigured } from '../lib/supabase';
 import { useAuth } from '../contexts/AuthContext';
+import { PickupTrackerTimeline } from '../components/tracking/PickupTrackerTimeline';
 
 export const BookingsListPage: React.FC = () => {
   const [searchParams, setSearchParams] = useSearchParams();
@@ -37,6 +37,9 @@ export const BookingsListPage: React.FC = () => {
   const [loading, setLoading] = useState<boolean>(true);
   const [selectedBooking, setSelectedBooking] = useState<Booking | null>(null);
   const [cancellingBooking, setCancellingBooking] = useState<Booking | null>(null);
+  const [cancelReason, setCancelReason] = useState<string>('');
+  const [isSubmittingCancel, setIsSubmittingCancel] = useState<boolean>(false);
+  const [lastRefreshedAt, setLastRefreshedAt] = useState<Date>(new Date());
 
   // Fetch bookings function
   const fetchBookings = useCallback(async () => {
@@ -55,9 +58,21 @@ export const BookingsListPage: React.FC = () => {
             pincode,
             preferred_date,
             time_slot,
+            scheduled_pickup_at,
+            scheduled_date,
+            scheduled_time_slot,
             notes,
+            driver_note,
             status,
             estimated_total,
+            actual_total,
+            payment_method,
+            payment_amount,
+            payment_reference,
+            cancellation_reason,
+            reschedule_reason,
+            rescheduled_date,
+            rescheduled_time_slot,
             created_at,
             booking_items (
               id,
@@ -67,7 +82,10 @@ export const BookingsListPage: React.FC = () => {
               quantity,
               unit,
               rate_per_unit,
-              estimated_subtotal
+              estimated_subtotal,
+              actual_quantity,
+              actual_rate,
+              actual_subtotal
             ),
             dealers (
               id,
@@ -96,6 +114,18 @@ export const BookingsListPage: React.FC = () => {
             createdAt: b.created_at,
             status: b.status as BookingStatus,
             estimatedTotal: Number(b.estimated_total),
+            actualTotal: b.actual_total != null ? Number(b.actual_total) : undefined,
+            scheduledPickupAt: b.scheduled_pickup_at || undefined,
+            scheduledDate: b.scheduled_date || undefined,
+            scheduledTimeSlot: b.scheduled_time_slot || undefined,
+            paymentMethod: b.payment_method || undefined,
+            paymentAmount: b.payment_amount != null ? Number(b.payment_amount) : undefined,
+            paymentReference: b.payment_reference || undefined,
+            driverNote: b.driver_note || undefined,
+            cancellationReason: b.cancellation_reason || undefined,
+            rescheduleReason: b.reschedule_reason || undefined,
+            rescheduledDate: b.rescheduled_date || undefined,
+            rescheduledTimeSlot: b.rescheduled_time_slot || undefined,
             address: {
               fullName: b.customer_name,
               phoneNumber: b.phone_number,
@@ -116,6 +146,9 @@ export const BookingsListPage: React.FC = () => {
               unit: item.unit as any,
               ratePerUnit: Number(item.rate_per_unit),
               estimatedSubtotal: Number(item.estimated_subtotal),
+              actualQuantity: item.actual_quantity != null ? Number(item.actual_quantity) : undefined,
+              actualRate: item.actual_rate != null ? Number(item.actual_rate) : undefined,
+              actualSubtotal: item.actual_subtotal != null ? Number(item.actual_subtotal) : undefined,
             })),
             assignedDealer: b.dealers
               ? {
@@ -143,7 +176,7 @@ export const BookingsListPage: React.FC = () => {
 
           setBookings(mapped);
 
-          // Auto open if query param ?id=...
+          // Update currently open modal with fresh data
           const targetId = searchParams.get('id');
           if (targetId) {
             const found = mapped.find((bk) => bk.id.toLowerCase() === targetId.toLowerCase());
@@ -165,51 +198,107 @@ export const BookingsListPage: React.FC = () => {
       }
     }
     setLoading(false);
+    setLastRefreshedAt(new Date());
   }, [isConfigured, user, searchParams]);
 
   useEffect(() => {
     fetchBookings();
-    if (!isConfigured || !isSupabaseConfigured()) {
-      const unsubscribe = subscribeToBookingChanges(fetchBookings);
-      return () => unsubscribe();
-    }
-  }, [fetchBookings, isConfigured]);
 
-  // Cancel handler
+    // 1. Supabase Realtime channel subscription
+    let channel: any = null;
+    if (isConfigured && isSupabaseConfigured() && user) {
+      try {
+        channel = supabase
+          .channel(`customer-bookings-${user.id}`)
+          .on(
+            'postgres_changes',
+            {
+              event: '*',
+              schema: 'public',
+              table: 'bookings',
+              filter: `customer_id=eq.${user.id}`,
+            },
+            () => {
+              fetchBookings();
+            }
+          )
+          .on(
+            'postgres_changes',
+            {
+              event: 'INSERT',
+              schema: 'public',
+              table: 'booking_status_history',
+            },
+            () => {
+              fetchBookings();
+            }
+          )
+          .subscribe();
+      } catch (err) {
+        console.warn('Realtime channel subscription error:', err);
+      }
+    }
+
+    // 2. Local storage listener
+    const unsubscribeStorage = subscribeToBookingChanges(fetchBookings);
+
+    // 3. Sensible Polling Fallback Interval (20s) to keep live tracking fresh
+    const pollInterval = setInterval(() => {
+      fetchBookings();
+    }, 20000);
+
+    return () => {
+      if (channel) {
+        supabase.removeChannel(channel);
+      }
+      unsubscribeStorage();
+      clearInterval(pollInterval);
+    };
+  }, [fetchBookings, isConfigured, user]);
+
+  // Cancel handler with customer reason
   const handleConfirmCancel = async () => {
     if (!cancellingBooking) return;
+    setIsSubmittingCancel(true);
+    const reasonText = cancelReason.trim() || 'Cancelled by customer';
 
     if (isConfigured && isSupabaseConfigured() && user) {
       try {
         const { error } = await supabase
           .from('bookings')
-          .update({ status: 'cancelled' as BookingStatus })
+          .update({
+            status: 'cancelled' as BookingStatus,
+            cancellation_reason: reasonText,
+          })
           .eq('id', cancellingBooking.id);
 
         if (error) {
           showToast('Cancellation Failed', error.message, 'error');
-          setCancellingBooking(null);
+          setIsSubmittingCancel(false);
           return;
         }
 
         showToast(
           'Booking Cancelled',
-          `Pickup ${cancellingBooking.id} has been marked as cancelled in Supabase.`,
+          `Pickup ${cancellingBooking.id} has been cancelled in database.`,
           'info'
         );
         await fetchBookings();
         if (selectedBooking && selectedBooking.id === cancellingBooking.id) {
-          setSelectedBooking({ ...selectedBooking, status: 'cancelled' });
+          setSelectedBooking({
+            ...selectedBooking,
+            status: 'cancelled',
+            cancellationReason: reasonText,
+          });
         }
       } catch (err: any) {
         showToast('Error', err.message || 'Failed to cancel', 'error');
       }
     } else {
-      const updated = updateBookingStatus(
-        cancellingBooking.id,
-        'cancelled',
-        'Cancelled by customer from My Bookings'
-      );
+      const updated = updateBookingStatus(cancellingBooking.id, 'cancelled', {
+        cancellationReason: reasonText,
+        note: `Cancelled by customer: ${reasonText}`,
+      });
       if (updated) {
         showToast('Booking Cancelled', `Pickup ${cancellingBooking.id} has been cancelled.`, 'info');
         if (selectedBooking && selectedBooking.id === cancellingBooking.id) {
@@ -217,7 +306,9 @@ export const BookingsListPage: React.FC = () => {
         }
       }
     }
+    setIsSubmittingCancel(false);
     setCancellingBooking(null);
+    setCancelReason('');
   };
 
   const handleOpenDetails = (booking: Booking) => {
@@ -241,30 +332,33 @@ export const BookingsListPage: React.FC = () => {
             {isConfigured && isSupabaseConfigured() ? (
               <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-emerald-50 text-emerald-800 border border-emerald-200 text-xs font-semibold">
                 <Database className="w-3.5 h-3.5 text-emerald-600 shrink-0" />
-                <span>Supabase Cloud Connected • Secure RLS Active</span>
+                <span>Supabase Live Tracking Active</span>
               </div>
             ) : (
               <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-amber-50 text-amber-900 border border-amber-200 text-xs font-semibold">
                 <Sparkles className="w-3.5 h-3.5 text-amber-600 shrink-0" />
-                <span>Local Browser Sandbox • Demo Mode</span>
+                <span>Local Browser Sandbox • Sample Data</span>
               </div>
             )}
             <button
               type="button"
               onClick={() => fetchBookings()}
               disabled={loading}
-              className="inline-flex items-center gap-1 px-2.5 py-1 text-xs font-medium text-emerald-800 hover:text-emerald-950 bg-emerald-50/60 rounded-full border border-emerald-200/80 transition-colors"
-              title="Refresh bookings"
+              className="inline-flex items-center gap-1.5 px-2.5 py-1 text-xs font-medium text-emerald-800 hover:text-emerald-950 bg-emerald-50/80 rounded-full border border-emerald-200/90 transition-colors shadow-2xs"
+              title="Refresh tracking status"
             >
               <RefreshCw className={`w-3 h-3 ${loading ? 'animate-spin' : ''}`} />
-              <span>Refresh</span>
+              <span>{loading ? 'Refreshing...' : 'Refresh Status'}</span>
             </button>
+            <span className="text-[11px] text-[#717a75] hidden sm:inline">
+              Auto-syncs live • Last checked: {lastRefreshedAt.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' })}
+            </span>
           </div>
           <h1 className="text-3xl font-extrabold text-[#123b26] tracking-tight">
             My Pickup Bookings
           </h1>
           <p className="text-sm text-[#525955] mt-1">
-            Track your doorstep scrap requests, dealer assignments, scheduled time slots, and inspection status.
+            Realtime 7-stage doorstep pickup tracking, assigned collection partner, electronic weighing, and payout status.
           </p>
         </div>
 
@@ -304,15 +398,18 @@ export const BookingsListPage: React.FC = () => {
           {bookings.map((booking) => {
             const statusInfo = getStatusDetails(booking.status);
             const canCancel =
-              booking.status === 'requested' || booking.status === 'dealer_assigned';
+              booking.status === 'requested' ||
+              booking.status === 'dealer_assigned' ||
+              booking.status === 'scheduled' ||
+              booking.status === 'rescheduled';
 
             return (
               <div
                 key={booking.id}
-                className="bg-white rounded-2xl p-5 sm:p-6 border border-[#e6e8e5] shadow-xs hover:shadow-md transition-all flex flex-col lg:flex-row lg:items-center justify-between gap-6"
+                className="bg-white rounded-2xl p-5 sm:p-6 border border-[#e6e8e5] shadow-xs hover:shadow-md transition-all flex flex-col gap-4"
               >
-                {/* Left col: ID, Status, Items */}
-                <div className="space-y-3 flex-1 min-w-0">
+                {/* Top Row: ID, Status Badge, Payout */}
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
                   <div className="flex flex-wrap items-center gap-2.5">
                     <span className="font-extrabold text-base text-[#123b26] font-mono">
                       {booking.id}
@@ -325,7 +422,7 @@ export const BookingsListPage: React.FC = () => {
                     </span>
                     {booking.isDemoSample && (
                       <span className="px-2 py-0.5 text-[10px] font-semibold bg-gray-100 text-gray-700 rounded border border-gray-200">
-                        Seed Demo
+                        Sample Demo
                       </span>
                     )}
                     <span className="text-xs text-[#717a75]">
@@ -333,58 +430,63 @@ export const BookingsListPage: React.FC = () => {
                     </span>
                   </div>
 
-                  {/* Scheduled Slot & Address summary */}
-                  <div className="flex flex-wrap items-center gap-x-6 gap-y-1.5 text-xs text-[#525955]">
-                    <div className="flex items-center gap-1.5 font-bold text-[#191c1a]">
-                      <Calendar className="w-4 h-4 text-[#16a34a] shrink-0" />
-                      <span>{formatDate(booking.address.preferredDate)}</span>
-                    </div>
-                    <div className="flex items-center gap-1.5 font-medium">
-                      <Clock className="w-4 h-4 text-[#16a34a] shrink-0" />
-                      <span>{booking.address.timeSlot}</span>
-                    </div>
-                    <div className="flex items-center gap-1.5 font-medium">
-                      <MapPin className="w-4 h-4 text-[#16a34a] shrink-0" />
-                      <span>{booking.address.area}, {booking.address.city}</span>
-                    </div>
-                  </div>
-
-                  {/* Next Step / Status explanation */}
-                  <p className="text-xs text-[#717a75] italic">
-                    Next step: {statusInfo.description}
-                  </p>
-
-                  {/* Materials Pill Summary */}
-                  <div className="flex flex-wrap gap-1.5 pt-1">
-                    {booking.materials.map((m) => (
-                      <span
-                        key={m.materialId}
-                        className="px-2.5 py-1 text-xs rounded-lg bg-[#f8faf9] border border-[#e2e4e1] text-[#282c2a] font-medium"
-                      >
-                        {m.materialName} ({m.quantity} {m.unit})
-                      </span>
-                    ))}
+                  <div className="flex items-center gap-2 self-start sm:self-auto">
+                    <span className="text-xs text-[#717a75] font-semibold">
+                      {booking.actualTotal != null ? 'Verified Payout:' : 'Est. Payout:'}
+                    </span>
+                    <span className="text-lg font-black text-[#123b26]">
+                      {formatINR(booking.actualTotal != null ? booking.actualTotal : booking.estimatedTotal)}
+                    </span>
                   </div>
                 </div>
 
-                {/* Right col: Estimated Value & Actions */}
-                <div className="flex flex-row lg:flex-col items-center lg:items-end justify-between border-t lg:border-t-0 pt-4 lg:pt-0 border-[#f1f3f1] gap-4 shrink-0">
-                  <div className="lg:text-right">
-                    <span className="text-[11px] text-[#717a75] uppercase font-bold tracking-wider block">
-                      Estimated Payout
-                    </span>
-                    <span className="text-xl font-black text-[#123b26]">
-                      {formatINR(booking.estimatedTotal)}
-                    </span>
-                    <span className="text-[10px] text-[#9aa19d] block">Indicative estimate</span>
+                {/* Middle: Compact Stepper Timeline Bar */}
+                <div className="py-1">
+                  <PickupTrackerTimeline booking={booking} compact={true} />
+                </div>
+
+                {/* Bottom Row: Address, Slot, Items, Actions */}
+                <div className="flex flex-col lg:flex-row lg:items-center justify-between pt-3 border-t border-[#f1f3f1] gap-4">
+                  <div className="space-y-2 flex-1 min-w-0">
+                    <div className="flex flex-wrap items-center gap-x-6 gap-y-1.5 text-xs text-[#525955]">
+                      <div className="flex items-center gap-1.5 font-bold text-[#191c1a]">
+                        <Calendar className="w-4 h-4 text-[#16a34a] shrink-0" />
+                        <span>
+                          {formatDate(booking.scheduledDate || booking.address.preferredDate)}
+                        </span>
+                      </div>
+                      <div className="flex items-center gap-1.5 font-medium">
+                        <Clock className="w-4 h-4 text-[#16a34a] shrink-0" />
+                        <span>{booking.scheduledTimeSlot || booking.address.timeSlot}</span>
+                      </div>
+                      <div className="flex items-center gap-1.5 font-medium">
+                        <MapPin className="w-4 h-4 text-[#16a34a] shrink-0" />
+                        <span>{booking.address.area}, {booking.address.city}</span>
+                      </div>
+                    </div>
+
+                    {/* Materials Pill Summary */}
+                    <div className="flex flex-wrap gap-1.5">
+                      {booking.materials.map((m) => (
+                        <span
+                          key={m.materialId}
+                          className="px-2.5 py-0.5 text-xs rounded-lg bg-[#f8faf9] border border-[#e2e4e1] text-[#282c2a] font-medium"
+                        >
+                          {m.materialName} ({m.actualQuantity != null ? `${m.actualQuantity} ${m.unit} weighed` : `${m.quantity} ${m.unit}`})
+                        </span>
+                      ))}
+                    </div>
                   </div>
 
-                  <div className="flex items-center gap-2">
+                  <div className="flex items-center gap-2 self-end lg:self-center shrink-0">
                     {canCancel && (
                       <button
                         type="button"
-                        onClick={() => setCancellingBooking(booking)}
-                        className="px-3 py-2 text-xs font-semibold text-rose-600 hover:text-rose-800 hover:bg-rose-50 rounded-xl transition-colors"
+                        onClick={() => {
+                          setCancellingBooking(booking);
+                          setCancelReason('');
+                        }}
+                        className="px-3.5 py-2 text-xs font-semibold text-rose-600 hover:text-rose-800 hover:bg-rose-50 rounded-xl transition-colors"
                       >
                         Cancel
                       </button>
@@ -395,7 +497,7 @@ export const BookingsListPage: React.FC = () => {
                       onClick={() => handleOpenDetails(booking)}
                       className="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl text-xs font-bold bg-[#123b26] hover:bg-[#16a34a] text-white shadow-2xs transition-all active:scale-[0.98]"
                     >
-                      <span>View Details</span>
+                      <span>Track Pickup</span>
                       <ChevronRight className="w-4 h-4" />
                     </button>
                   </div>
@@ -406,85 +508,45 @@ export const BookingsListPage: React.FC = () => {
         </div>
       )}
 
-      {/* MODAL: BOOKING DETAILS */}
+      {/* MODAL: LIVE PICKUP TRACKER TIMELINE & DETAILS */}
       {selectedBooking && (
         <Modal
           isOpen={!!selectedBooking}
           onClose={handleCloseDetails}
-          title={`Booking Details: ${selectedBooking.id}`}
-          subtitle={`Created on ${formatDateTime(selectedBooking.createdAt)}`}
+          title={`Order Tracking: ${selectedBooking.id}`}
+          subtitle={`Placed on ${formatDateTime(selectedBooking.createdAt)}`}
           maxWidth="2xl"
         >
           <div className="space-y-6">
-            {/* Status Banner */}
-            {(() => {
-              const statusDetails = getStatusDetails(selectedBooking.status);
-              return (
-                <div
-                  className={`p-4 rounded-xl border flex items-start justify-between gap-3 ${statusDetails.badgeClass}`}
+            {/* Top Bar with Cancel option if eligible */}
+            {(selectedBooking.status === 'requested' ||
+              selectedBooking.status === 'dealer_assigned' ||
+              selectedBooking.status === 'scheduled' ||
+              selectedBooking.status === 'rescheduled') && (
+              <div className="flex items-center justify-between p-3 rounded-xl bg-stone-50 border border-stone-200 text-xs">
+                <span className="text-[#525955]">
+                  Need to change your pickup plan before collection partner arrives?
+                </span>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setCancellingBooking(selectedBooking);
+                    setCancelReason('');
+                  }}
+                  className="px-3 py-1 rounded-lg text-xs font-bold text-rose-700 bg-white hover:bg-rose-50 border border-rose-300 transition-colors shrink-0 ml-3"
                 >
-                  <div className="flex items-start gap-2.5">
-                    <span
-                      className={`w-3 h-3 rounded-full mt-1 shrink-0 ${statusDetails.dotClass}`}
-                    />
-                    <div>
-                      <h3 className="font-bold text-sm">Status: {statusDetails.label}</h3>
-                      <p className="text-xs mt-0.5 opacity-90">{statusDetails.description}</p>
-                    </div>
-                  </div>
-
-                  {(selectedBooking.status === 'requested' ||
-                    selectedBooking.status === 'dealer_assigned') && (
-                    <button
-                      type="button"
-                      onClick={() => {
-                        setCancellingBooking(selectedBooking);
-                      }}
-                      className="px-3 py-1 rounded-lg text-xs font-bold text-rose-700 bg-white/80 hover:bg-white border border-rose-300 transition-colors"
-                    >
-                      Cancel Pickup
-                    </button>
-                  )}
-                </div>
-              );
-            })()}
-
-            {/* Assigned Partner Card */}
-            {selectedBooking.assignedDealer && (
-              <div className="p-4 rounded-xl bg-[#f8faf9] border border-[#e2e4e1] space-y-2">
-                <div className="flex items-center justify-between">
-                  <span className="text-xs font-bold uppercase tracking-wider text-[#717a75]">
-                    Assigned Collection Partner
-                  </span>
-                  <span className="px-2 py-0.5 text-[10px] font-bold rounded bg-emerald-100 text-emerald-800">
-                    Verified Digital Partner
-                  </span>
-                </div>
-                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pt-1">
-                  <div>
-                    <h3 className="font-bold text-base text-[#123b26]">
-                      {selectedBooking.assignedDealer.name}
-                    </h3>
-                    <p className="text-xs text-[#525955]">
-                      {selectedBooking.assignedDealer.businessName} • Rating: {selectedBooking.assignedDealer.rating} ★
-                    </p>
-                    <p className="text-xs text-[#717a75] mt-0.5">
-                      Vehicle: {selectedBooking.assignedDealer.vehicleType}
-                    </p>
-                  </div>
-
-                  <div className="text-xs text-[#123b26] font-semibold bg-white px-3 py-2 rounded-lg border border-[#e2e4e1] self-start sm:self-center flex items-center gap-1.5">
-                    <Phone className="w-3.5 h-3.5 text-[#16a34a]" />
-                    <span>{selectedBooking.assignedDealer.phone}</span>
-                  </div>
-                </div>
+                  Cancel Pickup
+                </button>
               </div>
             )}
+
+            {/* Embedded 7-Step Pickup Tracker Timeline */}
+            <PickupTrackerTimeline booking={selectedBooking} compact={false} />
 
             {/* Materials Breakdown */}
             <div className="space-y-2">
               <span className="text-xs font-bold uppercase tracking-wider text-[#717a75] block">
-                Scrap Items Breakdown
+                Itemized Manifest & Rates
               </span>
               <div className="border border-[#e6e8e5] rounded-xl overflow-hidden divide-y divide-[#f1f3f1] text-xs">
                 {selectedBooking.materials.map((m) => (
@@ -495,9 +557,22 @@ export const BookingsListPage: React.FC = () => {
                         Estimated: {m.quantity} {m.unit} @ {formatINR(m.ratePerUnit)}/{m.unit}
                       </span>
                     </div>
-                    <span className="font-black text-sm text-[#123b26]">
-                      {formatINR(m.estimatedSubtotal)}
-                    </span>
+                    <div className="text-right">
+                      {m.actualQuantity != null ? (
+                        <>
+                          <span className="font-black text-sm text-[#16a34a] block">
+                            {formatINR(m.actualSubtotal || m.estimatedSubtotal)}
+                          </span>
+                          <span className="text-[10px] text-emerald-800 font-bold bg-emerald-50 px-1.5 py-0.5 rounded">
+                            Weighed: {m.actualQuantity} {m.unit}
+                          </span>
+                        </>
+                      ) : (
+                        <span className="font-black text-sm text-[#123b26]">
+                          {formatINR(m.estimatedSubtotal)}
+                        </span>
+                      )}
+                    </div>
                   </div>
                 ))}
               </div>
@@ -505,98 +580,124 @@ export const BookingsListPage: React.FC = () => {
               <div className="p-3.5 rounded-xl bg-[#eaf8ef] border border-[#bbf7d0] flex items-center justify-between">
                 <div>
                   <span className="text-xs font-bold text-[#16a34a] uppercase tracking-wider block">
-                    Indicative Payout Estimate
+                    {selectedBooking.actualTotal != null ? 'Verified Settlement Total' : 'Estimated Payout'}
                   </span>
                   <span className="text-[11px] text-[#525955]">
-                    Subject to digital scale verification
+                    {selectedBooking.actualTotal != null
+                      ? 'Confirmed via digital scale weighing'
+                      : 'Subject to digital scale verification on doorstep'}
                   </span>
                 </div>
-                <span className="text-xl font-black text-[#123b26]">
-                  {formatINR(selectedBooking.estimatedTotal)}
+                <span className="text-2xl font-black text-[#123b26]">
+                  {formatINR(selectedBooking.actualTotal != null ? selectedBooking.actualTotal : selectedBooking.estimatedTotal)}
                 </span>
               </div>
             </div>
 
-            {/* Address & Slot Info */}
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 text-xs text-[#3f4541]">
-              <div className="p-3.5 rounded-xl bg-[#fbfbf9] border border-[#e6e8e5] space-y-1">
-                <span className="font-bold text-[#123b26] block mb-1">Pickup Address</span>
-                <p className="font-bold text-sm text-[#191c1a]">
-                  {selectedBooking.address.fullName}
-                </p>
-                <p>{selectedBooking.address.streetAddress}</p>
-                <p>{selectedBooking.address.area}, {selectedBooking.address.city} - {selectedBooking.address.pincode}</p>
-                <p className="pt-0.5">Phone: +91 {selectedBooking.address.phoneNumber}</p>
-                {selectedBooking.address.email && <p>Email: {selectedBooking.address.email}</p>}
-                {selectedBooking.address.notes && (
-                  <p className="italic text-[#717a75] pt-1">
-                    Special notes: "{selectedBooking.address.notes}"
-                  </p>
-                )}
-              </div>
-
-              <div className="p-3.5 rounded-xl bg-[#fbfbf9] border border-[#e6e8e5] space-y-2">
-                <span className="font-bold text-[#123b26] block mb-1">Slot & Verification</span>
-                <p className="flex items-center gap-1.5 font-bold text-sm text-[#123b26]">
-                  <Calendar className="w-4 h-4 text-[#16a34a]" />
-                  <span>{formatDate(selectedBooking.address.preferredDate)}</span>
-                </p>
-                <p className="flex items-center gap-1.5">
-                  <Clock className="w-4 h-4 text-[#16a34a]" />
-                  <span>{selectedBooking.address.timeSlot}</span>
-                </p>
-                <div className="pt-2 border-t border-[#e8ebe8] text-[11px] text-[#717a75] flex items-center gap-1.5">
-                  <Scale className="w-3.5 h-3.5 text-[#16a34a]" />
-                  <span>Electronic weighing scale verified</span>
-                </div>
-              </div>
-            </div>
-
-            {/* Status History Timeline */}
-            {selectedBooking.statusHistory && selectedBooking.statusHistory.length > 0 && (
-              <div className="space-y-2 pt-1">
-                <span className="text-xs font-bold uppercase tracking-wider text-[#717a75] block">
-                  Activity Timeline
-                </span>
-                <div className="space-y-2 text-xs border-l-2 border-[#bbf7d0] pl-3 ml-1.5">
-                  {selectedBooking.statusHistory.map((h, i) => (
-                    <div key={i} className="relative pb-2">
-                      <span className="w-2 h-2 rounded-full bg-[#16a34a] absolute -left-[17px] top-1" />
-                      <div>
-                        <span className="font-bold text-[#191c1a] capitalize">
-                          {h.status.replace('_', ' ')}
-                        </span>
-                        <span className="text-[#9aa19d] ml-2 text-[11px]">
-                          {formatDateTime(h.timestamp)}
-                        </span>
-                        <p className="text-[#525955] mt-0.5">{h.note}</p>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              </div>
-            )}
-
-            {/* Prototype notice */}
-            <div className="text-[11px] text-[#717a75] italic text-center pt-2">
-              Note: Simulated demo data stored in localStorage. You can update this status from the Dealer Dashboard.
+            <div className="text-center pt-2">
+              <button
+                type="button"
+                onClick={handleCloseDetails}
+                className="px-6 py-2.5 rounded-xl text-xs font-bold bg-[#123b26] text-white hover:bg-[#1a5336] transition-colors"
+              >
+                Close Tracking Sheet
+              </button>
             </div>
           </div>
         </Modal>
       )}
 
-      {/* CONFIRM CANCELLATION DIALOG */}
+      {/* CUSTOMER CANCELLATION MODAL WITH REASON */}
       {cancellingBooking && (
-        <ConfirmDialog
+        <Modal
           isOpen={!!cancellingBooking}
-          onClose={() => setCancellingBooking(null)}
-          onConfirm={handleConfirmCancel}
-          title={`Cancel Pickup ${cancellingBooking.id}?`}
-          message="Are you sure you want to cancel this scheduled scrap pickup? Your assigned collection partner will be notified and this booking will be marked as Cancelled."
-          confirmLabel="Yes, Cancel Pickup"
-          cancelLabel="Keep Pickup"
-          isDestructive={true}
-        />
+          onClose={() => {
+            if (!isSubmittingCancel) {
+              setCancellingBooking(null);
+              setCancelReason('');
+            }
+          }}
+          title={`Cancel Pickup: ${cancellingBooking.id}?`}
+          subtitle="Please let us know the reason so we can release your collection partner"
+          maxWidth="md"
+        >
+          <div className="space-y-4 text-xs sm:text-sm">
+            <div className="p-3.5 rounded-xl bg-amber-50 border border-amber-200 text-amber-900 flex items-start gap-2.5 text-xs">
+              <AlertTriangle className="w-4 h-4 text-amber-600 mt-0.5 shrink-0" />
+              <span>
+                Cancelling this pickup request will notify your assigned dealer partner and immediately cancel the scheduled slot.
+              </span>
+            </div>
+
+            <div className="space-y-2">
+              <label htmlFor="cancel-reason-input" className="font-bold text-[#123b26] block">
+                Reason for Cancellation <span className="text-rose-500">*</span>
+              </label>
+
+              {/* Quick Reason Chips */}
+              <div className="flex flex-wrap gap-1.5 pb-1">
+                {[
+                  'Change of schedule',
+                  'Scrap already disposed',
+                  'Preferred timing not available',
+                  'Booked by mistake',
+                ].map((preset) => (
+                  <button
+                    key={preset}
+                    type="button"
+                    onClick={() => setCancelReason(preset)}
+                    className={`px-2.5 py-1 text-xs rounded-lg border transition-colors ${
+                      cancelReason === preset
+                        ? 'bg-[#123b26] text-white border-[#123b26]'
+                        : 'bg-white text-[#525955] border-[#d1d5db] hover:border-[#123b26]'
+                    }`}
+                  >
+                    {preset}
+                  </button>
+                ))}
+              </div>
+
+              <textarea
+                id="cancel-reason-input"
+                rows={3}
+                placeholder="E.g. Out of town, or scrap collected by apartment society drive..."
+                value={cancelReason}
+                onChange={(e) => setCancelReason(e.target.value)}
+                className="w-full px-3 py-2 text-xs rounded-xl border border-[#d1d5db] bg-white focus:outline-none focus:ring-2 focus:ring-[#16a34a] text-[#191c1a]"
+              />
+            </div>
+
+            <div className="flex items-center justify-end gap-2 pt-2 border-t border-[#f1f3f1]">
+              <button
+                type="button"
+                disabled={isSubmittingCancel}
+                onClick={() => {
+                  setCancellingBooking(null);
+                  setCancelReason('');
+                }}
+                className="px-4 py-2 rounded-xl text-xs font-semibold text-[#525955] hover:bg-stone-100 transition-colors"
+              >
+                Keep Pickup
+              </button>
+
+              <button
+                type="button"
+                disabled={isSubmittingCancel}
+                onClick={handleConfirmCancel}
+                className="px-4 py-2 rounded-xl text-xs font-bold bg-rose-600 hover:bg-rose-700 text-white shadow-xs transition-colors flex items-center gap-1.5"
+              >
+                {isSubmittingCancel ? (
+                  <>
+                    <RefreshCw className="w-3.5 h-3.5 animate-spin" />
+                    <span>Cancelling...</span>
+                  </>
+                ) : (
+                  <span>Confirm Cancellation</span>
+                )}
+              </button>
+            </div>
+          </div>
+        </Modal>
       )}
     </div>
   );

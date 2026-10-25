@@ -9,7 +9,6 @@ import {
   Eye,
   Sparkles,
   ShieldCheck,
-  Phone,
   X,
   Database,
   RefreshCw,
@@ -19,19 +18,22 @@ import type { Booking, BookingStatus } from '../types';
 import { DEMO_DEALER } from '../data/mockData';
 import {
   getBookings,
-  updateBookingStatus,
   subscribeToBookingChanges,
 } from '../utils/storage';
 import { formatINR, formatDate, getStatusDetails } from '../utils/formatters';
 import { Modal } from '../components/ui/Modal';
-import { useToast } from '../components/ui/Toast';
 import { useScrollAnimation } from '../utils/useScrollAnimation';
 import { supabase, isSupabaseConfigured } from '../lib/supabase';
 import { useAuth } from '../contexts/AuthContext';
+import {
+  DealerStatusActionModal,
+  type DealerActionType,
+} from '../components/dealer/DealerStatusActionModal';
+import { PickupTrackerTimeline } from '../components/tracking/PickupTrackerTimeline';
 
 export const DealerDashboardPage: React.FC = () => {
-  const { showToast } = useToast();
   const { user, profile, isConfigured } = useAuth();
+
   useScrollAnimation();
 
   const [bookings, setBookings] = useState<Booking[]>([]);
@@ -40,6 +42,11 @@ export const DealerDashboardPage: React.FC = () => {
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState<BookingStatus | 'all'>('all');
   const [selectedBooking, setSelectedBooking] = useState<Booking | null>(null);
+  const [activeTab, setActiveTab] = useState<'assigned' | 'available'>('assigned');
+
+  // Action modal state
+  const [actionModalBooking, setActionModalBooking] = useState<Booking | null>(null);
+  const [actionModalType, setActionModalType] = useState<DealerActionType | null>(null);
 
   // Load dealer details from Supabase if authenticated
   useEffect(() => {
@@ -55,7 +62,7 @@ export const DealerDashboardPage: React.FC = () => {
     }
   }, [isConfigured, user]);
 
-  // Fetch bookings function
+  // Fetch bookings function with tracking fields and dealer filtering
   const fetchBookings = useCallback(async () => {
     setLoading(true);
     if (isConfigured && isSupabaseConfigured() && user) {
@@ -72,9 +79,21 @@ export const DealerDashboardPage: React.FC = () => {
             pincode,
             preferred_date,
             time_slot,
+            scheduled_pickup_at,
+            scheduled_date,
+            scheduled_time_slot,
             notes,
+            driver_note,
             status,
             estimated_total,
+            actual_total,
+            payment_method,
+            payment_amount,
+            payment_reference,
+            cancellation_reason,
+            reschedule_reason,
+            rescheduled_date,
+            rescheduled_time_slot,
             assigned_dealer_id,
             created_at,
             booking_items (
@@ -85,7 +104,10 @@ export const DealerDashboardPage: React.FC = () => {
               quantity,
               unit,
               rate_per_unit,
-              estimated_subtotal
+              estimated_subtotal,
+              actual_quantity,
+              actual_rate,
+              actual_subtotal
             ),
             dealers (
               id,
@@ -94,6 +116,12 @@ export const DealerDashboardPage: React.FC = () => {
               vehicle_type,
               is_verified,
               rating
+            ),
+            booking_status_history (
+              id,
+              new_status,
+              note,
+              created_at
             )
           `)
           .order('created_at', { ascending: false });
@@ -107,6 +135,18 @@ export const DealerDashboardPage: React.FC = () => {
             createdAt: b.created_at,
             status: b.status as BookingStatus,
             estimatedTotal: Number(b.estimated_total),
+            actualTotal: b.actual_total != null ? Number(b.actual_total) : undefined,
+            scheduledPickupAt: b.scheduled_pickup_at || undefined,
+            scheduledDate: b.scheduled_date || undefined,
+            scheduledTimeSlot: b.scheduled_time_slot || undefined,
+            paymentMethod: b.payment_method || undefined,
+            paymentAmount: b.payment_amount != null ? Number(b.payment_amount) : undefined,
+            paymentReference: b.payment_reference || undefined,
+            driverNote: b.driver_note || undefined,
+            cancellationReason: b.cancellation_reason || undefined,
+            rescheduleReason: b.reschedule_reason || undefined,
+            rescheduledDate: b.rescheduled_date || undefined,
+            rescheduledTimeSlot: b.rescheduled_time_slot || undefined,
             address: {
               fullName: b.customer_name,
               phoneNumber: b.phone_number,
@@ -127,6 +167,9 @@ export const DealerDashboardPage: React.FC = () => {
               unit: item.unit as any,
               ratePerUnit: Number(item.rate_per_unit),
               estimatedSubtotal: Number(item.estimated_subtotal),
+              actualQuantity: item.actual_quantity != null ? Number(item.actual_quantity) : undefined,
+              actualRate: item.actual_rate != null ? Number(item.actual_rate) : undefined,
+              actualSubtotal: item.actual_subtotal != null ? Number(item.actual_subtotal) : undefined,
             })),
             assignedDealer: b.dealers
               ? {
@@ -140,10 +183,25 @@ export const DealerDashboardPage: React.FC = () => {
                   assignedAt: b.created_at,
                 }
               : undefined,
-            statusHistory: [],
+            statusHistory: (b.booking_status_history || [])
+              .map((h: any) => ({
+                status: h.new_status as BookingStatus,
+                timestamp: h.created_at,
+                note: h.note || 'Status updated',
+              }))
+              .sort(
+                (a: any, b: any) =>
+                  new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime()
+              ),
           }));
 
           setBookings(mapped);
+
+          // Update selected booking if currently open
+          if (selectedBooking) {
+            const found = mapped.find((bk) => bk.id === selectedBooking.id);
+            if (found) setSelectedBooking(found);
+          }
         }
       } catch (err) {
         console.warn('Error fetching dealer bookings:', err);
@@ -153,38 +211,93 @@ export const DealerDashboardPage: React.FC = () => {
       setBookings(getBookings());
     }
     setLoading(false);
-  }, [isConfigured, user]);
+  }, [isConfigured, user, selectedBooking]);
 
   useEffect(() => {
     fetchBookings();
-    if (!isConfigured || !isSupabaseConfigured()) {
-      const unsubscribe = subscribeToBookingChanges(fetchBookings);
-      return () => unsubscribe();
-    }
-  }, [fetchBookings, isConfigured]);
 
-  // Compute metrics
+    // 1. Supabase Realtime channel subscription
+    let channel: any = null;
+    if (isConfigured && isSupabaseConfigured() && user) {
+      try {
+        channel = supabase
+          .channel('dealer-bookings-live')
+          .on(
+            'postgres_changes',
+            {
+              event: '*',
+              schema: 'public',
+              table: 'bookings',
+            },
+            () => {
+              fetchBookings();
+            }
+          )
+          .subscribe();
+      } catch (err) {
+        console.warn('Dealer realtime subscription error:', err);
+      }
+    }
+
+    // 2. Local storage listener
+    const unsubscribeStorage = subscribeToBookingChanges(fetchBookings);
+
+    // 3. Polling interval (20s)
+    const pollInterval = setInterval(() => {
+      fetchBookings();
+    }, 20000);
+
+    return () => {
+      if (channel) {
+        supabase.removeChannel(channel);
+      }
+      unsubscribeStorage();
+      clearInterval(pollInterval);
+    };
+  }, [fetchBookings, isConfigured, user]);
+
+  // Compute metrics based on assigned bookings
+  const assignedList = useMemo(() => {
+    return bookings.filter((b) => {
+      if (isConfigured && isSupabaseConfigured() && user) {
+        if (profile?.role === 'admin') return true;
+        return currentDealer ? b.assignedDealer?.id === currentDealer.id : false;
+      }
+      // Demo sandbox: assigned to DEMO_DEALER or has assigned dealer
+      return b.assignedDealer?.id === DEMO_DEALER.id || b.assignedDealer != null;
+    });
+  }, [bookings, currentDealer, isConfigured, user, profile]);
+
   const metrics = useMemo(() => {
-    const newRequests = bookings.filter((b) => b.status === 'requested').length;
-    const scheduled = bookings.filter(
-      (b) => b.status === 'dealer_assigned' || b.status === 'in_progress'
+    const unassignedCount = bookings.filter((b) => b.status === 'requested' && !b.assignedDealer).length;
+    const activeAssigned = assignedList.filter(
+      (b) =>
+        b.status === 'dealer_assigned' ||
+        b.status === 'scheduled' ||
+        b.status === 'on_the_way' ||
+        b.status === 'collected_weighed' ||
+        b.status === 'payment_completed' ||
+        b.status === 'rescheduled' ||
+        b.status === 'in_progress'
     ).length;
-    const completed = bookings.filter((b) => b.status === 'completed').length;
-    const earnings = bookings
+    const completed = assignedList.filter((b) => b.status === 'completed').length;
+    const earnings = assignedList
       .filter((b) => b.status === 'completed')
-      .reduce((sum, b) => sum + b.estimatedTotal, 0);
+      .reduce((sum, b) => sum + (b.actualTotal != null ? b.actualTotal : b.estimatedTotal), 0);
 
     return {
-      newRequests,
-      scheduled,
+      unassignedCount,
+      activeAssigned,
       completed,
       earnings,
     };
-  }, [bookings]);
+  }, [bookings, assignedList]);
 
-  // Filtered requests list
+  // Filtered requests list honoring tab and search
   const filteredBookings = useMemo(() => {
-    return bookings.filter((b) => {
+    const sourceList = activeTab === 'assigned' ? assignedList : bookings.filter((b) => b.status === 'requested' && !b.assignedDealer);
+
+    return sourceList.filter((b) => {
       const matchStatus = statusFilter === 'all' || b.status === statusFilter;
       const q = searchTerm.toLowerCase().trim();
       const matchSearch =
@@ -196,88 +309,73 @@ export const DealerDashboardPage: React.FC = () => {
         b.materials.some((m) => m.materialName.toLowerCase().includes(q));
       return matchStatus && matchSearch;
     });
-  }, [bookings, statusFilter, searchTerm]);
+  }, [assignedList, bookings, activeTab, statusFilter, searchTerm]);
 
-  // Status Change Handler with Supabase database execution
-  const handleStatusChange = async (bookingId: string, newStatus: BookingStatus) => {
-    if (isConfigured && isSupabaseConfigured() && user) {
-      try {
-        const updatePayload: { status: BookingStatus; assigned_dealer_id?: string | null } = { status: newStatus };
-        if (newStatus === 'dealer_assigned' && currentDealer?.id) {
-          updatePayload.assigned_dealer_id = currentDealer.id;
-        }
-
-        const { error } = await supabase
-          .from('bookings')
-          .update(updatePayload)
-          .eq('id', bookingId);
-
-        if (error) {
-          showToast('Status Update Rejected', error.message, 'error');
-          return;
-        }
-
-        showToast(
-          'Status Updated',
-          `Pickup ${bookingId} is now ${newStatus.replace('_', ' ')} in database.`,
-          'success'
-        );
-        await fetchBookings();
-        if (selectedBooking && selectedBooking.id === bookingId) {
-          setSelectedBooking({ ...selectedBooking, status: newStatus });
-        }
-      } catch (err: any) {
-        showToast('Error', err.message || 'Failed to update status', 'error');
-      }
-    } else {
-      const updated = updateBookingStatus(
-        bookingId,
-        newStatus,
-        `Status updated to ${newStatus.replace('_', ' ')} by demo partner Rajesh Kumar.`
-      );
-      if (updated) {
-        showToast(
-          'Status Updated',
-          `Pickup ${bookingId} is now ${newStatus.replace('_', ' ')}.`,
-          'success'
-        );
-        if (selectedBooking && selectedBooking.id === bookingId) {
-          setSelectedBooking(updated);
-        }
-      }
-    }
+  // Open action modal
+  const openActionModal = (booking: Booking, action: DealerActionType) => {
+    setActionModalBooking(booking);
+    setActionModalType(action);
   };
 
+  const currentTabList =
+    activeTab === 'assigned'
+      ? assignedList
+      : bookings.filter((b) => b.status === 'requested' && !b.assignedDealer);
+
   const statusOptions: { value: BookingStatus | 'all'; label: string; count: number }[] = [
-    { value: 'all', label: 'All Requests', count: bookings.length },
-    {
-      value: 'requested',
-      label: 'New Requests',
-      count: bookings.filter((b) => b.status === 'requested').length,
-    },
+    { value: 'all', label: 'All Pickups', count: currentTabList.length },
     {
       value: 'dealer_assigned',
       label: 'Assigned',
-      count: bookings.filter((b) => b.status === 'dealer_assigned').length,
+      count: currentTabList.filter((b) => b.status === 'dealer_assigned').length,
     },
     {
-      value: 'in_progress',
-      label: 'In Progress',
-      count: bookings.filter((b) => b.status === 'in_progress').length,
+      value: 'scheduled',
+      label: 'Scheduled',
+      count: currentTabList.filter((b) => b.status === 'scheduled').length,
+    },
+    {
+      value: 'on_the_way',
+      label: 'On the Way',
+      count: currentTabList.filter(
+        (b) => b.status === 'on_the_way' || b.status === 'in_progress'
+      ).length,
+    },
+    {
+      value: 'collected_weighed',
+      label: 'Weighed',
+      count: currentTabList.filter((b) => b.status === 'collected_weighed').length,
+    },
+    {
+      value: 'payment_completed',
+      label: 'Paid',
+      count: currentTabList.filter((b) => b.status === 'payment_completed').length,
     },
     {
       value: 'completed',
       label: 'Completed',
-      count: bookings.filter((b) => b.status === 'completed').length,
+      count: currentTabList.filter((b) => b.status === 'completed').length,
+    },
+    {
+      value: 'rescheduled',
+      label: 'Rescheduled',
+      count: currentTabList.filter((b) => b.status === 'rescheduled').length,
     },
     {
       value: 'cancelled',
       label: 'Cancelled',
-      count: bookings.filter((b) => b.status === 'cancelled').length,
+      count: currentTabList.filter((b) => b.status === 'cancelled').length,
     },
   ];
 
-  if (isConfigured && isSupabaseConfigured() && user && profile?.role !== 'admin' && currentDealer && !currentDealer.is_verified) {
+  if (
+    isConfigured &&
+    isSupabaseConfigured() &&
+    user &&
+    profile?.role !== 'admin' &&
+    currentDealer &&
+    !currentDealer.is_verified
+  ) {
     return (
       <div className="max-w-lg mx-auto px-4 py-16 text-center space-y-6">
         <div className="w-16 h-16 rounded-2xl bg-amber-50 text-amber-700 mx-auto flex items-center justify-center border border-amber-200">
@@ -327,11 +425,11 @@ export const DealerDashboardPage: React.FC = () => {
               type="button"
               onClick={() => fetchBookings()}
               disabled={loading}
-              className="inline-flex items-center gap-1 px-2.5 py-1 text-xs font-semibold text-emerald-900 bg-white/80 hover:bg-white rounded-full border border-emerald-300 shadow-2xs transition-colors"
+              className="inline-flex items-center gap-1.5 px-2.5 py-1 text-xs font-semibold text-emerald-900 bg-white/80 hover:bg-white rounded-full border border-emerald-300 shadow-2xs transition-colors"
               title="Refresh requests"
             >
               <RefreshCw className={`w-3 h-3 ${loading ? 'animate-spin' : ''}`} />
-              <span>Refresh</span>
+              <span>{loading ? 'Refreshing...' : 'Refresh'}</span>
             </button>
           </div>
           <h1 className="text-3xl font-extrabold text-[#123b26] tracking-tight">
@@ -399,40 +497,54 @@ export const DealerDashboardPage: React.FC = () => {
 
       {/* Summary Metrics Cards */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-6">
-        {/* Metric 1 */}
-        <div className="bg-white rounded-2xl p-5 border border-[#e6e8e5] shadow-xs">
+        {/* Metric 1: Available Leads */}
+        <div
+          onClick={() => setActiveTab('available')}
+          className={`rounded-2xl p-5 border shadow-xs cursor-pointer transition-all ${
+            activeTab === 'available'
+              ? 'bg-amber-50/50 border-amber-300 ring-2 ring-amber-400'
+              : 'bg-white border-[#e6e8e5] hover:border-amber-300'
+          }`}
+        >
           <div className="flex items-center justify-between text-xs font-semibold text-[#717a75]">
-            <span>New Requests</span>
-            <span className="px-1.5 py-0.2 rounded bg-amber-100 text-amber-900 text-[10px] font-bold">
-              Demo
+            <span>Available Pickup Leads</span>
+            <span className="px-2 py-0.5 rounded-full bg-amber-100 text-amber-900 text-[10px] font-bold">
+              Unassigned
             </span>
           </div>
           <div className="text-3xl font-black text-[#123b26] mt-2">
-            {metrics.newRequests}
+            {metrics.unassignedCount}
           </div>
-          <span className="text-[11px] text-[#9aa19d] mt-1 block">Awaiting partner acceptance</span>
+          <span className="text-[11px] text-[#9aa19d] mt-1 block">Awaiting partner claiming</span>
         </div>
 
-        {/* Metric 2 */}
-        <div className="bg-white rounded-2xl p-5 border border-[#e6e8e5] shadow-xs">
+        {/* Metric 2: Active Assigned */}
+        <div
+          onClick={() => setActiveTab('assigned')}
+          className={`rounded-2xl p-5 border shadow-xs cursor-pointer transition-all ${
+            activeTab === 'assigned'
+              ? 'bg-emerald-50/50 border-emerald-300 ring-2 ring-emerald-400'
+              : 'bg-white border-[#e6e8e5] hover:border-emerald-300'
+          }`}
+        >
           <div className="flex items-center justify-between text-xs font-semibold text-[#717a75]">
-            <span>Scheduled Pickups</span>
-            <span className="px-1.5 py-0.2 rounded bg-blue-100 text-blue-900 text-[10px] font-bold">
-              Demo
+            <span>My Active Pickups</span>
+            <span className="px-2 py-0.5 rounded-full bg-blue-100 text-blue-900 text-[10px] font-bold">
+              In Route
             </span>
           </div>
           <div className="text-3xl font-black text-[#123b26] mt-2">
-            {metrics.scheduled}
+            {metrics.activeAssigned}
           </div>
-          <span className="text-[11px] text-[#9aa19d] mt-1 block">Assigned / In progress</span>
+          <span className="text-[11px] text-[#9aa19d] mt-1 block">Assigned / Scheduled / In Progress</span>
         </div>
 
-        {/* Metric 3 */}
+        {/* Metric 3: Completed */}
         <div className="bg-white rounded-2xl p-5 border border-[#e6e8e5] shadow-xs">
           <div className="flex items-center justify-between text-xs font-semibold text-[#717a75]">
             <span>Completed Pickups</span>
-            <span className="px-1.5 py-0.2 rounded bg-emerald-100 text-emerald-900 text-[10px] font-bold">
-              Demo
+            <span className="px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-900 text-[10px] font-bold">
+              Settled
             </span>
           </div>
           <div className="text-3xl font-black text-[#16a34a] mt-2">
@@ -441,22 +553,61 @@ export const DealerDashboardPage: React.FC = () => {
           <span className="text-[11px] text-[#9aa19d] mt-1 block">Collected & recycled</span>
         </div>
 
-        {/* Metric 4 */}
+        {/* Metric 4: Earnings */}
         <div className="bg-white rounded-2xl p-5 border border-[#e6e8e5] shadow-xs">
           <div className="flex items-center justify-between text-xs font-semibold text-[#717a75]">
-            <span>Indicative Volume Value</span>
-            <span className="px-1.5 py-0.2 rounded bg-amber-100 text-amber-900 text-[10px] font-bold">
-              Demo
+            <span>Total Settled Payouts</span>
+            <span className="px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-900 text-[10px] font-bold">
+              Paid Out
             </span>
           </div>
           <div className="text-3xl font-black text-[#123b26] mt-2">
             {formatINR(metrics.earnings)}
           </div>
-          <span className="text-[11px] text-[#9aa19d] mt-1 block">Settled payouts total</span>
+          <span className="text-[11px] text-[#9aa19d] mt-1 block">Direct customer payouts settled</span>
         </div>
       </div>
 
-      {/* Requests Management: Search & Status Filters */}
+      {/* Main Tab Navigation: Assigned vs Available Leads */}
+      <div className="flex items-center gap-3 border-b border-[#e2e4e1] pb-2">
+        <button
+          type="button"
+          onClick={() => {
+            setActiveTab('assigned');
+            setStatusFilter('all');
+          }}
+          className={`flex items-center gap-2 pb-2 px-1 text-sm font-bold border-b-2 transition-all ${
+            activeTab === 'assigned'
+              ? 'border-[#16a34a] text-[#123b26]'
+              : 'border-transparent text-[#717a75] hover:text-[#191c1a]'
+          }`}
+        >
+          <span>My Assigned Pickups</span>
+          <span className="px-2 py-0.5 text-xs rounded-full bg-[#eaf8ef] text-[#16a34a] font-mono">
+            {assignedList.length}
+          </span>
+        </button>
+
+        <button
+          type="button"
+          onClick={() => {
+            setActiveTab('available');
+            setStatusFilter('all');
+          }}
+          className={`flex items-center gap-2 pb-2 px-1 text-sm font-bold border-b-2 transition-all ${
+            activeTab === 'available'
+              ? 'border-[#16a34a] text-[#123b26]'
+              : 'border-transparent text-[#717a75] hover:text-[#191c1a]'
+          }`}
+        >
+          <span>Available Lead Pool</span>
+          <span className="px-2 py-0.5 text-xs rounded-full bg-amber-100 text-amber-900 font-mono">
+            {metrics.unassignedCount}
+          </span>
+        </button>
+      </div>
+
+      {/* Search & Status Filters */}
       <div className="space-y-4">
         <div className="flex flex-col sm:flex-row gap-4 items-stretch sm:items-center justify-between">
           {/* Search box */}
@@ -482,7 +633,8 @@ export const DealerDashboardPage: React.FC = () => {
           </div>
 
           <div className="text-xs text-[#717a75] font-semibold">
-            Showing <strong className="text-[#123b26]">{filteredBookings.length}</strong> of {bookings.length} requests
+            Showing <strong className="text-[#123b26]">{filteredBookings.length}</strong> of{' '}
+            {currentTabList.length} {activeTab === 'assigned' ? 'assigned orders' : 'available leads'}
           </div>
         </div>
 
@@ -519,9 +671,15 @@ export const DealerDashboardPage: React.FC = () => {
       {filteredBookings.length === 0 ? (
         <div className="bg-white rounded-3xl p-12 text-center border border-[#e6e8e5] space-y-3">
           <AlertCircle className="w-10 h-10 text-[#9aa19d] mx-auto stroke-[2]" />
-          <h2 className="font-bold text-base text-[#123b26]">No requests match your filters</h2>
+          <h2 className="font-bold text-base text-[#123b26]">
+            {activeTab === 'assigned'
+              ? 'No assigned pickups found for this view'
+              : 'No available leads currently pending'}
+          </h2>
           <p className="text-xs text-[#717a75] max-w-sm mx-auto">
-            Try resetting your search query or selecting "All Requests" to view existing customer bookings.
+            {activeTab === 'assigned'
+              ? 'Check the "Available Lead Pool" tab to claim new customer requests in your service zone.'
+              : 'All incoming pickup requests in this operational area have been claimed.'}
           </p>
           <button
             type="button"
@@ -542,12 +700,12 @@ export const DealerDashboardPage: React.FC = () => {
               <thead>
                 <tr className="bg-[#f8faf9] border-b border-[#e6e8e5] text-[11px] font-bold uppercase tracking-wider text-[#717a75]">
                   <th className="py-3.5 px-6">ID & Date</th>
-                  <th className="py-3.5 px-4">Customer & Area</th>
+                  <th className="py-3.5 px-4">Customer & Location</th>
                   <th className="py-3.5 px-4">Scheduled Slot</th>
-                  <th className="py-3.5 px-4">Materials Summary</th>
-                  <th className="py-3.5 px-4">Est. Value</th>
+                  <th className="py-3.5 px-4">Materials Manifest</th>
+                  <th className="py-3.5 px-4">Payout Value</th>
                   <th className="py-3.5 px-4">Current Status</th>
-                  <th className="py-3.5 px-6 text-right">Actions</th>
+                  <th className="py-3.5 px-6 text-right">Step Actions</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-[#f1f3f1] text-xs">
@@ -574,14 +732,19 @@ export const DealerDashboardPage: React.FC = () => {
                           <MapPin className="w-3 h-3 text-[#16a34a] shrink-0" />
                           <span>{req.address.area}, {req.address.city}</span>
                         </span>
+                        <span className="text-[11px] text-[#717a75] block mt-0.5">
+                          Ph: +91 {req.address.phoneNumber}
+                        </span>
                       </td>
 
                       {/* Scheduled Slot */}
                       <td className="py-4 px-4 whitespace-nowrap">
                         <span className="font-semibold text-[#123b26] block">
-                          {formatDate(req.address.preferredDate)}
+                          {formatDate(req.scheduledDate || req.address.preferredDate)}
                         </span>
-                        <span className="text-[#717a75]">{req.address.timeSlot}</span>
+                        <span className="text-[#717a75]">
+                          {req.scheduledTimeSlot || req.address.timeSlot}
+                        </span>
                       </td>
 
                       {/* Materials */}
@@ -592,7 +755,7 @@ export const DealerDashboardPage: React.FC = () => {
                               key={m.materialId}
                               className="px-2 py-0.5 text-[10px] rounded-md bg-[#f1f3f1] font-medium text-[#282c2a]"
                             >
-                              {m.materialName} ({m.quantity}{m.unit})
+                              {m.materialName} ({m.actualQuantity != null ? `${m.actualQuantity} ${m.unit} weighed` : `${m.quantity} ${m.unit}`})
                             </span>
                           ))}
                         </div>
@@ -600,8 +763,11 @@ export const DealerDashboardPage: React.FC = () => {
 
                       {/* Value */}
                       <td className="py-4 px-4 whitespace-nowrap">
-                        <span className="font-black text-sm text-[#123b26]">
-                          {formatINR(req.estimatedTotal)}
+                        <span className="font-black text-sm text-[#123b26] block">
+                          {formatINR(req.actualTotal != null ? req.actualTotal : req.estimatedTotal)}
+                        </span>
+                        <span className="text-[10px] text-[#717a75]">
+                          {req.actualTotal != null ? 'Scale verified' : 'Indicative est.'}
                         </span>
                       </td>
 
@@ -615,34 +781,88 @@ export const DealerDashboardPage: React.FC = () => {
                         </span>
                       </td>
 
-                      {/* Actions */}
+                      {/* Stepper Actions */}
                       <td className="py-4 px-6 text-right whitespace-nowrap">
-                        <div className="flex items-center justify-end gap-2">
+                        <div className="flex items-center justify-end gap-1.5">
                           {req.status === 'requested' && (
                             <button
                               type="button"
-                              onClick={() => handleStatusChange(req.id, 'dealer_assigned')}
+                              onClick={() => openActionModal(req, 'claim')}
                               className="px-3 py-1.5 rounded-xl text-xs font-bold bg-[#16a34a] hover:bg-[#15803d] text-white shadow-2xs active:scale-[0.98] transition-all"
                             >
-                              Accept
+                              Claim Lead
                             </button>
                           )}
+
                           {req.status === 'dealer_assigned' && (
                             <button
                               type="button"
-                              onClick={() => handleStatusChange(req.id, 'in_progress')}
+                              onClick={() => openActionModal(req, 'schedule')}
+                              className="px-3 py-1.5 rounded-xl text-xs font-bold bg-indigo-600 hover:bg-indigo-700 text-white shadow-2xs active:scale-[0.98] transition-all"
+                            >
+                              Schedule Pickup
+                            </button>
+                          )}
+
+                          {req.status === 'scheduled' && (
+                            <button
+                              type="button"
+                              onClick={() => openActionModal(req, 'on_the_way')}
                               className="px-3 py-1.5 rounded-xl text-xs font-bold bg-purple-600 hover:bg-purple-700 text-white shadow-2xs active:scale-[0.98] transition-all"
                             >
                               Start Route
                             </button>
                           )}
-                          {req.status === 'in_progress' && (
+
+                          {(req.status === 'on_the_way' || req.status === 'in_progress') && (
                             <button
                               type="button"
-                              onClick={() => handleStatusChange(req.id, 'completed')}
+                              onClick={() => openActionModal(req, 'weigh')}
+                              className="px-3 py-1.5 rounded-xl text-xs font-bold bg-teal-600 hover:bg-teal-700 text-white shadow-2xs active:scale-[0.98] transition-all"
+                            >
+                              Weigh Scrap
+                            </button>
+                          )}
+
+                          {req.status === 'collected_weighed' && (
+                            <button
+                              type="button"
+                              onClick={() => openActionModal(req, 'payment')}
                               className="px-3 py-1.5 rounded-xl text-xs font-bold bg-emerald-600 hover:bg-emerald-700 text-white shadow-2xs active:scale-[0.98] transition-all"
                             >
+                              Settle Payment
+                            </button>
+                          )}
+
+                          {req.status === 'payment_completed' && (
+                            <button
+                              type="button"
+                              onClick={() => openActionModal(req, 'complete')}
+                              className="px-3 py-1.5 rounded-xl text-xs font-bold bg-emerald-700 hover:bg-emerald-800 text-white shadow-2xs active:scale-[0.98] transition-all"
+                            >
                               Complete
+                            </button>
+                          )}
+
+                          {req.status === 'rescheduled' && (
+                            <button
+                              type="button"
+                              onClick={() => openActionModal(req, 'schedule')}
+                              className="px-3 py-1.5 rounded-xl text-xs font-bold bg-orange-600 hover:bg-orange-700 text-white shadow-2xs active:scale-[0.98] transition-all"
+                            >
+                              Confirm Slot
+                            </button>
+                          )}
+
+                          {/* Quick Reschedule & Cancel options for in-flight pickups */}
+                          {req.status !== 'completed' && req.status !== 'cancelled' && (
+                            <button
+                              type="button"
+                              onClick={() => openActionModal(req, 'reschedule')}
+                              className="px-2 py-1 text-[11px] font-semibold text-orange-700 hover:bg-orange-50 rounded-lg transition-colors"
+                              title="Reschedule Pickup"
+                            >
+                              Reschedule
                             </button>
                           )}
 
@@ -693,19 +913,22 @@ export const DealerDashboardPage: React.FC = () => {
 
                   <div className="text-xs text-[#525955] space-y-1">
                     <p>
-                      <strong>Slot:</strong> {formatDate(req.address.preferredDate)} • {req.address.timeSlot}
+                      <strong>Slot:</strong>{' '}
+                      {formatDate(req.scheduledDate || req.address.preferredDate)} •{' '}
+                      {req.scheduledTimeSlot || req.address.timeSlot}
                     </p>
                     <p>
                       <strong>Materials:</strong>{' '}
-                      {req.materials.map((m) => `${m.materialName} (${m.quantity} ${m.unit})`).join(', ')}
+                      {req.materials.map((m) => `${m.materialName} (${m.actualQuantity != null ? `${m.actualQuantity} ${m.unit} weighed` : `${m.quantity} ${m.unit}`})`).join(', ')}
                     </p>
                     <p className="font-black text-sm text-[#123b26] pt-1">
-                      Estimated Value: {formatINR(req.estimatedTotal)}
+                      Payout:{' '}
+                      {formatINR(req.actualTotal != null ? req.actualTotal : req.estimatedTotal)}
                     </p>
                   </div>
 
                   {/* Actions */}
-                  <div className="pt-2 flex items-center justify-between border-t border-[#f1f3f1]">
+                  <div className="pt-2 flex items-center justify-between border-t border-[#f1f3f1] gap-2 flex-wrap">
                     <button
                       type="button"
                       onClick={() => setSelectedBooking(req)}
@@ -718,26 +941,53 @@ export const DealerDashboardPage: React.FC = () => {
                       {req.status === 'requested' && (
                         <button
                           type="button"
-                          onClick={() => handleStatusChange(req.id, 'dealer_assigned')}
+                          onClick={() => openActionModal(req, 'claim')}
                           className="px-3 py-1.5 rounded-xl text-xs font-bold bg-[#16a34a] text-white"
                         >
-                          Accept
+                          Claim
                         </button>
                       )}
                       {req.status === 'dealer_assigned' && (
                         <button
                           type="button"
-                          onClick={() => handleStatusChange(req.id, 'in_progress')}
+                          onClick={() => openActionModal(req, 'schedule')}
+                          className="px-3 py-1.5 rounded-xl text-xs font-bold bg-indigo-600 text-white"
+                        >
+                          Schedule
+                        </button>
+                      )}
+                      {req.status === 'scheduled' && (
+                        <button
+                          type="button"
+                          onClick={() => openActionModal(req, 'on_the_way')}
                           className="px-3 py-1.5 rounded-xl text-xs font-bold bg-purple-600 text-white"
                         >
                           Start Route
                         </button>
                       )}
-                      {req.status === 'in_progress' && (
+                      {(req.status === 'on_the_way' || req.status === 'in_progress') && (
                         <button
                           type="button"
-                          onClick={() => handleStatusChange(req.id, 'completed')}
+                          onClick={() => openActionModal(req, 'weigh')}
+                          className="px-3 py-1.5 rounded-xl text-xs font-bold bg-teal-600 text-white"
+                        >
+                          Weigh
+                        </button>
+                      )}
+                      {req.status === 'collected_weighed' && (
+                        <button
+                          type="button"
+                          onClick={() => openActionModal(req, 'payment')}
                           className="px-3 py-1.5 rounded-xl text-xs font-bold bg-emerald-600 text-white"
+                        >
+                          Settle Pay
+                        </button>
+                      )}
+                      {req.status === 'payment_completed' && (
+                        <button
+                          type="button"
+                          onClick={() => openActionModal(req, 'complete')}
+                          className="px-3 py-1.5 rounded-xl text-xs font-bold bg-emerald-700 text-white"
                         >
                           Complete
                         </button>
@@ -751,7 +1001,7 @@ export const DealerDashboardPage: React.FC = () => {
         </div>
       )}
 
-      {/* DETAIL MODAL FOR DEALER INSPECTION */}
+      {/* DETAIL MODAL FOR DEALER INSPECTION & ORDER SHEET */}
       {selectedBooking && (
         <Modal
           isOpen={!!selectedBooking}
@@ -761,94 +1011,103 @@ export const DealerDashboardPage: React.FC = () => {
           maxWidth="2xl"
         >
           <div className="space-y-6 text-xs sm:text-sm">
-            {/* Status change select in modal */}
-            <div className="p-4 rounded-2xl bg-[#f8faf9] border border-[#e2e4e1] flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+            {/* Quick Actions Stepper Bar inside modal */}
+            <div className="p-4 rounded-2xl bg-[#f8faf9] border border-[#e2e4e1] flex flex-wrap items-center justify-between gap-3">
               <div>
                 <span className="text-xs font-bold uppercase tracking-wider text-[#717a75] block">
-                  Change Pickup Status
+                  Next Order Transition
                 </span>
-                <span className="text-xs text-[#525955]">
-                  Updates reflect instantly across customer "My Bookings"
+                <span className="text-xs text-[#123b26] font-semibold">
+                  Current Status: {getStatusDetails(selectedBooking.status).label}
                 </span>
               </div>
 
-              <select
-                value={selectedBooking.status}
-                onChange={(e) =>
-                  handleStatusChange(selectedBooking.id, e.target.value as BookingStatus)
-                }
-                className="px-3.5 py-2 rounded-xl text-xs font-bold border border-[#d1d5db] bg-white focus:outline-none focus:ring-2 focus:ring-[#16a34a]"
-              >
-                <option value="requested">Requested (New)</option>
-                <option value="dealer_assigned">Dealer Assigned</option>
-                <option value="in_progress">In Progress (Out for collection)</option>
-                <option value="completed">Completed (Weighed & Paid)</option>
-                <option value="cancelled">Cancelled</option>
-              </select>
-            </div>
+              <div className="flex items-center gap-2 flex-wrap">
+                {selectedBooking.status === 'requested' && (
+                  <button
+                    type="button"
+                    onClick={() => openActionModal(selectedBooking, 'claim')}
+                    className="px-3.5 py-1.5 rounded-xl text-xs font-bold bg-[#16a34a] text-white shadow-2xs"
+                  >
+                    Claim Lead
+                  </button>
+                )}
 
-            {/* Customer Details & Address */}
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-              <div className="p-4 rounded-2xl bg-white border border-[#e6e8e5] space-y-1">
-                <span className="font-bold text-[#123b26] block mb-1">Customer & Contact</span>
-                <p className="font-bold text-base text-[#191c1a]">
-                  {selectedBooking.address.fullName}
-                </p>
-                <p className="font-bold text-[#16a34a] flex items-center gap-1.5 pt-0.5">
-                  <Phone className="w-3.5 h-3.5" />
-                  <span>+91 {selectedBooking.address.phoneNumber}</span>
-                </p>
-                {selectedBooking.address.email && (
-                  <p className="text-[#717a75]">Email: {selectedBooking.address.email}</p>
+                {selectedBooking.status === 'dealer_assigned' && (
+                  <button
+                    type="button"
+                    onClick={() => openActionModal(selectedBooking, 'schedule')}
+                    className="px-3.5 py-1.5 rounded-xl text-xs font-bold bg-indigo-600 text-white shadow-2xs"
+                  >
+                    Confirm Schedule
+                  </button>
+                )}
+
+                {selectedBooking.status === 'scheduled' && (
+                  <button
+                    type="button"
+                    onClick={() => openActionModal(selectedBooking, 'on_the_way')}
+                    className="px-3.5 py-1.5 rounded-xl text-xs font-bold bg-purple-600 text-white shadow-2xs"
+                  >
+                    Dispatch / On the Way
+                  </button>
+                )}
+
+                {(selectedBooking.status === 'on_the_way' ||
+                  selectedBooking.status === 'in_progress') && (
+                  <button
+                    type="button"
+                    onClick={() => openActionModal(selectedBooking, 'weigh')}
+                    className="px-3.5 py-1.5 rounded-xl text-xs font-bold bg-teal-600 text-white shadow-2xs"
+                  >
+                    Scale Weighing
+                  </button>
+                )}
+
+                {selectedBooking.status === 'collected_weighed' && (
+                  <button
+                    type="button"
+                    onClick={() => openActionModal(selectedBooking, 'payment')}
+                    className="px-3.5 py-1.5 rounded-xl text-xs font-bold bg-emerald-600 text-white shadow-2xs"
+                  >
+                    Record Payment
+                  </button>
+                )}
+
+                {selectedBooking.status === 'payment_completed' && (
+                  <button
+                    type="button"
+                    onClick={() => openActionModal(selectedBooking, 'complete')}
+                    className="px-3.5 py-1.5 rounded-xl text-xs font-bold bg-emerald-700 text-white shadow-2xs"
+                  >
+                    Finish Order
+                  </button>
+                )}
+
+                {selectedBooking.status !== 'completed' && selectedBooking.status !== 'cancelled' && (
+                  <>
+                    <button
+                      type="button"
+                      onClick={() => openActionModal(selectedBooking, 'reschedule')}
+                      className="px-3 py-1.5 rounded-xl text-xs font-bold text-orange-700 bg-orange-50 border border-orange-200"
+                    >
+                      Reschedule
+                    </button>
+
+                    <button
+                      type="button"
+                      onClick={() => openActionModal(selectedBooking, 'cancel')}
+                      className="px-3 py-1.5 rounded-xl text-xs font-bold text-rose-700 bg-rose-50 border border-rose-200"
+                    >
+                      Cancel Order
+                    </button>
+                  </>
                 )}
               </div>
-
-              <div className="p-4 rounded-2xl bg-white border border-[#e6e8e5] space-y-1">
-                <span className="font-bold text-[#123b26] block mb-1">Doorstep Location</span>
-                <p>{selectedBooking.address.streetAddress}</p>
-                <p>{selectedBooking.address.area}, {selectedBooking.address.city}</p>
-                <p className="font-mono font-bold text-[#123b26]">PIN: {selectedBooking.address.pincode}</p>
-              </div>
             </div>
 
-            {/* Special Instructions & Notes */}
-            {selectedBooking.address.notes && (
-              <div className="p-3.5 rounded-xl bg-amber-50 border border-amber-200 text-amber-900">
-                <span className="font-bold block text-xs">Customer Pickup Notes:</span>
-                <p className="text-xs mt-0.5 italic">"{selectedBooking.address.notes}"</p>
-              </div>
-            )}
-
-            {/* Materials Manifest */}
-            <div className="space-y-2">
-              <span className="font-bold text-[#123b26] block">
-                Manifest Checklist ({selectedBooking.materials.length} categories)
-              </span>
-              <div className="border border-[#e6e8e5] rounded-xl overflow-hidden divide-y divide-[#f1f3f1]">
-                {selectedBooking.materials.map((m) => (
-                  <div key={m.materialId} className="p-3 flex items-center justify-between bg-white text-xs">
-                    <div>
-                      <span className="font-bold text-[#123b26] block">{m.materialName}</span>
-                      <span className="text-[#717a75]">
-                        Estimated: {m.quantity} {m.unit} @ {formatINR(m.ratePerUnit)}/{m.unit}
-                      </span>
-                    </div>
-                    <span className="font-black text-[#123b26]">
-                      {formatINR(m.estimatedSubtotal)}
-                    </span>
-                  </div>
-                ))}
-              </div>
-
-              <div className="p-3.5 rounded-xl bg-[#eaf8ef] border border-[#bbf7d0] flex items-center justify-between">
-                <span className="font-bold text-[#16a34a] uppercase tracking-wider text-xs">
-                  Estimated Total Payout
-                </span>
-                <span className="text-xl font-black text-[#123b26]">
-                  {formatINR(selectedBooking.estimatedTotal)}
-                </span>
-              </div>
-            </div>
+            {/* Embedded 7-Step Pickup Tracker Timeline */}
+            <PickupTrackerTimeline booking={selectedBooking} compact={false} />
 
             <div className="pt-2 text-center">
               <button
@@ -862,6 +1121,26 @@ export const DealerDashboardPage: React.FC = () => {
           </div>
         </Modal>
       )}
+
+      {/* ACTION STEPPER MODAL */}
+      {actionModalBooking && actionModalType && (
+        <DealerStatusActionModal
+          booking={actionModalBooking}
+          actionType={actionModalType}
+          isOpen={!!actionModalBooking && !!actionModalType}
+          onClose={() => {
+            setActionModalBooking(null);
+            setActionModalType(null);
+          }}
+          onSuccess={() => {
+            fetchBookings();
+          }}
+          dealerId={currentDealer?.id || DEMO_DEALER.id}
+          isConfigured={isConfigured}
+          user={user}
+        />
+      )}
     </div>
   );
 };
+

@@ -72,34 +72,81 @@ export function saveBooking(booking: Booking): void {
   window.dispatchEvent(new CustomEvent(EVENT_NAME, { detail: { action: 'save', booking } }));
 }
 
+export interface UpdateBookingStatusOptions {
+  note?: string;
+  scheduledDate?: string;
+  scheduledTimeSlot?: string;
+  driverNote?: string;
+  actualTotal?: number;
+  materials?: Booking['materials'];
+  paymentMethod?: 'cash' | 'upi' | 'bank_transfer';
+  paymentAmount?: number;
+  paymentReference?: string;
+  cancellationReason?: string;
+  rescheduleReason?: string;
+  rescheduledDate?: string;
+  rescheduledTimeSlot?: string;
+}
+
 export function updateBookingStatus(
   bookingId: string,
   newStatus: BookingStatus,
-  note?: string
+  optionsOrNote?: string | UpdateBookingStatusOptions
 ): Booking | null {
   const current = getBookings();
   const index = current.findIndex((b) => b.id === bookingId);
   if (index === -1) return null;
 
   const target = current[index];
+  const opts: UpdateBookingStatusOptions =
+    typeof optionsOrNote === 'string' ? { note: optionsOrNote } : optionsOrNote || {};
+
+  let defaultNote = opts.note;
+  if (!defaultNote) {
+    switch (newStatus) {
+      case 'dealer_assigned':
+        defaultNote = 'Assigned to verified demo dealer partner.';
+        break;
+      case 'scheduled':
+        defaultNote = `Pickup scheduled for ${opts.scheduledDate || target.address.preferredDate} (${opts.scheduledTimeSlot || target.address.timeSlot}).`;
+        break;
+      case 'on_the_way':
+      case 'in_progress':
+        defaultNote = opts.driverNote
+          ? `Dealer is on the way. Note: ${opts.driverNote}`
+          : 'Dealer partner dispatched and on the way.';
+        break;
+      case 'collected_weighed':
+        defaultNote = opts.actualTotal
+          ? `Scrap collected and weighed on digital scale. Verified total: ₹${opts.actualTotal}.`
+          : 'Scrap collected and verified on electronic scale.';
+        break;
+      case 'payment_completed':
+        defaultNote = `Payment completed via ${opts.paymentMethod?.toUpperCase() || 'UPI'} (₹${opts.paymentAmount || target.estimatedTotal}).`;
+        break;
+      case 'completed':
+        defaultNote = 'Pickup completed and scrap recycled with digital certificate.';
+        break;
+      case 'rescheduled':
+        defaultNote = `Pickup rescheduled: ${opts.rescheduleReason || 'Timing updated'}. Proposed: ${opts.rescheduledDate || ''} ${opts.rescheduledTimeSlot || ''}`;
+        break;
+      case 'cancelled':
+        defaultNote = `Cancelled: ${opts.cancellationReason || 'Cancelled by user.'}`;
+        break;
+      default:
+        defaultNote = `Status updated to ${newStatus}`;
+    }
+  }
+
   const historyEntry = {
     status: newStatus,
     timestamp: new Date().toISOString(),
-    note:
-      note ||
-      (newStatus === 'dealer_assigned'
-        ? 'Assigned to demo dealer partner.'
-        : newStatus === 'in_progress'
-        ? 'Scrap dealer en route to location.'
-        : newStatus === 'completed'
-        ? 'Pickup completed and weighing settled.'
-        : newStatus === 'cancelled'
-        ? 'Cancelled by customer / partner.'
-        : `Status changed to ${newStatus}`),
+    note: defaultNote,
   };
 
   const updatedBooking: Booking = {
     ...target,
+    ...opts,
     status: newStatus,
     assignedDealer:
       target.assignedDealer || (newStatus !== 'cancelled' ? DEMO_DEALER : undefined),
