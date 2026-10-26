@@ -1,0 +1,12 @@
+# Supabase CLI configuration file
+project_id = "hdahiuceeifjpsaicpmy"
+
+[api]
+enabled = true
+port = 54321
+schemas = ["public", "storage", "graphql_public"]
+extra_search_path = ["public", "extensions"]
+max_rows = 1000
+
+[functions.chat-support]
+verify_jwt = true

@@ -15,6 +15,7 @@ import { AdminDealersPage } from './pages/AdminDealersPage';
 import { ResetPasswordPage } from './pages/ResetPasswordPage';
 import { AuthCallbackPage } from './pages/AuthCallbackPage';
 import { NotFoundPage } from './pages/NotFoundPage';
+import { SupportChatWidget } from './components/chat/SupportChatWidget';
 
 // Scroll to top helper on navigation
 const ScrollToTop: React.FC = () => {
@@ -91,6 +92,7 @@ export function App() {
               </Routes>
             </main>
             <Footer />
+            <SupportChatWidget />
           </div>
         </AuthProvider>
       </ToastProvider>
