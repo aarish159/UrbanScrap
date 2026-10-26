@@ -86,6 +86,8 @@ export interface Booking {
     timestamp: string;
     note: string;
   }[];
+  photoPaths?: string[];
+  photoUrls?: string[];
   isDemoSample?: boolean;
 }
 

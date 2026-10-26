@@ -196,6 +196,7 @@ export interface Database {
           rescheduled_date: string | null;
           rescheduled_time_slot: string | null;
           notes: string | null;
+          photo_paths?: string[] | null;
           created_at: string;
           updated_at: string;
         };
@@ -227,6 +228,7 @@ export interface Database {
           rescheduled_date?: string | null;
           rescheduled_time_slot?: string | null;
           notes?: string | null;
+          photo_paths?: string[] | null;
           created_at?: string;
           updated_at?: string;
         };
@@ -258,6 +260,7 @@ export interface Database {
           rescheduled_date?: string | null;
           rescheduled_time_slot?: string | null;
           notes?: string | null;
+          photo_paths?: string[] | null;
           created_at?: string;
           updated_at?: string;
         };

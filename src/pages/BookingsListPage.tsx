@@ -73,6 +73,7 @@ export const BookingsListPage: React.FC = () => {
             reschedule_reason,
             rescheduled_date,
             rescheduled_time_slot,
+            photo_paths,
             created_at,
             booking_items (
               id,
@@ -172,6 +173,7 @@ export const BookingsListPage: React.FC = () => {
                 (a: any, b: any) =>
                   new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime()
               ),
+            photoPaths: b.photo_paths || [],
           }));
 
           setBookings(mapped);

@@ -216,6 +216,8 @@ export const SEED_BOOKINGS: Booking[] = [
       notes: 'Lift is operational. Scrap is packed in 2 large sacks near the balcony.',
     },
     assignedDealer: DEMO_DEALER,
+    photoPaths: ['/demo/scrap-cardboard.jpg', '/demo/scrap-metal.jpg'],
+    photoUrls: ['/demo/scrap-cardboard.jpg', '/demo/scrap-metal.jpg'],
     statusHistory: [
       {
         status: 'requested',
@@ -414,6 +416,8 @@ export const SEED_BOOKINGS: Booking[] = [
       timeSlot: '09:00 AM - 12:00 PM (Morning Slot)',
       notes: 'Call before arriving at the tower.',
     },
+    photoPaths: ['/demo/scrap-sample.jpg'],
+    photoUrls: ['/demo/scrap-sample.jpg'],
     statusHistory: [
       {
         status: 'requested',

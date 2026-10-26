@@ -30,6 +30,9 @@ import {
   type DealerActionType,
 } from '../components/dealer/DealerStatusActionModal';
 import { PickupTrackerTimeline } from '../components/tracking/PickupTrackerTimeline';
+import { DealerOrderPhotos } from '../components/dealer/DealerOrderPhotos';
+import { SAMPLE_MATERIALS } from '../data/mockData';
+import type { Material } from '../types';
 
 export const DealerDashboardPage: React.FC = () => {
   const { user, profile, isConfigured } = useAuth();
@@ -61,6 +64,34 @@ export const DealerDashboardPage: React.FC = () => {
         });
     }
   }, [isConfigured, user]);
+
+  // Load material catalogue for scrap photo analysis
+  const [materialsList, setMaterialsList] = useState<Material[]>(SAMPLE_MATERIALS);
+  useEffect(() => {
+    if (isConfigured && isSupabaseConfigured()) {
+      supabase
+        .from('materials')
+        .select('*')
+        .eq('is_active', true)
+        .order('name')
+        .then(({ data, error }) => {
+          if (!error && data && data.length > 0) {
+            setMaterialsList(
+              data.map((m) => ({
+                id: m.id,
+                name: m.name,
+                category: m.category,
+                indicativeRate: Number(m.indicative_rate),
+                unit: m.unit,
+                description: m.description || '',
+                popular: m.popular,
+                minQuantity: m.min_quantity,
+              }))
+            );
+          }
+        });
+    }
+  }, [isConfigured]);
 
   // Fetch bookings function with tracking fields and dealer filtering
   const fetchBookings = useCallback(async () => {
@@ -95,6 +126,7 @@ export const DealerDashboardPage: React.FC = () => {
             rescheduled_date,
             rescheduled_time_slot,
             assigned_dealer_id,
+            photo_paths,
             created_at,
             booking_items (
               id,
@@ -193,6 +225,7 @@ export const DealerDashboardPage: React.FC = () => {
                 (a: any, b: any) =>
                   new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime()
               ),
+            photoPaths: b.photo_paths || [],
           }));
 
           setBookings(mapped);
@@ -1105,6 +1138,9 @@ export const DealerDashboardPage: React.FC = () => {
                 )}
               </div>
             </div>
+
+            {/* Customer Attached Photos & AI Analysis */}
+            <DealerOrderPhotos booking={selectedBooking} materials={materialsList} />
 
             {/* Embedded 7-Step Pickup Tracker Timeline */}
             <PickupTrackerTimeline booking={selectedBooking} compact={false} />
