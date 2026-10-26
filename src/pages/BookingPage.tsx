@@ -19,7 +19,8 @@ import {
   ShieldCheck,
 } from 'lucide-react';
 import { Stepper } from '../components/ui/Stepper';
-import { ScrapScanner } from '../components/scanner/ScrapScanner';
+import { CustomerPhotoUpload } from '../components/booking/CustomerPhotoUpload';
+import { compressImageFile } from '../utils/imageUtils';
 import { SAMPLE_MATERIALS, TIME_SLOTS, POPULAR_CITIES, DEMO_DEALER } from '../data/mockData';
 import type { SelectedMaterialItem, PickupAddress, Booking, Material } from '../types';
 import { formatINR, formatDate } from '../utils/formatters';
@@ -63,6 +64,40 @@ export const BookingPage: React.FC = () => {
   });
   const [selectedCatalogueId, setSelectedCatalogueId] = useState<string>('');
   const [materialError, setMaterialError] = useState<string | null>(null);
+
+  // Optional customer scrap photos for dealer review
+  const [selectedPhotos, setSelectedPhotos] = useState<File[]>([]);
+  const [photoPreviews, setPhotoPreviews] = useState<string[]>([]);
+
+  const handleAddPhotos = (newFiles: File[]) => {
+    setSelectedPhotos((prev) => [...prev, ...newFiles]);
+    const newPreviews = newFiles.map((file) => URL.createObjectURL(file));
+    setPhotoPreviews((prev) => [...prev, ...newPreviews]);
+  };
+
+  const handleRemovePhoto = (index: number) => {
+    setSelectedPhotos((prev) => prev.filter((_, i) => i !== index));
+    setPhotoPreviews((prev) => {
+      const removed = prev[index];
+      if (removed && removed.startsWith('blob:')) {
+        URL.revokeObjectURL(removed);
+      }
+      return prev.filter((_, i) => i !== index);
+    });
+  };
+
+  const handleAddDemoPhoto = async () => {
+    try {
+      const res = await fetch('/demo/scrap-sample.jpg');
+      if (!res.ok) throw new Error('Demo sample not found');
+      const blob = await res.blob();
+      const demoFile = new File([blob], 'scrap-sample.jpg', { type: 'image/jpeg' });
+      handleAddPhotos([demoFile]);
+      showToast('Demo Photo Added', 'Sample scrap photo attached for dealer review.', 'info');
+    } catch {
+      showToast('Demo Photo Error', 'Could not load demo sample photo.', 'error');
+    }
+  };
 
   // STEP 2 STATE: Pickup Address & Time
   const tomorrowStr = useMemo(() => {
@@ -273,8 +308,16 @@ export const BookingPage: React.FC = () => {
 
   // STEP 3 SUBMISSION
   const handleConfirmBooking = async () => {
-    const randomSuffix = Math.floor(1000 + Math.random() * 9000);
-    const newBookingId = `US-2026-${randomSuffix}`;
+    // Generate UUID for booking: strictly conforms to <customer UUID>/<booking UUID>/<unique filename>
+    const bookingUuid =
+      typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function'
+        ? crypto.randomUUID()
+        : 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, (c) => {
+            const r = (Math.random() * 16) | 0;
+            const v = c === 'x' ? r : (r & 0x3) | 0x8;
+            return v.toString(16);
+          });
+    const newBookingId = bookingUuid;
 
     if (isConfigured) {
       if (!user) {
@@ -284,7 +327,40 @@ export const BookingPage: React.FC = () => {
       }
 
       setIsSubmitting(true);
+      const uploadedPhotoPaths: string[] = [];
+
       try {
+        // Upload customer photos to private Storage bucket 'booking-photos'
+        if (selectedPhotos.length > 0) {
+          for (let i = 0; i < selectedPhotos.length; i++) {
+            const photoFile = selectedPhotos[i];
+            const { blob } = await compressImageFile(photoFile);
+
+            // Generate unique filename for photo: <photo UUID>.jpg
+            const photoUniqueId =
+              typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function'
+                ? crypto.randomUUID()
+                : `${Date.now()}-${i + 1}`;
+            const uniqueFilename = `${photoUniqueId}.jpg`;
+
+            // Bucket-relative path: <customer UUID>/<booking UUID>/<unique filename>
+            // Note: Does not prefix with 'booking-photos/'
+            const storagePath = `${user.id}/${newBookingId}/${uniqueFilename}`;
+
+            const { error: uploadErr } = await supabase.storage
+              .from('booking-photos')
+              .upload(storagePath, blob, {
+                contentType: 'image/jpeg',
+                upsert: false,
+              });
+
+            if (uploadErr) {
+              throw new Error(`Failed to upload photo #${i + 1}: ${uploadErr.message}`);
+            }
+            uploadedPhotoPaths.push(storagePath);
+          }
+        }
+
         // 1. Insert into public.bookings
         const { error: bErr } = await supabase.from('bookings').insert({
           id: newBookingId,
@@ -301,9 +377,14 @@ export const BookingPage: React.FC = () => {
           time_slot: addressForm.timeSlot,
           notes: addressForm.notes?.trim() || null,
           estimated_total: estimatedTotal,
+          photo_paths: uploadedPhotoPaths.length > 0 ? uploadedPhotoPaths : null,
         });
 
         if (bErr) {
+          // Clean up uploaded files if database booking insertion fails
+          if (uploadedPhotoPaths.length > 0) {
+            await supabase.storage.from('booking-photos').remove(uploadedPhotoPaths);
+          }
           showToast('Booking Failed', bErr.message, 'error');
           setIsSubmitting(false);
           return;
@@ -336,6 +417,8 @@ export const BookingPage: React.FC = () => {
           estimatedTotal,
           address: addressForm,
           assignedDealer: DEMO_DEALER,
+          photoPaths: uploadedPhotoPaths,
+          photoUrls: photoPreviews,
           statusHistory: [
             {
               status: 'requested',
@@ -349,8 +432,20 @@ export const BookingPage: React.FC = () => {
         setSubmittedBooking(confirmedBooking);
         showToast('Pickup Scheduled!', `Booking ID ${newBookingId} has been confirmed.`, 'success');
         window.scrollTo({ top: 0, behavior: 'smooth' });
-      } catch {
-        showToast('Error', 'An unexpected error occurred while saving booking.', 'error');
+      } catch (err) {
+        // Clean up any uploaded photos if upload or preparation failed
+        if (uploadedPhotoPaths.length > 0) {
+          try {
+            await supabase.storage.from('booking-photos').remove(uploadedPhotoPaths);
+          } catch {
+            // ignore cleanup error
+          }
+        }
+        showToast(
+          'Photo Upload / Booking Error',
+          err instanceof Error ? err.message : 'An unexpected error occurred while saving booking.',
+          'error'
+        );
       } finally {
         setIsSubmitting(false);
       }
@@ -365,6 +460,8 @@ export const BookingPage: React.FC = () => {
         estimatedTotal,
         address: addressForm,
         assignedDealer: DEMO_DEALER,
+        photoPaths: photoPreviews,
+        photoUrls: photoPreviews,
         statusHistory: [
           {
             status: 'requested',
@@ -489,6 +586,24 @@ export const BookingPage: React.FC = () => {
                 </ul>
               </div>
             </div>
+
+            {submittedBooking.photoUrls && submittedBooking.photoUrls.length > 0 && (
+              <div className="pt-3 border-t border-[#e6e8e5] space-y-2">
+                <span className="font-bold text-[#123b26] text-xs block">
+                  Attached Photos for Dealer Review ({submittedBooking.photoUrls.length}):
+                </span>
+                <div className="flex gap-2 overflow-x-auto pb-1">
+                  {submittedBooking.photoUrls.map((url, idx) => (
+                    <img
+                      key={idx}
+                      src={url}
+                      alt={`Attached scrap ${idx + 1}`}
+                      className="w-14 h-14 object-cover rounded-xl border border-[#d1d5db] shadow-2xs shrink-0"
+                    />
+                  ))}
+                </div>
+              </div>
+            )}
           </div>
 
           {/* Action CTAs */}
@@ -561,7 +676,15 @@ export const BookingPage: React.FC = () => {
             </Link>
           </div>
 
-          <ScrapScanner materials={materialsList} onAddMaterial={handleAddMaterial} selectedMaterialIds={selectedItems.map((item) => item.materialId)} />
+          {/* Optional customer photos for dealer review */}
+          <CustomerPhotoUpload
+            photos={selectedPhotos}
+            previews={photoPreviews}
+            onAddPhotos={handleAddPhotos}
+            onRemovePhoto={handleRemovePhoto}
+            onAddDemoPhoto={handleAddDemoPhoto}
+            disabled={isSubmitting}
+          />
 
           {/* Quick Add Popular Chips */}
           <div className="space-y-2">
@@ -1145,6 +1268,25 @@ export const BookingPage: React.FC = () => {
               </div>
             </div>
           </div>
+
+          {/* Attached Scrap Photos Preview */}
+          {photoPreviews.length > 0 && (
+            <div className="p-4 rounded-2xl bg-[#fbfbf9] border border-[#e6e8e5] space-y-2">
+              <span className="font-bold text-[#123b26] text-xs uppercase tracking-wider block">
+                Attached Photos for Dealer Review ({photoPreviews.length})
+              </span>
+              <div className="flex gap-2.5 overflow-x-auto pb-1">
+                {photoPreviews.map((preview, idx) => (
+                  <div key={idx} className="relative w-16 h-16 rounded-xl overflow-hidden border border-[#d1d5db] shrink-0 shadow-2xs">
+                    <img src={preview} alt={`Photo ${idx + 1}`} className="w-full h-full object-cover" />
+                    <span className="absolute bottom-1 right-1 bg-black/60 text-white text-[9px] px-1 py-0.2 rounded font-mono">
+                      #{idx + 1}
+                    </span>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
 
           {/* Notice & Disclaimer Check */}
           <div className="p-4 rounded-xl bg-amber-50/80 border border-amber-200/80 text-xs text-amber-950 flex items-start gap-2.5">
