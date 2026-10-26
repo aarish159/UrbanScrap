@@ -98,6 +98,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({
   // States
   const [loading, setLoading] = useState(false);
   const [googleLoading, setGoogleLoading] = useState(false);
+  const [demoLoading, setDemoLoading] = useState(false);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
   const [emailVerificationSent, setEmailVerificationSent] = useState(false);
   const [resetEmailSent, setResetEmailSent] = useState(false);
@@ -123,6 +124,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({
       setShowPassword(false);
       setLoading(false);
       setGoogleLoading(false);
+      setDemoLoading(false);
       setErrorMsg(null);
       setEmailVerificationSent(false);
       setResetEmailSent(false);
@@ -271,6 +273,18 @@ export const AuthModal: React.FC<AuthModalProps> = ({
             .maybeSingle();
 
           await refreshDealer();
+
+          // Check if this is an authorized demo dealer account
+          if (dealerData?.is_demo || profileData?.is_demo) {
+            showToast(
+              'Demo Dealer Active',
+              `Signed in as ${dealerData?.business_name || 'Demo Dealer'} (Read-Only Live Access).`,
+              'info'
+            );
+            onClose();
+            navigate(options?.returnTo || '/dealer');
+            return;
+          }
 
           if (!dealerData || !dealerData.is_verified) {
             const isRejected = dealerData?.verification_status === 'rejected';
@@ -598,6 +612,71 @@ export const AuthModal: React.FC<AuthModalProps> = ({
     } catch {
       setErrorMsg('Failed to initialize Google Sign In. Please try again.');
       setGoogleLoading(false);
+    }
+  };
+
+  // Demo Dealer Quick Sign In Handler
+  const handleDemoDealerLogin = async () => {
+    setErrorMsg(null);
+    setDemoLoading(true);
+
+    try {
+      if (!isConfigured) {
+        handleDemoSignIn('verified_dealer');
+        return;
+      }
+
+      // 1. Invoke Secure Supabase Edge Function (credentials kept strictly in Supabase server secrets)
+      const { data: edgeData, error: edgeErr } = await supabase.functions.invoke('demo-dealer-login');
+
+      if (edgeErr) {
+        let errorDetail = edgeErr.message || 'Demo dealer login service returned an error.';
+        try {
+          if ('context' in edgeErr && typeof (edgeErr as any).context?.json === 'function') {
+            const parsed = await (edgeErr as any).context.json();
+            if (parsed?.message) errorDetail = parsed.message;
+          }
+        } catch {
+          // Fall back to default errorDetail
+        }
+        setErrorMsg(errorDetail);
+        return;
+      }
+
+      if (!edgeData?.session?.access_token || !edgeData?.session?.refresh_token) {
+        setErrorMsg('Authentication failed: No active session returned by demo login service.');
+        return;
+      }
+
+      // Establish authenticated session with Supabase
+      const { error: sessionErr } = await supabase.auth.setSession({
+        access_token: edgeData.session.access_token,
+        refresh_token: edgeData.session.refresh_token,
+      });
+
+      if (sessionErr) {
+        setErrorMsg(`Failed to establish session: ${sessionErr.message}`);
+        return;
+      }
+
+      const effectiveUserId = edgeData.user?.id || (await supabase.auth.getUser()).data.user?.id;
+      if (effectiveUserId) {
+        await refreshProfile(effectiveUserId);
+        await refreshDealer();
+      }
+
+      showToast(
+        'Demo Dealer Active',
+        'Signed in as Demo Dealer (Read-Only Live Access with Photo Scanning).',
+        'info'
+      );
+      onClose();
+      navigate(options?.returnTo || '/dealer');
+      return;
+    } catch (err: any) {
+      setErrorMsg(err?.message || 'Failed to initialize Demo Dealer session.');
+    } finally {
+      setDemoLoading(false);
     }
   };
 
@@ -1127,6 +1206,40 @@ export const AuthModal: React.FC<AuthModalProps> = ({
                 <form onSubmit={handleSignIn} className="space-y-4">
                   {/* Google OAuth Button - Available for Customer & Dealer */}
                   {roleChoice !== 'admin' && renderGoogleButton(roleChoice === 'dealer' ? 'Sign in with Google' : 'Continue with Google')}
+
+                  {/* Demo Dealer Login Quick Access Option */}
+                  {roleChoice === 'dealer' && (
+                    <div className="p-3.5 rounded-2xl bg-gradient-to-r from-emerald-500/10 via-white/[0.03] to-amber-500/10 border border-emerald-500/30 text-xs space-y-2.5">
+                      <div className="flex items-start justify-between gap-2">
+                        <div className="flex items-center gap-2 text-white font-bold">
+                          <Sparkles className="w-4 h-4 text-amber-400 shrink-0" />
+                          <span>Demo Dealer Access (Read-Only)</span>
+                        </div>
+                        <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-amber-500/20 text-amber-300 border border-amber-500/30">
+                          Live Data Demo
+                        </span>
+                      </div>
+                      <p className="text-[11px] text-[#9cb1a4] leading-relaxed">
+                        Review actual doorstep scrap pickup requests from live customers in strictly read-only mode without merchant verification.
+                      </p>
+                      <button
+                        type="button"
+                        onClick={handleDemoDealerLogin}
+                        disabled={demoLoading || loading}
+                        className="w-full inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl font-bold text-xs bg-emerald-500/20 hover:bg-emerald-500/30 text-emerald-300 border border-emerald-500/40 transition-all active:scale-[0.99] disabled:opacity-50"
+                      >
+                        {demoLoading ? (
+                          <span className="w-3.5 h-3.5 border-2 border-emerald-300 border-t-transparent rounded-full animate-spin" />
+                        ) : (
+                          <>
+                            <Store className="w-3.5 h-3.5 text-emerald-400" />
+                            <span>Launch Demo Dealer Session</span>
+                            <ArrowRight className="w-3.5 h-3.5 ml-auto" />
+                          </>
+                        )}
+                      </button>
+                    </div>
+                  )}
 
                   {/* Admin Information Notice */}
                   {roleChoice === 'admin' && (

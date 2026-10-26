@@ -30,6 +30,7 @@ export interface Database {
           phone: string | null;
           phone_verified: boolean;
           role: UserRole;
+          is_demo: boolean;
           created_at: string;
           updated_at: string;
         };
@@ -39,6 +40,7 @@ export interface Database {
           phone?: string | null;
           phone_verified?: boolean;
           role?: UserRole;
+          is_demo?: boolean;
           created_at?: string;
           updated_at?: string;
         };
@@ -48,6 +50,7 @@ export interface Database {
           phone?: string | null;
           phone_verified?: boolean;
           role?: UserRole;
+          is_demo?: boolean;
           created_at?: string;
           updated_at?: string;
         };
@@ -116,6 +119,7 @@ export interface Database {
           reviewed_by: string | null;
           reviewed_at: string | null;
           submitted_at: string | null;
+          is_demo: boolean;
           created_at: string;
           updated_at: string;
         };
@@ -139,6 +143,7 @@ export interface Database {
           reviewed_by?: string | null;
           reviewed_at?: string | null;
           submitted_at?: string | null;
+          is_demo?: boolean;
           created_at?: string;
           updated_at?: string;
         };
@@ -162,6 +167,7 @@ export interface Database {
           reviewed_by?: string | null;
           reviewed_at?: string | null;
           submitted_at?: string | null;
+          is_demo?: boolean;
           created_at?: string;
           updated_at?: string;
         };
@@ -382,6 +388,40 @@ export interface Database {
       current_user_role: {
         Args: Record<PropertyKey, never>;
         Returns: UserRole;
+      };
+      is_demo_dealer: {
+        Args: Record<PropertyKey, never>;
+        Returns: boolean;
+      };
+      get_demo_dealer_bookings: {
+        Args: Record<PropertyKey, never>;
+        Returns: Array<{
+          id: string;
+          created_at: string;
+          status: BookingStatus;
+          estimated_total: number;
+          actual_total: number | null;
+          scheduled_pickup_at: string | null;
+          scheduled_date: string | null;
+          scheduled_time_slot: string | null;
+          preferred_date: string;
+          time_slot: string;
+          area: string;
+          city: string;
+          items: Array<{
+            material_id: string;
+            material_name: string;
+            category: MaterialCategory;
+            quantity: number;
+            unit: 'kg' | 'piece';
+            rate_per_unit: number;
+            estimated_subtotal: number;
+            actual_quantity: number | null;
+            actual_rate: number | null;
+            actual_subtotal: number | null;
+          }>;
+          photo_paths: string[];
+        }>;
       };
     };
     Enums: {

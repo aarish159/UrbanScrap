@@ -1,5 +1,6 @@
 import React, { createContext, useContext, useEffect, useState, useCallback } from 'react';
 import type { User, Session } from '@supabase/supabase-js';
+import { Capacitor } from '@capacitor/core';
 import { supabase, isSupabaseConfigured } from '../lib/supabase';
 import type { Database } from '../types/database';
 import { AuthModal } from '../components/auth/AuthModal';
@@ -78,6 +79,12 @@ const GENERIC_AUTH_ERROR = 'Invalid email, phone number, or password. Please ver
 export function getAppBaseUrl(): string {
   // 1. In browser window context
   if (typeof window !== 'undefined') {
+    // When running inside native mobile container (Capacitor Android/iOS),
+    // always use production domain so email links (password reset / confirmations) work on devices
+    if (Capacitor.isNativePlatform()) {
+      return 'https://urbanscrap.onrender.com';
+    }
+
     const hostname = window.location.hostname;
     const isLocalhost =
       hostname === 'localhost' ||
@@ -203,6 +210,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           reviewed_by: localDealer.reviewedBy || null,
           reviewed_at: localDealer.reviewedAt || null,
           submitted_at: localDealer.submittedAt || null,
+          is_demo: localDealer.isDemo || false,
           created_at: localDealer.createdAt,
           updated_at: localDealer.updatedAt,
         });
@@ -547,6 +555,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         phone: null,
         phone_verified: false,
         role: 'customer',
+        is_demo: false,
         created_at: new Date().toISOString(),
         updated_at: new Date().toISOString(),
       });
@@ -782,6 +791,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         phone: cleanPhone,
         phone_verified: true,
         role: 'customer',
+        is_demo: false,
         created_at: new Date().toISOString(),
         updated_at: new Date().toISOString(),
       });
@@ -794,6 +804,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         vehicle_type: 'EV Loader / Three-Wheeler',
         rating: 4.8,
         is_verified: false,
+        is_demo: false,
         verification_status: 'pending',
         gstin: null,
         legal_business_name: null,
@@ -994,6 +1005,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         vehicle_type: updated.vehicleType,
         rating: updated.rating,
         is_verified: false,
+        is_demo: false,
         gstin: updated.gstin || null,
         legal_business_name: updated.legalBusinessName || null,
         business_address: updated.businessAddress || null,

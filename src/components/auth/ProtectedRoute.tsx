@@ -200,6 +200,11 @@ export const ProtectedRoute: React.FC<ProtectedRouteProps> = ({
         );
       }
 
+      // Case Demo: Authorized Demo Dealer (Read-Only access to /dealer)
+      if (dealer?.is_demo || profile?.is_demo) {
+        return <>{children}</>;
+      }
+
       // Case B: Application is Rejected
       if (status === 'rejected') {
         return (

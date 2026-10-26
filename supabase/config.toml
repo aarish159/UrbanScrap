@@ -13,3 +13,6 @@ verify_jwt = true
 
 [functions.scrap-scan]
 verify_jwt = true
+
+[functions.demo-dealer-login]
+verify_jwt = false
