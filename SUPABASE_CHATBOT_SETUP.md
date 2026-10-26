@@ -102,3 +102,13 @@ npx supabase functions deploy chat-support
 | [`src/App.tsx`](file:///c:/Users/aarish/OneDrive/Desktop/UrbanScrap/src/App.tsx) | Integrated `SupportChatWidget` across customer-facing routes inside `AuthProvider`. |
 | [`supabase/functions/chat-support/index.ts`](file:///c:/Users/aarish/OneDrive/Desktop/UrbanScrap/supabase/functions/chat-support/index.ts) | Serverless Supabase Edge Function executing OpenAI `gpt-4o-mini` with strict system constraints. |
 | [`SUPABASE_CHATBOT_SETUP.md`](file:///c:/Users/aarish/OneDrive/Desktop/UrbanScrap/SUPABASE_CHATBOT_SETUP.md) | Deployment guide and secret management documentation. |
+
+## Scrap photo scanner
+
+The booking materials step includes an optional photo-based material suggestion tool. It requires the same `OPENAI_API_KEY` Edge Function secret used by `chat-support`. Deploy it separately after linking the Supabase project:
+
+```bash
+npx supabase functions deploy scrap-scan
+```
+
+The function keeps JWT verification enabled, accepts authenticated requests only, limits photo size and per-user requests, and returns suggested catalogue material IDs only. It does not estimate weight or payout and does not store uploaded photos. Customers should confirm suggestions and enter quantities; final weighing and payout remain with the dealer.

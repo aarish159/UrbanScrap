@@ -10,3 +10,6 @@ max_rows = 1000
 
 [functions.chat-support]
 verify_jwt = true
+
+[functions.scrap-scan]
+verify_jwt = true

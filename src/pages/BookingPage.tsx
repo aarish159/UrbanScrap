@@ -19,6 +19,7 @@ import {
   ShieldCheck,
 } from 'lucide-react';
 import { Stepper } from '../components/ui/Stepper';
+import { ScrapScanner } from '../components/scanner/ScrapScanner';
 import { SAMPLE_MATERIALS, TIME_SLOTS, POPULAR_CITIES, DEMO_DEALER } from '../data/mockData';
 import type { SelectedMaterialItem, PickupAddress, Booking, Material } from '../types';
 import { formatINR, formatDate } from '../utils/formatters';
@@ -559,6 +560,8 @@ export const BookingPage: React.FC = () => {
               <ArrowRight className="w-3.5 h-3.5" />
             </Link>
           </div>
+
+          <ScrapScanner materials={materialsList} onAddMaterial={handleAddMaterial} selectedMaterialIds={selectedItems.map((item) => item.materialId)} />
 
           {/* Quick Add Popular Chips */}
           <div className="space-y-2">
