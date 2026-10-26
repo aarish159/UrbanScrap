@@ -1,5 +1,8 @@
 import type { Booking, BookingStatus, DealerApplication, DealerReview } from '../types';
 import { SEED_BOOKINGS, DEMO_DEALER, SAMPLE_DEALER_APPLICATIONS } from '../data/mockData';
+import { isValidUuid } from './formatters';
+
+export { isValidUuid };
 
 const STORAGE_KEY = 'urban_scrap_bookings_v1';
 const DEALERS_STORAGE_KEY = 'urban_scrap_dealers_v1';
@@ -7,6 +10,7 @@ const EVENT_NAME = 'urban-scrap-storage-change';
 const DEALER_EVENT_NAME = 'urban-scrap-dealers-change';
 
 let memoryDealers: DealerApplication[] | null = null;
+
 
 // In-memory fallback if localStorage is disabled or throws
 let memoryBookings: Booking[] | null = null;
@@ -187,9 +191,15 @@ export function subscribeToBookingChanges(callback: () => void): () => void {
 // ====================================================================
 
 export function getDealerApplications(): DealerApplication[] {
+  const sanitizeDemo = (items: DealerApplication[]) =>
+    items.map((app) => ({
+      ...app,
+      isDemo: app.isDemo !== undefined ? app.isDemo : !isValidUuid(app.id),
+    }));
+
   if (!isLocalStorageAvailable()) {
     if (!memoryDealers) {
-      memoryDealers = [...SAMPLE_DEALER_APPLICATIONS];
+      memoryDealers = sanitizeDemo([...SAMPLE_DEALER_APPLICATIONS]);
     }
     return memoryDealers;
   }
@@ -197,30 +207,30 @@ export function getDealerApplications(): DealerApplication[] {
   try {
     const stored = window.localStorage.getItem(DEALERS_STORAGE_KEY);
     if (!stored) {
-      window.localStorage.setItem(
-        DEALERS_STORAGE_KEY,
-        JSON.stringify(SAMPLE_DEALER_APPLICATIONS)
-      );
-      return SAMPLE_DEALER_APPLICATIONS;
+      const seeded = sanitizeDemo(SAMPLE_DEALER_APPLICATIONS);
+      window.localStorage.setItem(DEALERS_STORAGE_KEY, JSON.stringify(seeded));
+      return seeded;
     }
     const parsed = JSON.parse(stored);
     if (!Array.isArray(parsed) || parsed.length === 0) {
-      window.localStorage.setItem(
-        DEALERS_STORAGE_KEY,
-        JSON.stringify(SAMPLE_DEALER_APPLICATIONS)
-      );
-      return SAMPLE_DEALER_APPLICATIONS;
+      const seeded = sanitizeDemo(SAMPLE_DEALER_APPLICATIONS);
+      window.localStorage.setItem(DEALERS_STORAGE_KEY, JSON.stringify(seeded));
+      return seeded;
     }
-    return parsed;
+    return sanitizeDemo(parsed);
   } catch (error) {
     console.warn('Failed to parse dealer applications from localStorage:', error);
-    return SAMPLE_DEALER_APPLICATIONS;
+    return sanitizeDemo(SAMPLE_DEALER_APPLICATIONS);
   }
 }
 
 export function saveDealerApplication(app: DealerApplication): void {
   const current = getDealerApplications();
-  const updated = [app, ...current.filter((d) => d.id !== app.id)];
+  const safeApp: DealerApplication = {
+    ...app,
+    isDemo: app.isDemo !== undefined ? app.isDemo : !isValidUuid(app.id),
+  };
+  const updated = [safeApp, ...current.filter((d) => d.id !== safeApp.id)];
 
   if (!isLocalStorageAvailable()) {
     memoryDealers = updated;
@@ -232,6 +242,7 @@ export function saveDealerApplication(app: DealerApplication): void {
       memoryDealers = updated;
     }
   }
+
 
   window.dispatchEvent(
     new CustomEvent(DEALER_EVENT_NAME, { detail: { action: 'create', app } })

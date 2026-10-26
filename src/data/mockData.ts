@@ -467,6 +467,7 @@ export const SAMPLE_DEALER_APPLICATIONS: DealerApplication[] = [
     submittedAt: new Date(Date.now() - 18 * 3600 * 1000).toISOString(),
     createdAt: new Date(Date.now() - 18 * 3600 * 1000).toISOString(),
     updatedAt: new Date(Date.now() - 18 * 3600 * 1000).toISOString(),
+    isDemo: true,
   },
   {
     id: 'dealer-app-102',
@@ -487,6 +488,7 @@ export const SAMPLE_DEALER_APPLICATIONS: DealerApplication[] = [
     submittedAt: new Date(Date.now() - 42 * 3600 * 1000).toISOString(),
     createdAt: new Date(Date.now() - 42 * 3600 * 1000).toISOString(),
     updatedAt: new Date(Date.now() - 42 * 3600 * 1000).toISOString(),
+    isDemo: true,
   },
   {
     id: 'dealer-blr-104',
@@ -509,5 +511,7 @@ export const SAMPLE_DEALER_APPLICATIONS: DealerApplication[] = [
     submittedAt: new Date(Date.now() - 7 * 24 * 3600 * 1000).toISOString(),
     createdAt: new Date(Date.now() - 7 * 24 * 3600 * 1000).toISOString(),
     updatedAt: new Date(Date.now() - 2 * 24 * 3600 * 1000).toISOString(),
+    isDemo: true,
   },
 ];
+

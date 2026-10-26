@@ -163,7 +163,11 @@ export const AuthModal: React.FC<AuthModalProps> = ({
         return;
       }
 
-      let authRes: { error?: string } = {};
+      let authRes: {
+        error?: string;
+        user?: { id: string } | null;
+        session?: { access_token: string } | null;
+      } = {};
 
       if (loginMethod === 'email') {
         if (!email.trim() || !password) {
@@ -192,26 +196,37 @@ export const AuthModal: React.FC<AuthModalProps> = ({
       }
 
       // Successfully authenticated with Supabase Auth
-      // Now inspect actual profile role to prevent role spoofing
-      const {
-        data: { session },
-      } = await supabase.auth.getSession();
-      const currentUserId = session?.user?.id;
+      // Determine the active user ID directly from sign-in response or current session
+      const currentUserId =
+        authRes.user?.id || (await supabase.auth.getSession()).data.session?.user?.id;
 
       if (!currentUserId) {
         onClose();
         return;
       }
 
-      // Fetch actual profile from public.profiles
-      const { data: profileData } = await supabase
-        .from('profiles')
-        .select('*')
-        .eq('id', currentUserId)
-        .maybeSingle();
+      // Fetch authoritative profile via refreshProfile or direct fallback query
+      let profileData = await refreshProfile(currentUserId);
+      if (!profileData) {
+        const { data: directProfile, error: profileErr } = await supabase
+          .from('profiles')
+          .select('*')
+          .eq('id', currentUserId)
+          .maybeSingle();
 
-      const actualRole = profileData?.role || 'customer';
-      await refreshProfile();
+        if (profileErr) {
+          console.error('Error fetching profile after sign-in:', profileErr);
+        }
+        profileData = directProfile;
+      }
+
+      // If profile could not be loaded due to network/RLS issues, report the issue without assuming 'customer'
+      if (!profileData) {
+        setErrorMsg('Unable to retrieve account profile. Please check your network connection and try again.');
+        return;
+      }
+
+      const actualRole = profileData.role;
 
       // Check if user chose "Admin"
       if (roleChoice === 'admin') {

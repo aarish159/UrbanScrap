@@ -222,3 +222,13 @@ export function getCategoryBadge(category: MaterialCategory): {
       return { label: 'E-Waste', colorClass: 'bg-emerald-100/70 text-emerald-900 border-emerald-200' };
   }
 }
+
+/**
+ * Validates whether a string conforms to the standard 36-character hexadecimal UUID format.
+ * Used to avoid Postgres 'invalid input syntax for type uuid' errors when dealing with demo strings.
+ */
+export function isValidUuid(id?: string | null): boolean {
+  if (!id || typeof id !== 'string') return false;
+  return /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(id.trim());
+}
+

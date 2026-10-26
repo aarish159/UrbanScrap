@@ -132,5 +132,7 @@ export interface DealerApplication {
   submittedAt?: string | null;
   createdAt: string;
   updatedAt: string;
+  isDemo?: boolean;
 }
+
 

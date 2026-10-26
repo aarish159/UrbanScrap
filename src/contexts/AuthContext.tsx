@@ -49,8 +49,8 @@ interface AuthContextType {
     gstCertificateFile?: File | null;
     gstCertificateUrl?: string | null;
   }) => Promise<{ error?: string }>;
-  signInWithEmail: (email: string, password: string) => Promise<{ error?: string }>;
-  signInWithPhone: (phone: string, password: string) => Promise<{ error?: string }>;
+  signInWithEmail: (email: string, password: string) => Promise<{ error?: string; user?: User | null; session?: Session | null }>;
+  signInWithPhone: (phone: string, password: string) => Promise<{ error?: string; user?: User | null; session?: Session | null }>;
   signInWithGoogle: (returnTo?: string) => Promise<{ error?: string }>;
   sendPhoneVerificationOtp: (phone: string) => Promise<{ error?: string }>;
   verifyPhoneOtp: (phone: string, token: string) => Promise<{ error?: string }>;
@@ -58,7 +58,7 @@ interface AuthContextType {
   verifyPasswordResetCode: (email: string, token: string) => Promise<{ error?: string }>;
   updateUserPassword: (newPassword: string) => Promise<{ error?: string }>;
   signOut: () => Promise<void>;
-  refreshProfile: () => Promise<void>;
+  refreshProfile: (targetUserId?: string) => Promise<UserProfile | null>;
   refreshDealer: () => Promise<void>;
 }
 
@@ -227,8 +227,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }
   }, [isConfigured]);
 
-  const fetchProfile = useCallback(async (userId: string) => {
-    if (!isConfigured) return;
+  const fetchProfile = useCallback(async (userId: string): Promise<UserProfile | null> => {
+    if (!isConfigured) return null;
     try {
       const { data, error } = await supabase
         .from('profiles')
@@ -240,8 +240,16 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         setProfile(data);
         // Always check if user has a dealer registration (pending, approved, or rejected)
         await fetchDealer(userId);
-      } else if (!data) {
-        // Missing profile (e.g. freshly authenticated via Google OAuth):
+        return data;
+      }
+
+      if (error) {
+        console.error('Error fetching profile from database:', error);
+        return null;
+      }
+
+      if (!data) {
+        // Truly missing profile in database (e.g. freshly authenticated via Google OAuth):
         // Automatically create and link customer profile from auth metadata
         const { data: authUserData } = await supabase.auth.getUser();
         const authUser = authUserData?.user;
@@ -268,23 +276,29 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
           if (!createError && createdProfile) {
             setProfile(createdProfile);
+            return createdProfile;
           } else {
             setProfile(null);
+            return null;
           }
         } else {
           setProfile(null);
+          return null;
         }
-        setDealer(null);
       }
-    } catch {
-      // Safe fallback
+      return null;
+    } catch (err) {
+      console.error('Unexpected error in fetchProfile:', err);
+      return null;
     }
   }, [isConfigured, fetchDealer]);
 
-  const refreshProfile = useCallback(async () => {
-    if (user?.id) {
-      await fetchProfile(user.id);
+  const refreshProfile = useCallback(async (targetUserId?: string): Promise<UserProfile | null> => {
+    const effectiveUserId = targetUserId || user?.id || (await supabase.auth.getUser()).data.user?.id;
+    if (effectiveUserId) {
+      return await fetchProfile(effectiveUserId);
     }
+    return null;
   }, [user?.id, fetchProfile]);
 
   useEffect(() => {
@@ -435,7 +449,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }
 
     try {
-      const { error } = await supabase.auth.signInWithPassword({
+      const { data, error } = await supabase.auth.signInWithPassword({
         email: email.trim().toLowerCase(),
         password,
       });
@@ -454,7 +468,12 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         return { error: GENERIC_AUTH_ERROR };
       }
 
-      return {};
+      if (data?.session) {
+        setSession(data.session);
+        setUser(data.user);
+      }
+
+      return { user: data?.user, session: data?.session };
     } catch {
       return { error: GENERIC_AUTH_ERROR };
     }
@@ -475,7 +494,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         ? `+91${cleanDigits}`
         : `+${cleanDigits}`;
 
-      const { error } = await supabase.auth.signInWithPassword({
+      const { data, error } = await supabase.auth.signInWithPassword({
         phone: formattedPhone,
         password,
       });
@@ -493,7 +512,12 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         return { error: GENERIC_AUTH_ERROR };
       }
 
-      return {};
+      if (data?.session) {
+        setSession(data.session);
+        setUser(data.user);
+      }
+
+      return { user: data?.user, session: data?.session };
     } catch {
       return { error: GENERIC_AUTH_ERROR };
     }

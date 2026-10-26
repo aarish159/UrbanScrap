@@ -31,6 +31,7 @@ import {
   saveDealerApplication,
   subscribeToDealerChanges,
   getDealerReviews,
+  isValidUuid,
 } from '../utils/storage';
 import { useToast } from '../components/ui/Toast';
 import { useAuth } from '../contexts/AuthContext';
@@ -44,6 +45,8 @@ export const AdminDealersPage: React.FC = () => {
 
   const [applications, setApplications] = useState<DealerApplication[]>([]);
   const [loading, setLoading] = useState(false);
+  const [loadError, setLoadError] = useState<string | null>(null);
+  const [showDemoRecords, setShowDemoRecords] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState<'all' | 'pending' | 'verified' | 'rejected'>('all');
 
@@ -56,11 +59,14 @@ export const AdminDealersPage: React.FC = () => {
   const [copiedGstin, setCopiedGstin] = useState(false);
   const [auditReviews, setAuditReviews] = useState<DealerReview[]>([]);
 
-  // Load applications from Supabase if live, or local storage
+  // Load applications from Supabase if live, without silently falling back to mockData
   const loadApplications = useCallback(async () => {
     setLoading(true);
+    setLoadError(null);
 
-    if (isConfigured && isSupabaseConfigured() && user) {
+    const isLive = isConfigured && isSupabaseConfigured() && !!user;
+
+    if (isLive) {
       try {
         const { data: dealersData, error } = await supabase
           .from('dealers')
@@ -89,56 +95,81 @@ export const AdminDealersPage: React.FC = () => {
           `)
           .order('created_at', { ascending: false });
 
-        if (!error && dealersData) {
-          const mapped: DealerApplication[] = dealersData.map((d) => {
-            const rawStatus = d.verification_status as string | undefined;
-            const status: 'pending' | 'verified' | 'rejected' =
-              rawStatus === 'approved' || (d.is_verified && !rawStatus)
-                ? 'verified'
-                : rawStatus === 'rejected'
-                ? 'rejected'
-                : 'pending';
-
-            return {
-              id: d.id,
-              userId: d.user_id,
-              businessName: d.business_name,
-              legalBusinessName: d.legal_business_name || undefined,
-              gstin: d.gstin || undefined,
-              businessAddress: d.business_address || undefined,
-              state: d.state || undefined,
-              gstCertificateUrl: d.gst_certificate_url || undefined,
-              applicantName: d.business_name || 'Dealer Partner',
-              email: 'partner@urbanscrap.in',
-              phone: d.phone,
-              serviceArea: d.service_area,
-              vehicleType: d.vehicle_type,
-              rating: Number(d.rating || 4.8),
-              isVerified: d.is_verified,
-              status,
-              rejectionReason: d.rejection_reason || undefined,
-              reviewNotes: d.review_notes || undefined,
-              reviewedBy: d.reviewed_by || undefined,
-              reviewedAt: d.reviewed_at || undefined,
-              submittedAt: d.submitted_at || d.created_at,
-              createdAt: d.created_at,
-              updatedAt: d.updated_at,
-            };
-          });
-
-          setApplications(mapped);
+        if (error) {
+          console.error('Supabase dealers fetch error:', error);
+          setLoadError(error.message);
+          // Strict Production requirement: Do NOT silently use mockData as fallback
+          setApplications([]);
           setLoading(false);
           return;
         }
-      } catch (err) {
-        console.warn('Supabase fetch failed, falling back to local dealer storage:', err);
+
+        const mapped: DealerApplication[] = (dealersData || []).map((d) => {
+          const rawStatus = d.verification_status as string | undefined;
+          const status: 'pending' | 'verified' | 'rejected' =
+            rawStatus === 'approved' || (d.is_verified && !rawStatus)
+              ? 'verified'
+              : rawStatus === 'rejected'
+              ? 'rejected'
+              : 'pending';
+
+          return {
+            id: d.id,
+            userId: d.user_id,
+            businessName: d.business_name,
+            legalBusinessName: d.legal_business_name || undefined,
+            gstin: d.gstin || undefined,
+            businessAddress: d.business_address || undefined,
+            state: d.state || undefined,
+            gstCertificateUrl: d.gst_certificate_url || undefined,
+            applicantName: d.business_name || 'Dealer Partner',
+            email: 'partner@urbanscrap.in',
+            phone: d.phone,
+            serviceArea: d.service_area,
+            vehicleType: d.vehicle_type,
+            rating: Number(d.rating || 4.8),
+            isVerified: d.is_verified,
+            status,
+            rejectionReason: d.rejection_reason || undefined,
+            reviewNotes: d.review_notes || undefined,
+            reviewedBy: d.reviewed_by || undefined,
+            reviewedAt: d.reviewed_at || undefined,
+            submittedAt: d.submitted_at || d.created_at,
+            createdAt: d.created_at,
+            updatedAt: d.updated_at,
+            isDemo: false,
+          };
+        });
+
+        if (showDemoRecords) {
+          const demoRows = getDealerApplications().map((app) => ({
+            ...app,
+            isDemo: true,
+          }));
+          setApplications([...mapped, ...demoRows]);
+        } else {
+          setApplications(mapped);
+        }
+        setLoading(false);
+        return;
+      } catch (err: unknown) {
+        const msg = err instanceof Error ? err.message : 'Database query exception.';
+        console.error('Supabase fetch exception:', err);
+        setLoadError(msg);
+        setApplications([]);
+        setLoading(false);
+        return;
       }
     }
 
-    // Local storage fallback / demo data
-    setApplications(getDealerApplications());
+    // Local / Offline demo sandbox mode
+    const demoRows = getDealerApplications().map((app) => ({
+      ...app,
+      isDemo: true,
+    }));
+    setApplications(demoRows);
     setLoading(false);
-  }, [isConfigured, user]);
+  }, [isConfigured, user, showDemoRecords]);
 
   useEffect(() => {
     loadApplications();
@@ -160,7 +191,14 @@ export const AdminDealersPage: React.FC = () => {
     setRejectionReason(selectedApp.rejectionReason || '');
 
     const fetchAudit = async () => {
-      if (isConfigured && isSupabaseConfigured()) {
+      const isRealDbDealer =
+        isConfigured &&
+        isSupabaseConfigured() &&
+        !!user &&
+        isValidUuid(selectedApp.id) &&
+        !selectedApp.isDemo;
+
+      if (isRealDbDealer) {
         try {
           const { data } = await supabase
             .from('dealer_reviews')
@@ -191,7 +229,7 @@ export const AdminDealersPage: React.FC = () => {
     };
 
     fetchAudit();
-  }, [selectedApp, isConfigured]);
+  }, [selectedApp, isConfigured, user]);
 
   // Compute metrics
   const metrics = useMemo(() => {
@@ -232,9 +270,15 @@ export const AdminDealersPage: React.FC = () => {
     setIsProcessing(true);
     const now = new Date().toISOString();
     const adminNotes = reviewNotes.trim() || 'Approved after manual verification on official GST portal.';
+    const isRealDbDealer =
+      isConfigured &&
+      isSupabaseConfigured() &&
+      !!user &&
+      isValidUuid(app.id) &&
+      !app.isDemo;
 
     try {
-      if (isConfigured && isSupabaseConfigured() && user) {
+      if (isRealDbDealer) {
         // 1. Update public.dealers set is_verified = true, verification_status = 'approved'
         const { error: dealerErr } = await supabase
           .from('dealers')
@@ -256,7 +300,7 @@ export const AdminDealersPage: React.FC = () => {
         }
 
         // 2. Promote user's profile role to 'dealer'
-        if (app.userId) {
+        if (app.userId && isValidUuid(app.userId)) {
           const { error: profileErr } = await supabase
             .from('profiles')
             .update({ role: 'dealer' })
@@ -284,11 +328,19 @@ export const AdminDealersPage: React.FC = () => {
         adminId: user?.id || 'admin-root',
       });
 
-      showToast(
-        'Dealer Approved & Activated!',
-        `${app.businessName} (GST: ${app.gstin || 'N/A'}) is now an authorized dealer partner.`,
-        'success'
-      );
+      if (isRealDbDealer) {
+        showToast(
+          'Dealer Approved & Activated!',
+          `${app.businessName} (GST: ${app.gstin || 'N/A'}) is now an authorized dealer partner in Supabase.`,
+          'success'
+        );
+      } else {
+        showToast(
+          'Dealer Approved (Demo Sandbox)',
+          `${app.businessName} was updated locally. Database actions are skipped for demo records without UUIDs.`,
+          'info'
+        );
+      }
 
       await loadApplications();
       setSelectedApp(null);
@@ -311,9 +363,15 @@ export const AdminDealersPage: React.FC = () => {
     setIsProcessing(true);
     const now = new Date().toISOString();
     const adminNotes = reviewNotes.trim() || undefined;
+    const isRealDbDealer =
+      isConfigured &&
+      isSupabaseConfigured() &&
+      !!user &&
+      isValidUuid(app.id) &&
+      !app.isDemo;
 
     try {
-      if (isConfigured && isSupabaseConfigured() && user) {
+      if (isRealDbDealer) {
         // 1. Update public.dealers set is_verified = false, verification_status = 'rejected'
         const { error: dealerErr } = await supabase
           .from('dealers')
@@ -335,7 +393,7 @@ export const AdminDealersPage: React.FC = () => {
         }
 
         // 2. Keep/reset user profile role to customer
-        if (app.userId) {
+        if (app.userId && isValidUuid(app.userId)) {
           await supabase
             .from('profiles')
             .update({ role: 'customer' })
@@ -360,11 +418,19 @@ export const AdminDealersPage: React.FC = () => {
         adminId: user?.id || 'admin-root',
       });
 
-      showToast(
-        'Application Rejected',
-        `${app.businessName} has been rejected. The dealer will see your reason and can correct details.`,
-        'info'
-      );
+      if (isRealDbDealer) {
+        showToast(
+          'Application Rejected',
+          `${app.businessName} has been rejected in Supabase. The dealer will see your reason and can correct details.`,
+          'info'
+        );
+      } else {
+        showToast(
+          'Application Rejected (Demo Sandbox)',
+          `${app.businessName} was rejected locally in sandbox mode. Database actions are skipped for demo records.`,
+          'info'
+        );
+      }
 
       await loadApplications();
       setSelectedApp(null);
@@ -397,15 +463,20 @@ export const AdminDealersPage: React.FC = () => {
       submittedAt: new Date().toISOString(),
       createdAt: new Date().toISOString(),
       updatedAt: new Date().toISOString(),
+      isDemo: true,
     };
 
     saveDealerApplication(mockApplicant);
     showToast(
-      'Test Application Created',
-      `Simulated pending dealer with GST: ${mockApplicant.businessName}`,
-      'success'
+      'Test Application Created (Local Sandbox)',
+      `Simulated pending dealer with GST: ${mockApplicant.businessName}. Note: Mock record with no database UUID.`,
+      'info'
     );
-    loadApplications();
+    if (!showDemoRecords && isConfigured && isSupabaseConfigured() && user) {
+      setShowDemoRecords(true);
+    } else {
+      loadApplications();
+    }
   };
 
   return (
@@ -420,14 +491,29 @@ export const AdminDealersPage: React.FC = () => {
             </div>
 
             {isConfigured && isSupabaseConfigured() ? (
-              <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full bg-blue-100 text-blue-900 text-xs font-bold">
-                <Database className="w-3 h-3 text-blue-700" />
-                <span>Supabase Live</span>
-              </span>
+              <div className="flex items-center gap-2 flex-wrap">
+                <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full bg-blue-100 text-blue-900 text-xs font-bold">
+                  <Database className="w-3 h-3 text-blue-700" />
+                  <span>Supabase Live</span>
+                </span>
+                <button
+                  type="button"
+                  onClick={() => setShowDemoRecords((prev) => !prev)}
+                  className={`inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-xs font-semibold border transition-all ${
+                    showDemoRecords
+                      ? 'bg-amber-100 text-amber-900 border-amber-300'
+                      : 'bg-[#f1f3f1] text-[#525955] border-[#d1d5db] hover:bg-[#e6e8e5]'
+                  }`}
+                  title="Toggle local sandbox demo records in list"
+                >
+                  <Sparkles className="w-3 h-3 text-amber-700" />
+                  <span>{showDemoRecords ? 'Demo Rows Included' : 'Include Demo Rows'}</span>
+                </button>
+              </div>
             ) : (
               <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full bg-amber-100 text-amber-900 text-xs font-bold">
                 <Sparkles className="w-3 h-3 text-amber-700" />
-                <span>Demo Sandbox</span>
+                <span>Demo Sandbox (Offline)</span>
               </span>
             )}
           </div>
@@ -439,7 +525,7 @@ export const AdminDealersPage: React.FC = () => {
           </p>
         </div>
 
-        <div className="flex items-center gap-2.5 self-start md:self-auto">
+        <div className="flex items-center gap-2.5 self-start md:self-auto flex-wrap">
           <button
             type="button"
             onClick={handleSimulateNewApplicant}
@@ -458,6 +544,40 @@ export const AdminDealersPage: React.FC = () => {
           </button>
         </div>
       </div>
+
+      {/* Database Error Banner if any */}
+      {loadError && (
+        <div className="p-4 rounded-2xl bg-rose-50 border border-rose-300 text-rose-950 flex flex-col sm:flex-row sm:items-center justify-between gap-3 shadow-xs">
+          <div className="flex items-start gap-2.5">
+            <AlertTriangle className="w-5 h-5 text-rose-600 shrink-0 mt-0.5" />
+            <div>
+              <h4 className="font-bold text-xs text-rose-950">Database Connection Notice</h4>
+              <p className="text-xs text-rose-900 mt-0.5 leading-relaxed">{loadError}</p>
+              <p className="text-[11px] text-rose-800 mt-0.5">
+                Urban Scrap will not silently substitute mock data in production mode. Real database records only are queried.
+              </p>
+            </div>
+          </div>
+          <div className="flex items-center gap-2 self-start sm:self-auto shrink-0">
+            <button
+              type="button"
+              onClick={() => setShowDemoRecords(true)}
+              className="px-3 py-1.5 rounded-xl text-xs font-bold bg-amber-100 text-amber-900 border border-amber-300 hover:bg-amber-200"
+            >
+              Show Demo Data
+            </button>
+            <button
+              type="button"
+              onClick={() => loadApplications()}
+              className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-bold bg-rose-600 hover:bg-rose-700 text-white shadow-xs transition-colors"
+            >
+              <RefreshCw className="w-3.5 h-3.5" />
+              <span>Retry</span>
+            </button>
+          </div>
+        </div>
+      )}
+
 
       {/* Metrics Cards */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
@@ -588,19 +708,33 @@ export const AdminDealersPage: React.FC = () => {
             <Filter className="w-6 h-6 stroke-[2]" />
           </div>
           <h3 className="font-extrabold text-base text-[#123b26]">No Dealer Applications Found</h3>
-          <p className="text-xs text-[#525955] max-w-sm mx-auto">
+          <p className="text-xs text-[#525955] max-w-md mx-auto">
             {searchTerm
               ? `No applicants matched "${searchTerm}". Try adjusting your search term.`
-              : `There are currently no dealer applications matching the selected filter.`}
+              : isConfigured && isSupabaseConfigured() && !showDemoRecords
+              ? 'There are currently no dealer partner applications registered in your Supabase database.'
+              : 'There are currently no dealer applications matching the selected filter.'}
           </p>
-          <button
-            type="button"
-            onClick={handleSimulateNewApplicant}
-            className="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl text-xs font-bold bg-[#123b26] text-white hover:bg-[#1a5336]"
-          >
-            <Plus className="w-3.5 h-3.5" />
-            <span>Create Test Application</span>
-          </button>
+          <div className="flex items-center justify-center gap-2 pt-2 flex-wrap">
+            {isConfigured && isSupabaseConfigured() && !showDemoRecords && (
+              <button
+                type="button"
+                onClick={() => setShowDemoRecords(true)}
+                className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl text-xs font-bold bg-amber-50 text-amber-900 border border-amber-300 hover:bg-amber-100"
+              >
+                <Sparkles className="w-3.5 h-3.5 text-amber-700" />
+                <span>Show Demo Sandbox Records</span>
+              </button>
+            )}
+            <button
+              type="button"
+              onClick={handleSimulateNewApplicant}
+              className="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl text-xs font-bold bg-[#123b26] text-white hover:bg-[#1a5336]"
+            >
+              <Plus className="w-3.5 h-3.5" />
+              <span>Create Test Application</span>
+            </button>
+          </div>
         </div>
       ) : (
         <div className="bg-white rounded-2xl border border-[#e6e8e5] shadow-xs overflow-hidden">
@@ -617,24 +751,38 @@ export const AdminDealersPage: React.FC = () => {
                 </tr>
               </thead>
               <tbody className="divide-y divide-[#f1f3f1] text-xs">
-                {filteredApps.map((app) => (
-                  <tr key={app.id} className="hover:bg-[#fcfdfc] transition-colors">
-                    {/* Business Name */}
-                    <td className="py-4 px-4 sm:px-6">
-                      <div className="flex items-center gap-3">
-                        <div className="w-9 h-9 rounded-xl bg-[#123b26] text-[#4ade80] flex items-center justify-center font-bold text-xs uppercase shrink-0">
-                          {app.businessName[0]}
+                {filteredApps.map((app) => {
+                  const isDemoRow = app.isDemo || !isValidUuid(app.id);
+                  return (
+                    <tr key={app.id} className="hover:bg-[#fcfdfc] transition-colors">
+                      {/* Business Name */}
+                      <td className="py-4 px-4 sm:px-6">
+                        <div className="flex items-center gap-3">
+                          <div className="w-9 h-9 rounded-xl bg-[#123b26] text-[#4ade80] flex items-center justify-center font-bold text-xs uppercase shrink-0">
+                            {app.businessName[0]}
+                          </div>
+                          <div>
+                            <div className="flex items-center gap-1.5 flex-wrap">
+                              <span className="font-bold text-[#123b26] block text-sm">
+                                {app.businessName}
+                              </span>
+                              {isDemoRow ? (
+                                <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-md bg-amber-100 text-amber-900 border border-amber-300 text-[10px] font-bold">
+                                  <Sparkles className="w-2.5 h-2.5 text-amber-700" /> Demo Record
+                                </span>
+                              ) : (
+                                <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-md bg-emerald-100 text-emerald-950 border border-emerald-300 text-[10px] font-bold">
+                                  <Database className="w-2.5 h-2.5 text-emerald-700" /> Database Live
+                                </span>
+                              )}
+                            </div>
+                            <span className="text-[11px] text-[#717a75] font-mono block mt-0.5">
+                              {isDemoRow ? `ID: ${app.id} (Local Sandbox)` : `UUID: ${app.id.slice(0, 8)}...${app.id.slice(-4)}`}
+                            </span>
+                          </div>
                         </div>
-                        <div>
-                          <span className="font-bold text-[#123b26] block text-sm">
-                            {app.businessName}
-                          </span>
-                          <span className="text-[11px] text-[#717a75] font-mono">
-                            ID: {app.id.slice(0, 15)}
-                          </span>
-                        </div>
-                      </div>
-                    </td>
+                      </td>
+
 
                     {/* GSTIN & Legal Name */}
                     <td className="py-4 px-4">
@@ -718,56 +866,96 @@ export const AdminDealersPage: React.FC = () => {
                       </button>
                     </td>
                   </tr>
-                ))}
-              </tbody>
+                );
+              })}
+            </tbody>
             </table>
           </div>
         </div>
       )}
 
       {/* ============================================================== */}
-      {/* REVIEW & VERIFICATION MODAL                                    */}
-      {/* ============================================================== */}
-      {selectedApp && (
-        <div className="fixed inset-0 z-[9999] flex items-center justify-center p-4 overflow-y-auto">
-          <div
-            className="fixed inset-0 bg-[#0a2417]/65 backdrop-blur-xs"
-            onClick={() => setSelectedApp(null)}
-          />
-          <div className="relative w-full max-w-2xl max-h-[90vh] overflow-y-auto rounded-3xl bg-white p-6 sm:p-8 shadow-2xl border border-[#e6e8e5] animate-in zoom-in-95 space-y-6">
-            {/* Header */}
-            <div className="flex items-start justify-between border-b border-[#f1f3f1] pb-4">
-              <div>
-                <div className="flex items-center gap-2 mb-1">
-                  <span className="text-[11px] font-bold text-[#16a34a] uppercase tracking-wider">
-                    Dealer Verification Review
-                  </span>
-                  {selectedApp.status === 'verified' ? (
-                    <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-100 text-emerald-950">
-                      <CheckCircle2 className="w-3 h-3 text-emerald-700" /> Verified Partner
+      {selectedApp && (() => {
+        const isDemoSelected = selectedApp.isDemo || !isValidUuid(selectedApp.id);
+        return (
+          <div className="fixed inset-0 z-[9999] flex items-center justify-center p-4 overflow-y-auto">
+            <div
+              className="fixed inset-0 bg-[#0a2417]/65 backdrop-blur-xs"
+              onClick={() => setSelectedApp(null)}
+            />
+            <div className="relative w-full max-w-2xl max-h-[90vh] overflow-y-auto rounded-3xl bg-white p-6 sm:p-8 shadow-2xl border border-[#e6e8e5] animate-in zoom-in-95 space-y-6">
+              {/* Header */}
+              <div className="flex items-start justify-between border-b border-[#f1f3f1] pb-4">
+                <div>
+                  <div className="flex items-center gap-2 mb-1 flex-wrap">
+                    <span className="text-[11px] font-bold text-[#16a34a] uppercase tracking-wider">
+                      Dealer Verification Review
                     </span>
-                  ) : selectedApp.status === 'pending' ? (
-                    <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold bg-amber-100 text-amber-900">
-                      <Clock className="w-3 h-3 text-amber-600" /> Pending Review
-                    </span>
-                  ) : (
-                    <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold bg-rose-100 text-rose-900">
-                      <XCircle className="w-3 h-3 text-rose-600" /> Rejected
-                    </span>
-                  )}
+                    {isDemoSelected ? (
+                      <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold bg-amber-100 text-amber-900 border border-amber-300">
+                        <Sparkles className="w-3 h-3 text-amber-700" /> Demo Sandbox (No DB UUID)
+                      </span>
+                    ) : (
+                      <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-100 text-emerald-950 border border-emerald-300">
+                        <Database className="w-3 h-3 text-emerald-700" /> Supabase Database Record
+                      </span>
+                    )}
+                    {selectedApp.status === 'verified' ? (
+                      <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-100 text-emerald-950">
+                        <CheckCircle2 className="w-3 h-3 text-emerald-700" /> Verified Partner
+                      </span>
+                    ) : selectedApp.status === 'pending' ? (
+                      <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold bg-amber-100 text-amber-900">
+                        <Clock className="w-3 h-3 text-amber-600" /> Pending Review
+                      </span>
+                    ) : (
+                      <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold bg-rose-100 text-rose-900">
+                        <XCircle className="w-3 h-3 text-rose-600" /> Rejected
+                      </span>
+                    )}
+                  </div>
+                  <h3 className="text-xl font-extrabold text-[#123b26]">
+                    {selectedApp.businessName}
+                  </h3>
                 </div>
-                <h3 className="text-xl font-extrabold text-[#123b26]">
-                  {selectedApp.businessName}
-                </h3>
+                <button
+                  type="button"
+                  onClick={() => setSelectedApp(null)}
+                  className="p-1.5 rounded-xl text-[#717a75] hover:bg-[#f1f3f1] -mr-1"
+                >
+                  <X className="w-5 h-5" />
+                </button>
               </div>
-              <button
-                type="button"
-                onClick={() => setSelectedApp(null)}
-                className="p-1.5 rounded-xl text-[#717a75] hover:bg-[#f1f3f1] -mr-1"
-              >
-                <X className="w-5 h-5" />
-              </button>
-            </div>
+
+              {/* Demo Sandbox Alert or Supabase Live Confirmation */}
+              {isDemoSelected ? (
+                <div className="p-4 rounded-2xl bg-amber-50/90 border border-amber-300 text-amber-950 space-y-1.5">
+                  <div className="flex items-start gap-2.5">
+                    <AlertTriangle className="w-5 h-5 text-amber-700 shrink-0 mt-0.5" />
+                    <div>
+                      <h4 className="font-extrabold text-xs text-amber-950 uppercase tracking-wide">
+                        Demo / Sandbox Application (ID: {selectedApp.id})
+                      </h4>
+                      <p className="text-xs text-amber-900/90 mt-0.5 leading-relaxed">
+                        This application is local demonstration data and does not have a PostgreSQL database UUID. Database actions are skipped to prevent syntax errors. Review decisions (approve/reject) will be recorded only in your local browser sandbox.
+                      </p>
+                    </div>
+                  </div>
+                </div>
+              ) : (
+                <div className="p-3 rounded-xl bg-emerald-50/80 border border-emerald-200 text-emerald-950 flex flex-col sm:flex-row sm:items-center justify-between gap-2 text-xs">
+                  <div className="flex items-center gap-2">
+                    <Database className="w-4 h-4 text-emerald-700 shrink-0" />
+                    <span>
+                      Persisted Supabase Record: <code className="font-mono font-bold text-emerald-900">{selectedApp.id}</code>
+                    </span>
+                  </div>
+                  <span className="text-[10px] font-bold px-2 py-0.5 rounded bg-emerald-200 text-emerald-900 self-start sm:self-auto">
+                    Valid UUID
+                  </span>
+                </div>
+              )}
+
 
             {/* Official GST Portal Manual Verification Banner */}
             <div className="p-4 rounded-2xl bg-amber-50/80 border border-amber-300 text-amber-950 space-y-2.5">
@@ -971,7 +1159,11 @@ export const AdminDealersPage: React.FC = () => {
                       onClick={() => handleConfirmReject(selectedApp)}
                       className="px-4 py-1.5 rounded-lg text-xs font-bold bg-rose-600 hover:bg-rose-700 text-white shadow-xs disabled:opacity-50"
                     >
-                      {isProcessing ? 'Rejecting...' : 'Confirm Rejection'}
+                      {isProcessing
+                        ? 'Rejecting...'
+                        : isDemoSelected
+                        ? 'Confirm Rejection (Local Sandbox Only)'
+                        : 'Confirm Rejection (Supabase)'}
                     </button>
                   </div>
                 </div>
@@ -1001,10 +1193,25 @@ export const AdminDealersPage: React.FC = () => {
                       type="button"
                       disabled={isProcessing}
                       onClick={() => handleApprove(selectedApp)}
-                      className="inline-flex items-center gap-1.5 px-5 py-2 rounded-xl text-xs font-bold bg-[#16a34a] hover:bg-[#15803d] text-white shadow-md transition-all active:scale-[0.98] disabled:opacity-50"
+                      className={`inline-flex items-center gap-1.5 px-5 py-2 rounded-xl text-xs font-bold text-white shadow-md transition-all active:scale-[0.98] disabled:opacity-50 ${
+                        isDemoSelected
+                          ? 'bg-amber-600 hover:bg-amber-700'
+                          : 'bg-[#16a34a] hover:bg-[#15803d]'
+                      }`}
+                      title={
+                        isDemoSelected
+                          ? 'Local sandbox approval only (no database query)'
+                          : 'Approve and activate dealer partner in Supabase'
+                      }
                     >
                       <CheckCircle2 className="w-4 h-4" />
-                      <span>{isProcessing ? 'Approving...' : 'Approve & Unlock Portal'}</span>
+                      <span>
+                        {isProcessing
+                          ? 'Approving...'
+                          : isDemoSelected
+                          ? 'Approve (Local Sandbox Only)'
+                          : 'Approve & Unlock Portal'}
+                      </span>
                     </button>
                   </div>
                 </div>
@@ -1012,7 +1219,8 @@ export const AdminDealersPage: React.FC = () => {
             </div>
           </div>
         </div>
-      )}
+      );
+    })()}
     </div>
   );
 };

@@ -9,10 +9,11 @@ import {
 import type { Booking, BookingStatus, SelectedMaterialItem } from '../../types';
 import { Modal } from '../ui/Modal';
 import { useToast } from '../ui/Toast';
-import { formatINR, formatDate } from '../../utils/formatters';
+import { formatINR, formatDate, isValidUuid } from '../../utils/formatters';
 import { TIME_SLOTS } from '../../data/mockData';
 import { supabase, isSupabaseConfigured } from '../../lib/supabase';
 import { updateBookingStatus } from '../../utils/storage';
+
 
 export type DealerActionType =
   | 'claim'
@@ -122,15 +123,21 @@ export const DealerStatusActionModal: React.FC<DealerStatusActionModalProps> = (
       let itemsToUpdate: any[] = [];
       let auditNote = '';
 
+      const isClaimAction = actionType === 'claim';
+      const hasValidDealerUuid = isClaimAction && isValidUuid(dealerId);
+
       switch (actionType) {
         case 'claim':
           targetStatus = 'dealer_assigned';
           bookingUpdatePayload = {
             status: targetStatus,
-            assigned_dealer_id: dealerId,
+            ...(hasValidDealerUuid ? { assigned_dealer_id: dealerId } : {}),
           };
-          auditNote = 'Pickup claimed and assigned to dealer partner.';
+          auditNote = hasValidDealerUuid
+            ? 'Pickup claimed and assigned to dealer partner.'
+            : 'Pickup claimed and assigned to demo partner (Sandbox).';
           break;
+
 
         case 'schedule':
           if (!scheduledDate || !scheduledTimeSlot) {
@@ -238,8 +245,10 @@ export const DealerStatusActionModal: React.FC<DealerStatusActionModalProps> = (
           return;
       }
 
-      // Execute update in Supabase if configured & user logged in
-      if (isConfigured && isSupabaseConfigured() && user) {
+      // Execute update in Supabase if configured & user logged in (and not claiming with a non-UUID demo dealer)
+      const shouldUpdateSupabase = isConfigured && isSupabaseConfigured() && user && (!isClaimAction || hasValidDealerUuid);
+
+      if (shouldUpdateSupabase) {
         // If weighing, update item line records first
         if (actionType === 'weigh' && itemsToUpdate.length > 0) {
           for (const item of itemsToUpdate) {
@@ -294,10 +303,13 @@ export const DealerStatusActionModal: React.FC<DealerStatusActionModalProps> = (
 
         showToast(
           'Status Updated',
-          `Order ${booking.id} moved to ${targetStatus.replace('_', ' ')} (Sandbox).`,
+          isClaimAction && !hasValidDealerUuid
+            ? `Order ${booking.id} claimed in sandbox mode (Demo partner ${dealerId || 'N/A'} has no database UUID).`
+            : `Order ${booking.id} moved to ${targetStatus.replace('_', ' ')} (Sandbox).`,
           'success'
         );
       }
+
 
       onSuccess();
       onClose();

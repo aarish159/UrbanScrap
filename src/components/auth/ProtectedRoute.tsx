@@ -102,7 +102,18 @@ export const ProtectedRoute: React.FC<ProtectedRouteProps> = ({
 
   // Check required role if specified
   if (user && allowedRoles && allowedRoles.length > 0) {
-    const currentRole = profile?.role || 'customer';
+    if (!profile) {
+      return (
+        <div className="min-h-[50vh] flex items-center justify-center p-8">
+          <div className="flex flex-col items-center gap-3">
+            <div className="w-9 h-9 border-3 border-[#16a34a] border-t-transparent rounded-full animate-spin" />
+            <p className="text-xs font-semibold text-[#717a75]">Verifying permissions...</p>
+          </div>
+        </div>
+      );
+    }
+
+    const currentRole = profile.role;
     const isDealerRequested = allowedRoles.includes('dealer');
     const isAdminRequested = allowedRoles.includes('admin');
 
