@@ -2,6 +2,7 @@ import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { AlertCircle, Camera, CheckCircle2, ImagePlus, LoaderCircle, ScanSearch, Sparkles } from 'lucide-react';
 import type { Material } from '../../types';
 import { supabase, isSupabaseConfigured } from '../../lib/supabase';
+import { useAuth } from '../../contexts/AuthContext';
 
 interface ScanMatch {
   materialId: string;
@@ -46,6 +47,7 @@ function compressPhoto(file: File): Promise<string> {
 }
 
 export const ScrapScanner: React.FC<ScrapScannerProps> = ({ materials, onAddMaterial, selectedMaterialIds }) => {
+  const { openAuthModal } = useAuth();
   const inputRef = useRef<HTMLInputElement>(null);
   const [file, setFile] = useState<File | null>(null);
   const [previewUrl, setPreviewUrl] = useState('');
@@ -93,17 +95,52 @@ export const ScrapScanner: React.FC<ScrapScannerProps> = ({ materials, onAddMate
       return;
     }
     setError('');
+
+    // 1. Obtain the current access token from the existing Supabase client session immediately before invoking scrap-scan
+    const { data: sessionData, error: sessionError } = await supabase.auth.getSession();
+    const accessToken = sessionData?.session?.access_token;
+
+    // 2. If no session/access token exists, show a clear sign-in message and do not invoke the function
+    if (sessionError || !accessToken) {
+      setError('Please sign in to use the scrap photo scanner.');
+      openAuthModal({
+        initialRole: 'customer',
+        reasonMessage: 'Please sign in to use the scrap photo scanner.',
+      });
+      return;
+    }
+
     setIsScanning(true);
     try {
       const imageDataUrl = await compressPhoto(file);
+      // 3. Pass the token explicitly as Authorization: Bearer <access_token> in the supabase.functions.invoke headers
       const { data, error: invokeError } = await supabase.functions.invoke('scrap-scan', {
+        headers: {
+          Authorization: `Bearer ${accessToken}`,
+        },
         body: {
           imageDataUrl,
           materials: materials.map(({ id, name, category, unit }) => ({ id, name, category, unit })),
         },
       });
-      if (invokeError) throw new Error(invokeError.message || 'The scan could not be completed.');
+
+      if (invokeError) {
+        let serverMessage = '';
+        try {
+          if ('context' in invokeError && typeof (invokeError as any).context?.json === 'function') {
+            const errBody = await (invokeError as any).context.json();
+            if (errBody?.error && typeof errBody.error === 'string') {
+              serverMessage = errBody.error;
+            }
+          }
+        } catch {
+          // ignore parsing error
+        }
+        throw new Error(serverMessage || invokeError.message || 'The scan could not be completed.');
+      }
+
       if (data?.error) throw new Error(data.error);
+
       setMatches(Array.isArray(data?.matches) ? data.matches : []);
       setScanNote(typeof data?.note === 'string' ? data.note : '');
       if (!Array.isArray(data?.matches) || data.matches.length === 0) {
@@ -176,7 +213,19 @@ export const ScrapScanner: React.FC<ScrapScannerProps> = ({ materials, onAddMate
             )}
             {error && (
               <div className="flex items-start gap-2 rounded-xl border border-rose-200 bg-rose-50 px-3 py-2.5 text-xs text-rose-800" role="alert">
-                <AlertCircle className="mt-0.5 h-4 w-4 shrink-0" />{error}
+                <AlertCircle className="mt-0.5 h-4 w-4 shrink-0" />
+                <div className="flex-1">
+                  <span>{error}</span>
+                  {error.toLowerCase().includes('sign in') && (
+                    <button
+                      type="button"
+                      onClick={() => openAuthModal({ initialRole: 'customer', reasonMessage: 'Please sign in to use the scrap photo scanner.' })}
+                      className="ml-2 font-bold underline hover:text-rose-950"
+                    >
+                      Sign in now
+                    </button>
+                  )}
+                </div>
               </div>
             )}
             {scanNote && !isScanning && (

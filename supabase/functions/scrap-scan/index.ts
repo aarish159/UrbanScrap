@@ -20,17 +20,42 @@ serve(async (req) => {
   });
 
   try {
-    const authorization = req.headers.get('Authorization');
-    if (!authorization) return json({ error: 'Please sign in to use the scrap photo scanner.' }, 401);
+    const authHeader = req.headers.get('Authorization');
+    if (!authHeader) {
+      return json({ error: 'Please sign in to use the scrap photo scanner.' }, 401);
+    }
 
-    const supabaseUrl = Deno.env.get('SUPABASE_URL') ?? '';
-    const anonKey = Deno.env.get('SUPABASE_ANON_KEY') ?? '';
+    const tokenMatch = authHeader.match(/^Bearer\s+(.+)$/i);
+    const accessToken = tokenMatch ? tokenMatch[1].trim() : authHeader.trim();
+    if (!accessToken) {
+      return json({ error: 'Please sign in to use the scrap photo scanner.' }, 401);
+    }
+
+    const supabaseUrl = Deno.env.get('SUPABASE_URL');
+    const anonKey = Deno.env.get('SUPABASE_ANON_KEY');
+    if (!supabaseUrl || !anonKey) {
+      console.error('Edge Function configuration error: SUPABASE_URL or SUPABASE_ANON_KEY is not configured.');
+      return json({ error: 'The scanner service is temporarily unavailable due to server configuration.' }, 500);
+    }
+
     const client = createClient(supabaseUrl, anonKey, {
-      global: { headers: { Authorization: authorization } },
       auth: { persistSession: false },
     });
-    const { data: { user }, error: authError } = await client.auth.getUser();
-    if (authError || !user) return json({ error: 'Your session expired. Please sign in and try again.' }, 401);
+
+    const { data: { user }, error: authError } = await client.auth.getUser(accessToken);
+    if (authError || !user) {
+      const errName = authError?.name || 'AuthError';
+      const errMsg = authError?.message || 'User not found';
+      const safeLogMsg = `${errName}: ${errMsg}`.replace(/Bearer\s+\S+/gi, 'Bearer [REDACTED]');
+      console.error('Edge Function authentication error:', safeLogMsg);
+
+      const isExpired = errMsg.toLowerCase().includes('expired');
+      return json({
+        error: isExpired
+          ? 'Your session expired. Please sign in and try again.'
+          : 'Authentication failed. Please sign in to use the scrap photo scanner.',
+      }, 401);
+    }
 
     const now = Date.now();
     const recent = (requestTimes.get(user.id) ?? []).filter((time) => now - time < WINDOW_MS);
@@ -53,7 +78,10 @@ serve(async (req) => {
     }
 
     const apiKey = Deno.env.get('OPENAI_API_KEY');
-    if (!apiKey) return json({ error: 'Photo scanning is not configured yet. Please choose materials from the catalogue.' }, 503);
+    if (!apiKey) {
+      console.error('Edge Function configuration error: OPENAI_API_KEY is not configured.');
+      return json({ error: 'Photo scanning is not configured yet. Please choose materials from the catalogue.' }, 503);
+    }
 
     const safeCatalog = catalog.map(({ id, name, category, unit }) => ({
       id: id.slice(0, 100), name: name.slice(0, 100), category: String(category).slice(0, 40), unit: String(unit).slice(0, 20),
@@ -102,7 +130,9 @@ serve(async (req) => {
       .filter((match) => match.confidence >= 0.55);
     return json({ matches, note: typeof parsed.note === 'string' ? parsed.note.slice(0, 200) : '' });
   } catch (error) {
-    console.error('Scrap scan error:', error);
+    const errorDetails = error instanceof Error ? `${error.name}: ${error.message}` : String(error);
+    const safeErrorMsg = errorDetails.replace(/Bearer\s+\S+/gi, 'Bearer [REDACTED]');
+    console.error('Scrap scan unexpected error:', safeErrorMsg);
     return json({ error: 'The scan could not be completed. Please try again or choose materials manually.' }, 500);
   }
 });
