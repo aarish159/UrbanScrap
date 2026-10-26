@@ -279,8 +279,8 @@ export const DealerOrderPhotos: React.FC<DealerOrderPhotosProps> = ({ booking, m
 
   if (loadingPhotos) {
     return (
-      <div className="p-4 rounded-2xl bg-[#f8faf9] border border-[#e2e4e1] text-xs text-[#717a75] flex items-center gap-2">
-        <div className="w-4 h-4 border-2 border-[#16a34a] border-t-transparent rounded-full animate-spin" />
+      <div className="p-4 rounded-2xl glass-panel border border-white/10 text-xs text-[#9cb1a4] flex items-center gap-2">
+        <div className="w-4 h-4 border-2 border-emerald-400 border-t-transparent rounded-full animate-spin" />
         <span>Loading attached customer scrap photos...</span>
       </div>
     );
@@ -289,13 +289,13 @@ export const DealerOrderPhotos: React.FC<DealerOrderPhotosProps> = ({ booking, m
   // Case: No photos attached by customer
   if (photos.length === 0) {
     return (
-      <div className="p-4 rounded-2xl bg-[#f8faf9] border border-[#e2e4e1] flex items-start gap-3">
-        <div className="w-8 h-8 rounded-lg bg-gray-100 text-gray-500 flex items-center justify-center shrink-0">
+      <div className="p-4 rounded-2xl glass-panel border border-white/10 flex items-start gap-3">
+        <div className="w-8 h-8 rounded-lg bg-white/[0.04] text-emerald-400 border border-white/10 flex items-center justify-center shrink-0">
           <Camera className="w-4 h-4" />
         </div>
         <div className="text-xs space-y-0.5">
-          <span className="font-bold text-[#123b26] block">Customer Scrap Photos</span>
-          <p className="text-[#717a75]">
+          <span className="font-bold text-white block">Customer Scrap Photos</span>
+          <p className="text-[#9cb1a4]">
             No photos attached by customer. The customer manually selected materials from the catalogue. You can inspect and weigh items directly during doorstep pickup.
           </p>
         </div>
@@ -304,18 +304,18 @@ export const DealerOrderPhotos: React.FC<DealerOrderPhotosProps> = ({ booking, m
   }
 
   return (
-    <div className="p-5 rounded-2xl bg-white border border-[#e2e4e1] shadow-2xs space-y-4">
+    <div className="p-5 rounded-2xl glass-card border border-white/[0.08] shadow-xl space-y-4 text-white">
       {/* Header */}
-      <div className="flex flex-wrap items-center justify-between pb-3 border-b border-[#f1f3f1] gap-2">
+      <div className="flex flex-wrap items-center justify-between pb-3 border-b border-white/[0.06] gap-2">
         <div className="flex items-center gap-2">
-          <div className="w-8 h-8 rounded-lg bg-emerald-100 text-[#123b26] flex items-center justify-center">
-            <Camera className="w-4 h-4 text-[#16a34a]" />
+          <div className="w-8 h-8 rounded-lg bg-emerald-500/15 text-emerald-400 border border-emerald-500/25 flex items-center justify-center">
+            <Camera className="w-4 h-4 text-emerald-400" />
           </div>
           <div>
-            <h4 className="font-bold text-sm text-[#123b26]">
+            <h4 className="font-bold text-sm text-white">
               Customer Scrap Photos ({photos.length})
             </h4>
-            <span className="text-[11px] text-[#717a75]">
+            <span className="text-[11px] text-[#9cb1a4]">
               Attached by customer for pre-pickup review
             </span>
           </div>
@@ -334,8 +334,8 @@ export const DealerOrderPhotos: React.FC<DealerOrderPhotosProps> = ({ booking, m
                 }}
                 className={`w-9 h-9 rounded-lg overflow-hidden border-2 transition-all ${
                   idx === activePhotoIndex
-                    ? 'border-[#16a34a] ring-2 ring-emerald-200'
-                    : 'border-[#d1d5db] opacity-70 hover:opacity-100'
+                    ? 'border-emerald-400 ring-2 ring-emerald-500/30'
+                    : 'border-white/15 opacity-60 hover:opacity-100'
                 }`}
               >
                 <img src={p.url} alt={`Thumbnail ${idx + 1}`} className="w-full h-full object-cover" />
@@ -350,18 +350,18 @@ export const DealerOrderPhotos: React.FC<DealerOrderPhotosProps> = ({ booking, m
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4 items-start">
           {/* Photo Display Card */}
           <div className="space-y-2">
-            <div className="relative rounded-xl overflow-hidden border border-[#d1d5db] bg-black/5 aspect-4/3 max-h-64 sm:max-h-72">
+            <div className="relative rounded-xl overflow-hidden border border-white/10 bg-black/40 aspect-4/3 max-h-64 sm:max-h-72">
               <img
                 src={activePhoto.url}
                 alt="Customer scrap"
-                className="w-full h-full object-contain bg-slate-900"
+                className="w-full h-full object-contain bg-black/60"
               />
               <div className="absolute top-2 left-2 flex items-center gap-1.5">
-                <span className="bg-black/70 text-white text-[10px] font-bold px-2 py-0.5 rounded-full backdrop-blur-xs">
+                <span className="bg-black/75 text-white text-[10px] font-bold px-2 py-0.5 rounded-full backdrop-blur-md border border-white/10">
                   Photo {activePhotoIndex + 1} of {photos.length}
                 </span>
                 {activePhoto.isDemo && (
-                  <span className="bg-amber-500/90 text-white text-[10px] font-bold px-2 py-0.5 rounded-full">
+                  <span className="bg-amber-500/90 text-white text-[10px] font-bold px-2 py-0.5 rounded-full shadow-sm">
                     Demo Photo
                   </span>
                 )}
@@ -370,24 +370,24 @@ export const DealerOrderPhotos: React.FC<DealerOrderPhotosProps> = ({ booking, m
                 href={activePhoto.url}
                 target="_blank"
                 rel="noreferrer"
-                className="absolute bottom-2 right-2 bg-black/60 hover:bg-black/80 text-white p-1.5 rounded-lg text-xs flex items-center gap-1 transition-colors"
+                className="absolute bottom-2 right-2 bg-black/75 hover:bg-black text-white p-1.5 rounded-lg text-xs flex items-center gap-1 transition-colors border border-white/10"
                 title="Open full image in new tab"
               >
                 <ExternalLink className="w-3.5 h-3.5" />
               </a>
             </div>
 
-            <p className="text-[11px] text-[#717a75] text-center">
+            <p className="text-[11px] text-[#9cb1a4] text-center">
               Click photo to enlarge. Photos are stored securely in encrypted private storage.
             </p>
           </div>
 
           {/* Analysis & Suggestions Panel */}
           <div className="space-y-3">
-            <div className="p-3.5 rounded-xl bg-[#f8faf9] border border-[#e2e4e1] space-y-2.5">
+            <div className="p-3.5 rounded-xl bg-white/[0.03] border border-white/10 space-y-2.5">
               <div className="flex items-center justify-between">
-                <span className="text-xs font-bold text-[#123b26] uppercase tracking-wider flex items-center gap-1.5">
-                  <Sparkles className="w-3.5 h-3.5 text-[#16a34a]" />
+                <span className="text-xs font-bold text-white uppercase tracking-wider flex items-center gap-1.5">
+                  <Sparkles className="w-3.5 h-3.5 text-emerald-400" />
                   AI Material Assistance
                 </span>
 
@@ -395,32 +395,32 @@ export const DealerOrderPhotos: React.FC<DealerOrderPhotosProps> = ({ booking, m
                   type="button"
                   onClick={handleAnalyzePhoto}
                   disabled={isAnalyzing}
-                  className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-bold bg-[#123b26] text-white hover:bg-[#1a5336] active:scale-95 transition-all disabled:opacity-50 disabled:cursor-not-allowed shadow-2xs"
+                  className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-bold bg-emerald-500 hover:bg-emerald-400 text-[#07130c] active:scale-95 transition-all disabled:opacity-50 disabled:cursor-not-allowed shadow-lg shadow-emerald-500/20"
                 >
                   {isAnalyzing ? (
                     <>
-                      <div className="w-3.5 h-3.5 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                      <div className="w-3.5 h-3.5 border-2 border-[#07130c] border-t-transparent rounded-full animate-spin" />
                       <span>Scanning...</span>
                     </>
                   ) : (
                     <>
-                      <ScanSearch className="w-3.5 h-3.5 text-emerald-300" />
+                      <ScanSearch className="w-3.5 h-3.5 text-[#07130c]" />
                       <span>{currentResult ? 'Re-scan Photo' : 'Scan Customer Photo'}</span>
                     </>
                   )}
                 </button>
               </div>
 
-              <p className="text-xs text-[#525955] leading-relaxed">
+              <p className="text-xs text-[#9cb1a4] leading-relaxed">
                 Analyze this photo to identify likely materials from your active catalogue before heading to the pickup address.
               </p>
             </div>
 
             {/* Error Message */}
             {analysisError && (
-              <div className="p-3 rounded-xl bg-amber-50 border border-amber-300 text-xs text-amber-900 space-y-1">
-                <div className="flex items-center gap-1.5 font-bold text-amber-800">
-                  <AlertCircle className="w-4 h-4 text-amber-700 shrink-0" />
+              <div className="p-3 rounded-xl bg-amber-500/10 border border-amber-500/25 text-xs text-amber-200 space-y-1">
+                <div className="flex items-center gap-1.5 font-bold text-amber-300">
+                  <AlertCircle className="w-4 h-4 text-amber-400 shrink-0" />
                   <span>AI Analysis Note</span>
                 </div>
                 <p className="leading-relaxed">{analysisError}</p>
@@ -429,16 +429,16 @@ export const DealerOrderPhotos: React.FC<DealerOrderPhotosProps> = ({ booking, m
 
             {/* Analysis Results Display */}
             {currentResult && (
-              <div className="p-4 rounded-xl bg-emerald-50/70 border border-emerald-200 space-y-3">
+              <div className="p-4 rounded-xl bg-emerald-950/30 border border-emerald-500/30 space-y-3">
                 <div className="flex items-center justify-between">
                   <div className="flex items-center gap-1.5">
-                    <CheckCircle2 className="w-4 h-4 text-[#16a34a]" />
-                    <span className="text-xs font-bold text-[#123b26]">
+                    <CheckCircle2 className="w-4 h-4 text-emerald-400" />
+                    <span className="text-xs font-bold text-white">
                       Suggested Catalogue Matches
                     </span>
                   </div>
                   {currentResult.isDemo && (
-                    <span className="px-2 py-0.5 rounded-full text-[10px] font-extrabold uppercase tracking-wider bg-amber-100 text-amber-900 border border-amber-300">
+                    <span className="px-2 py-0.5 rounded-full text-[10px] font-extrabold uppercase tracking-wider bg-amber-500/20 text-amber-300 border border-amber-500/30">
                       Demo Result (Illustrative)
                     </span>
                   )}
@@ -449,16 +449,16 @@ export const DealerOrderPhotos: React.FC<DealerOrderPhotosProps> = ({ booking, m
                     {currentResult.matches.map((match, idx) => (
                       <div
                         key={idx}
-                        className="p-2.5 rounded-lg bg-white border border-emerald-100 space-y-1 shadow-2xs"
+                        className="p-2.5 rounded-lg bg-white/[0.03] border border-white/10 space-y-1 shadow-2xs"
                       >
-                        <div className="flex items-center justify-between text-xs font-bold text-[#123b26]">
+                        <div className="flex items-center justify-between text-xs font-bold text-white">
                           <span>{match.materialName}</span>
-                          <span className="text-[11px] font-semibold text-[#16a34a]">
+                          <span className="text-[11px] font-semibold text-emerald-400">
                             {Math.round(match.confidence * 100)}% match
                           </span>
                         </div>
                         {match.reason && (
-                          <p className="text-[11px] text-[#525955] leading-relaxed">
+                          <p className="text-[11px] text-[#9cb1a4] leading-relaxed">
                             {match.reason}
                           </p>
                         )}
@@ -466,13 +466,13 @@ export const DealerOrderPhotos: React.FC<DealerOrderPhotosProps> = ({ booking, m
                     ))}
                   </div>
                 ) : (
-                  <p className="text-xs text-[#525955]">
+                  <p className="text-xs text-[#9cb1a4]">
                     No specific catalogue materials clearly matched this image.
                   </p>
                 )}
 
                 {currentResult.note && (
-                  <p className="text-[11px] text-[#525955] italic border-t border-emerald-200/60 pt-2">
+                  <p className="text-[11px] text-[#9cb1a4] italic border-t border-white/10 pt-2">
                     {currentResult.note}
                   </p>
                 )}
@@ -480,9 +480,9 @@ export const DealerOrderPhotos: React.FC<DealerOrderPhotosProps> = ({ booking, m
             )}
 
             {/* Crucial Dealer Advisory Disclaimer */}
-            <div className="p-3 rounded-xl bg-slate-50 border border-slate-200 text-[11px] text-slate-600 space-y-1">
-              <div className="flex items-center gap-1.5 font-bold text-slate-800">
-                <Scale className="w-3.5 h-3.5 text-slate-600 shrink-0" />
+            <div className="p-3 rounded-xl bg-white/[0.02] border border-white/10 text-[11px] text-[#9cb1a4] space-y-1">
+              <div className="flex items-center gap-1.5 font-bold text-white">
+                <Scale className="w-3.5 h-3.5 text-emerald-400 shrink-0" />
                 <span>Verification Advisory</span>
               </div>
               <p className="leading-relaxed">

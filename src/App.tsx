@@ -32,7 +32,7 @@ export function App() {
       <ToastProvider>
         <AuthProvider>
           <ScrollToTop />
-          <div className="min-h-screen flex flex-col bg-[#fbfbf9] text-[#191c1a] antialiased">
+          <div className="min-h-screen flex flex-col bg-[#07130c] text-[#f2f7f4] antialiased selection:bg-emerald-500/30 selection:text-emerald-200">
             <Header />
             <main className="flex-1">
               <Routes>

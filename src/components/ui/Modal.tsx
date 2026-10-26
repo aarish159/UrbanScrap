@@ -47,24 +47,24 @@ export const Modal: React.FC<ModalProps> = ({
     <div className="fixed inset-0 z-[9999] overflow-y-auto">
       {/* Backdrop */}
       <div
-        className="fixed inset-0 bg-[#0d281a]/60 backdrop-blur-sm transition-opacity"
+        className="fixed inset-0 bg-black/75 backdrop-blur-md transition-opacity"
         onClick={onClose}
         aria-hidden="true"
       />
 
       <div className="flex min-h-full items-center justify-center p-4 text-center sm:p-6">
         <div
-          className={`relative w-full ${maxWidthClasses[maxWidth]} transform overflow-hidden rounded-2xl bg-[#ffffff] p-6 text-left shadow-2xl transition-all border border-[#e8e8e3] animate-in zoom-in-95 duration-150`}
+          className={`relative w-full ${maxWidthClasses[maxWidth]} transform overflow-hidden rounded-2xl bg-[#091610]/95 backdrop-blur-2xl p-6 text-left shadow-2xl shadow-black/80 transition-all border border-white/[0.12] animate-in zoom-in-95 duration-150 text-white`}
         >
           {/* Header */}
-          <div className="flex items-start justify-between pb-4 border-b border-[#e8e8e3]">
+          <div className="flex items-start justify-between pb-4 border-b border-white/[0.08]">
             <div>
-              <h3 className="text-xl font-bold text-[#143e29]">{title}</h3>
-              {subtitle && <p className="text-sm text-[#717a75] mt-0.5">{subtitle}</p>}
+              <h3 className="text-xl font-bold text-white tracking-tight">{title}</h3>
+              {subtitle && <p className="text-sm text-emerald-300/70 mt-0.5">{subtitle}</p>}
             </div>
             <button
               onClick={onClose}
-              className="rounded-lg p-1.5 text-[#717a75] hover:bg-[#f1f3f1] hover:text-[#191c1a] focus:outline-none focus:ring-2 focus:ring-[#16a34a] transition-colors"
+              className="rounded-lg p-1.5 text-white/50 hover:bg-white/10 hover:text-white focus:outline-none focus:ring-2 focus:ring-emerald-500 transition-colors"
               aria-label="Close modal"
             >
               <X className="w-5 h-5" />

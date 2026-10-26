@@ -137,15 +137,15 @@ export const SupportChatWidget: React.FC = () => {
         <button
           id="ask-urbanscrap-chat-btn"
           onClick={() => setIsOpen(true)}
-          className="fixed bottom-5 right-5 sm:bottom-6 sm:right-6 z-50 flex items-center gap-2.5 px-4 py-3 bg-[#123b26] hover:bg-[#17482f] text-white rounded-full shadow-xl hover:shadow-2xl transition-all duration-300 transform hover:-translate-y-0.5 border border-[#16a34a]/30 group cursor-pointer focus:outline-none focus:ring-4 focus:ring-[#16a34a]/40"
+          className="fixed bottom-5 right-5 sm:bottom-6 sm:right-6 z-50 flex items-center gap-2.5 px-4 py-3 bg-[#091610]/95 hover:bg-[#0e2219] backdrop-blur-xl text-white rounded-full shadow-2xl shadow-emerald-950/60 hover:shadow-emerald-500/20 transition-all duration-300 transform hover:-translate-y-0.5 border border-emerald-500/30 group cursor-pointer focus:outline-none focus:ring-4 focus:ring-emerald-500/30"
           aria-label="Open UrbanScrap AI Support Chat"
         >
-          <div className="relative flex items-center justify-center w-8 h-8 rounded-full bg-[#16a34a] text-white shadow-inner">
+          <div className="relative flex items-center justify-center w-8 h-8 rounded-full bg-emerald-500 text-[#07130c] font-bold shadow-inner">
             <Sparkles className="w-4 h-4 transition-transform group-hover:rotate-12" />
-            <span className="absolute top-0 right-0 w-2.5 h-2.5 bg-emerald-400 rounded-full border-2 border-[#123b26] animate-pulse" />
+            <span className="absolute top-0 right-0 w-2.5 h-2.5 bg-emerald-300 rounded-full border-2 border-[#091610] animate-pulse" />
           </div>
           <div className="text-left">
-            <span className="block text-xs font-semibold uppercase tracking-wider text-emerald-300">
+            <span className="block text-xs font-semibold uppercase tracking-wider text-emerald-400">
               Instant Help
             </span>
             <span className="block text-sm font-bold text-white">Ask UrbanScrap</span>
@@ -157,17 +157,17 @@ export const SupportChatWidget: React.FC = () => {
       {isOpen && (
         <div
           id="urbanscrap-chat-panel"
-          className="fixed bottom-3 right-3 left-3 sm:left-auto sm:bottom-6 sm:right-6 z-50 sm:w-[420px] h-[600px] max-h-[88vh] bg-white rounded-2xl shadow-2xl border border-[#dee2de] flex flex-col overflow-hidden animate-in fade-in slide-in-from-bottom-4 duration-200"
+          className="fixed bottom-3 right-3 left-3 sm:left-auto sm:bottom-6 sm:right-6 z-50 sm:w-[420px] h-[600px] max-h-[88vh] bg-[#091610]/95 backdrop-blur-2xl rounded-2xl shadow-2xl shadow-black/80 border border-white/10 flex flex-col overflow-hidden animate-in fade-in slide-in-from-bottom-4 duration-200 text-white"
           role="dialog"
           aria-modal="true"
           aria-label="UrbanScrap AI Support Chat Panel"
         >
           {/* Header */}
-          <div className="bg-gradient-to-r from-[#123b26] via-[#17482f] to-[#123b26] text-white p-4 flex items-center justify-between shadow-sm relative">
+          <div className="bg-[#07130c]/90 border-b border-white/10 text-white p-4 flex items-center justify-between shadow-sm relative">
             <div className="flex items-center gap-3">
-              <div className="relative flex items-center justify-center w-10 h-10 rounded-xl bg-white/10 border border-white/20 backdrop-blur-sm text-emerald-300">
+              <div className="relative flex items-center justify-center w-10 h-10 rounded-xl bg-white/[0.06] border border-white/15 backdrop-blur-sm text-emerald-400">
                 <Sparkles className="w-5 h-5" />
-                <span className="absolute -bottom-0.5 -right-0.5 w-3 h-3 bg-emerald-400 rounded-full border-2 border-[#123b26]" />
+                <span className="absolute -bottom-0.5 -right-0.5 w-3 h-3 bg-emerald-400 rounded-full border-2 border-[#091610]" />
               </div>
               <div>
                 <div className="flex items-center gap-1.5">
@@ -176,7 +176,7 @@ export const SupportChatWidget: React.FC = () => {
                     AI Support
                   </span>
                 </div>
-                <p className="text-xs text-white/70">Scrap Rates • Bookings • Inquiries</p>
+                <p className="text-xs text-[#9cb1a4]">Scrap Rates • Bookings • Inquiries</p>
               </div>
             </div>
 
@@ -184,7 +184,7 @@ export const SupportChatWidget: React.FC = () => {
               <button
                 type="button"
                 onClick={handleResetConversation}
-                className="p-1.5 text-white/80 hover:text-white hover:bg-white/10 rounded-lg transition-colors cursor-pointer"
+                className="p-1.5 text-[#9cb1a4] hover:text-white hover:bg-white/10 rounded-lg transition-colors cursor-pointer"
                 title="Reset conversation"
                 aria-label="Reset conversation"
               >
@@ -193,7 +193,7 @@ export const SupportChatWidget: React.FC = () => {
               <button
                 type="button"
                 onClick={() => setIsOpen(false)}
-                className="p-1.5 text-white/80 hover:text-white hover:bg-white/10 rounded-lg transition-colors cursor-pointer"
+                className="p-1.5 text-[#9cb1a4] hover:text-white hover:bg-white/10 rounded-lg transition-colors cursor-pointer"
                 title="Close chat"
                 aria-label="Close chat"
               >
@@ -204,9 +204,9 @@ export const SupportChatWidget: React.FC = () => {
 
           {/* Setup / Informational Notice (if applicable) */}
           {showSetupNotice && (
-            <div className="bg-[#fef8ee] border-b border-[#fde68a] px-3.5 py-2 text-xs text-[#b45309] flex items-center justify-between gap-2">
+            <div className="bg-amber-500/10 border-b border-amber-500/20 px-3.5 py-2 text-xs text-amber-200 flex items-center justify-between gap-2">
               <div className="flex items-center gap-2">
-                <AlertCircle className="w-4 h-4 shrink-0 text-[#b45309]" />
+                <AlertCircle className="w-4 h-4 shrink-0 text-amber-400" />
                 <span>
                   <strong>Knowledge Base Mode:</strong> Live scrap rates & database active.
                 </span>
@@ -214,7 +214,7 @@ export const SupportChatWidget: React.FC = () => {
               <button
                 type="button"
                 onClick={() => setShowSetupNotice(false)}
-                className="text-[#b45309] hover:underline text-[11px] font-medium"
+                className="text-amber-300 hover:underline text-[11px] font-medium"
               >
                 Dismiss
               </button>
@@ -222,7 +222,7 @@ export const SupportChatWidget: React.FC = () => {
           )}
 
           {/* Messages Scroll Area */}
-          <div className="flex-1 overflow-y-auto p-4 space-y-3.5 bg-[#fbfbf9] text-sm">
+          <div className="flex-1 overflow-y-auto p-4 space-y-3.5 bg-transparent text-sm">
             {messages.map((msg) => {
               const isAssistant = msg.role === 'assistant';
               return (
@@ -231,10 +231,10 @@ export const SupportChatWidget: React.FC = () => {
                   className={`flex flex-col ${isAssistant ? 'items-start' : 'items-end'}`}
                 >
                   <div
-                    className={`max-w-[88%] rounded-2xl px-4 py-3 shadow-xs text-sm leading-relaxed ${
+                    className={`max-w-[88%] rounded-2xl px-4 py-3 shadow-md text-sm leading-relaxed ${
                       isAssistant
-                        ? 'bg-white text-[#191c1a] border border-[#e6e8e5] rounded-tl-xs'
-                        : 'bg-[#123b26] text-white rounded-tr-xs'
+                        ? 'bg-white/[0.04] text-[#f2f7f4] border border-white/10 rounded-tl-xs backdrop-blur-md'
+                        : 'bg-emerald-600 text-white rounded-tr-xs shadow-emerald-950/40'
                     }`}
                   >
                     {/* Message Body with minimal formatting */}
@@ -244,7 +244,7 @@ export const SupportChatWidget: React.FC = () => {
                         if (line.startsWith('• ') || line.startsWith('- ')) {
                           return (
                             <div key={idx} className="flex items-start gap-1.5 ml-1">
-                              <span className="text-[#16a34a] font-bold">•</span>
+                              <span className="text-emerald-400 font-bold">•</span>
                               <span>{parseMarkdown(line.slice(2))}</span>
                             </div>
                           );
@@ -254,7 +254,7 @@ export const SupportChatWidget: React.FC = () => {
                           if (numMatch) {
                             return (
                               <div key={idx} className="flex items-start gap-1.5 ml-1">
-                                <span className="text-[#16a34a] font-semibold">{numMatch[1]}</span>
+                                <span className="text-emerald-400 font-semibold">{numMatch[1]}</span>
                                 <span>{parseMarkdown(numMatch[2])}</span>
                               </div>
                             );
@@ -266,11 +266,11 @@ export const SupportChatWidget: React.FC = () => {
 
                     {/* Optional Action Button */}
                     {msg.actionButton && (
-                      <div className="mt-3 pt-2.5 border-t border-[#e6e8e5]">
+                      <div className="mt-3 pt-2.5 border-t border-white/10">
                         <button
                           type="button"
                           onClick={() => handleActionButtonClick(msg.actionButton)}
-                          className="inline-flex items-center gap-1.5 text-xs font-semibold text-[#123b26] bg-[#eaf8ef] hover:bg-[#d5f2de] px-3 py-1.5 rounded-lg border border-[#16a34a]/30 transition-colors cursor-pointer"
+                          className="inline-flex items-center gap-1.5 text-xs font-semibold text-emerald-300 bg-emerald-500/20 hover:bg-emerald-500/30 px-3 py-1.5 rounded-lg border border-emerald-500/30 transition-colors cursor-pointer"
                         >
                           {msg.actionButton.actionType === 'open_auth' ? (
                             <LogIn className="w-3.5 h-3.5" />
@@ -283,7 +283,7 @@ export const SupportChatWidget: React.FC = () => {
                     )}
                   </div>
 
-                  <span className="text-[10px] text-[#717a75] mt-1 px-1">
+                  <span className="text-[10px] text-emerald-100/50 mt-1 px-1">
                     {msg.timestamp}
                     {isAssistant && msg.isFallback && ' • Verified Catalog'}
                   </span>
@@ -294,25 +294,25 @@ export const SupportChatWidget: React.FC = () => {
             {/* Loading Indicator */}
             {isLoading && (
               <div className="flex items-start gap-2">
-                <div className="bg-white border border-[#e6e8e5] rounded-2xl rounded-tl-xs px-4 py-3 shadow-xs flex items-center gap-2">
+                <div className="bg-white/[0.04] border border-white/10 rounded-2xl rounded-tl-xs px-4 py-3 shadow-sm flex items-center gap-2">
                   <div className="flex space-x-1.5">
-                    <span className="w-2 h-2 bg-[#16a34a] rounded-full animate-bounce [animation-delay:-0.3s]" />
-                    <span className="w-2 h-2 bg-[#16a34a] rounded-full animate-bounce [animation-delay:-0.15s]" />
-                    <span className="w-2 h-2 bg-[#16a34a] rounded-full animate-bounce" />
+                    <span className="w-2 h-2 bg-emerald-400 rounded-full animate-bounce [animation-delay:-0.3s]" />
+                    <span className="w-2 h-2 bg-emerald-400 rounded-full animate-bounce [animation-delay:-0.15s]" />
+                    <span className="w-2 h-2 bg-emerald-400 rounded-full animate-bounce" />
                   </div>
-                  <span className="text-xs text-[#717a75] ml-1">Checking UrbanScrap data...</span>
+                  <span className="text-xs text-[#9cb1a4] ml-1">Checking UrbanScrap data...</span>
                 </div>
               </div>
             )}
 
             {/* Error Message */}
             {error && (
-              <div className="p-3 bg-red-50 border border-red-200 rounded-xl text-xs text-red-700 flex items-center justify-between">
+              <div className="p-3 bg-rose-500/10 border border-rose-500/25 rounded-xl text-xs text-rose-300 flex items-center justify-between">
                 <span>{error}</span>
                 <button
                   type="button"
                   onClick={() => handleSendMessage()}
-                  className="font-semibold underline ml-2 cursor-pointer"
+                  className="font-semibold underline ml-2 cursor-pointer text-rose-200"
                 >
                   Retry
                 </button>
@@ -322,7 +322,7 @@ export const SupportChatWidget: React.FC = () => {
             {/* Suggested Prompts (shown only at start or after reset) */}
             {messages.length === 1 && !isLoading && (
               <div className="pt-2">
-                <p className="text-xs font-semibold text-[#717a75] uppercase tracking-wider mb-2">
+                <p className="text-xs font-semibold text-emerald-400 uppercase tracking-wider mb-2">
                   Suggested Questions
                 </p>
                 <div className="flex flex-wrap gap-1.5">
@@ -331,7 +331,7 @@ export const SupportChatWidget: React.FC = () => {
                       key={i}
                       type="button"
                       onClick={() => handleSendMessage(prompt.query)}
-                      className="text-xs bg-white hover:bg-[#eaf8ef] text-[#191c1a] hover:text-[#123b26] border border-[#dee2de] hover:border-[#16a34a]/40 px-2.5 py-1.5 rounded-full transition-colors cursor-pointer text-left"
+                      className="text-xs bg-white/[0.04] hover:bg-emerald-500/20 text-[#f2f7f4] hover:text-emerald-300 border border-white/10 hover:border-emerald-500/40 px-2.5 py-1.5 rounded-full transition-colors cursor-pointer text-left"
                     >
                       {prompt.label}
                     </button>
@@ -344,40 +344,40 @@ export const SupportChatWidget: React.FC = () => {
           </div>
 
           {/* Quick Category Chips for easy questions */}
-          <div className="px-3 py-1.5 bg-[#f5f5f2] border-t border-[#dee2de] flex items-center gap-1.5 overflow-x-auto text-[11px] text-[#48504b] scrollbar-none">
-            <span className="text-[10px] font-semibold text-[#717a75] uppercase shrink-0">Ask about:</span>
+          <div className="px-3 py-1.5 bg-[#07130c]/70 border-t border-white/10 flex items-center gap-1.5 overflow-x-auto text-[11px] scrollbar-none">
+            <span className="text-[10px] font-semibold text-[#9cb1a4] uppercase shrink-0">Ask about:</span>
             <button
               type="button"
               onClick={() => handleSendMessage('What is the current newspaper raddi rate?')}
-              className="shrink-0 bg-white px-2 py-0.5 rounded border border-[#dee2de] hover:border-[#16a34a] hover:text-[#123b26] transition-colors"
+              className="shrink-0 bg-white/[0.04] px-2 py-0.5 rounded border border-white/10 hover:border-emerald-400 text-white hover:text-emerald-300 transition-colors"
             >
               📰 Newspaper
             </button>
             <button
               type="button"
               onClick={() => handleSendMessage('What are iron and copper metal scrap rates?')}
-              className="shrink-0 bg-white px-2 py-0.5 rounded border border-[#dee2de] hover:border-[#16a34a] hover:text-[#123b26] transition-colors"
+              className="shrink-0 bg-white/[0.04] px-2 py-0.5 rounded border border-white/10 hover:border-emerald-400 text-white hover:text-emerald-300 transition-colors"
             >
               🔩 Metals
             </button>
             <button
               type="button"
               onClick={() => handleSendMessage('How do I book a doorstep pickup for my scrap?')}
-              className="shrink-0 bg-white px-2 py-0.5 rounded border border-[#dee2de] hover:border-[#16a34a] hover:text-[#123b26] transition-colors"
+              className="shrink-0 bg-white/[0.04] px-2 py-0.5 rounded border border-white/10 hover:border-emerald-400 text-white hover:text-emerald-300 transition-colors"
             >
               🚚 Pickup Steps
             </button>
             <button
               type="button"
               onClick={() => handleSendMessage('Check status of my bookings')}
-              className="shrink-0 bg-white px-2 py-0.5 rounded border border-[#dee2de] hover:border-[#16a34a] hover:text-[#123b26] transition-colors"
+              className="shrink-0 bg-white/[0.04] px-2 py-0.5 rounded border border-white/10 hover:border-emerald-400 text-white hover:text-emerald-300 transition-colors"
             >
               📦 My Orders
             </button>
           </div>
 
           {/* Footer Input */}
-          <div className="p-3 bg-white border-t border-[#dee2de]">
+          <div className="p-3 bg-[#07130c]/90 border-t border-white/10">
             <form
               onSubmit={(e) => {
                 e.preventDefault();
@@ -392,19 +392,19 @@ export const SupportChatWidget: React.FC = () => {
                 onChange={(e) => setInputValue(e.target.value)}
                 placeholder="Ask in English or Hinglish..."
                 disabled={isLoading}
-                className="flex-1 text-sm px-3.5 py-2.5 bg-[#fbfbf9] border border-[#dee2de] rounded-xl focus:bg-white focus:border-[#16a34a] focus:ring-2 focus:ring-[#16a34a]/20 outline-none transition-all placeholder:text-[#717a75]"
+                className="flex-1 text-sm px-3.5 py-2.5 bg-white/[0.04] border border-white/10 rounded-xl focus:bg-white/[0.07] focus:border-emerald-500 focus:ring-2 focus:ring-emerald-500/20 outline-none transition-all placeholder:text-emerald-100/30 text-white"
               />
               <button
                 type="submit"
                 disabled={!inputValue.trim() || isLoading}
-                className="p-2.5 bg-[#123b26] hover:bg-[#17482f] disabled:bg-gray-200 text-white disabled:text-gray-400 rounded-xl transition-colors cursor-pointer disabled:cursor-not-allowed shadow-xs"
+                className="p-2.5 bg-emerald-500 hover:bg-emerald-400 disabled:bg-white/10 text-[#07130c] disabled:text-white/30 font-bold rounded-xl transition-colors cursor-pointer disabled:cursor-not-allowed shadow-md"
                 aria-label="Send message"
               >
                 <Send className="w-4 h-4" />
               </button>
             </form>
             <div className="mt-2 text-center">
-              <span className="text-[10px] text-[#717a75]">
+              <span className="text-[10px] text-[#9cb1a4]">
                 Rates are indicative. Final value confirmed after doorstep digital scale weighing.
               </span>
             </div>
@@ -428,10 +428,10 @@ function parseMarkdown(text: string): React.ReactNode {
   const parts = text.split(/(\*\*.*?\*\*|\*.*?\*)/g);
   return parts.map((part, index) => {
     if (part.startsWith('**') && part.endsWith('**')) {
-      return <strong key={index} className="font-semibold text-[#123b26]">{part.slice(2, -2)}</strong>;
+      return <strong key={index} className="font-semibold text-emerald-300">{part.slice(2, -2)}</strong>;
     }
     if (part.startsWith('*') && part.endsWith('*')) {
-      return <em key={index} className="italic text-[#48504b]">{part.slice(1, -1)}</em>;
+      return <em key={index} className="italic text-emerald-100/70">{part.slice(1, -1)}</em>;
     }
     return part;
   });

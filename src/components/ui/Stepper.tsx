@@ -36,10 +36,10 @@ export const Stepper: React.FC<StepperProps> = ({ steps, currentStep, onStepClic
                 <div
                   className={`w-11 h-11 rounded-2xl flex items-center justify-center font-extrabold text-sm transition-all duration-200 border-2 ${
                     isCompleted
-                      ? 'bg-[#16a34a] border-[#16a34a] text-white shadow-md shadow-[#16a34a]/25 group-hover:scale-105'
+                      ? 'bg-emerald-600 border-emerald-500 text-white shadow-md shadow-emerald-950/50 group-hover:scale-105'
                       : isCurrent
-                      ? 'bg-[#123b26] border-[#123b26] text-white ring-4 ring-[#16a34a]/25 shadow-lg scale-105'
-                      : 'bg-white border-[#d1d5db] text-[#717a75]'
+                      ? 'bg-gradient-to-br from-emerald-500 to-green-600 border-emerald-400 text-white ring-4 ring-emerald-500/25 shadow-lg shadow-emerald-950/60 scale-105'
+                      : 'bg-white/[0.04] border-white/10 text-white/50'
                   }`}
                 >
                   {isCompleted ? (
@@ -53,16 +53,16 @@ export const Stepper: React.FC<StepperProps> = ({ steps, currentStep, onStepClic
                   <span
                     className={`block text-xs sm:text-sm transition-colors ${
                       isCurrent
-                        ? 'text-[#123b26] font-extrabold'
+                        ? 'text-white font-extrabold'
                         : isCompleted
-                        ? 'text-[#16a34a] font-bold'
-                        : 'text-[#717a75] font-semibold'
+                        ? 'text-emerald-400 font-bold'
+                        : 'text-white/50 font-semibold'
                     }`}
                   >
                     {step.title}
                   </span>
                   {step.subtitle && (
-                    <span className="hidden sm:block text-[11px] text-[#9aa19d] font-medium mt-0.5">
+                    <span className="hidden sm:block text-[11px] text-emerald-300/40 font-medium mt-0.5">
                       {step.subtitle}
                     </span>
                   )}
@@ -73,7 +73,7 @@ export const Stepper: React.FC<StepperProps> = ({ steps, currentStep, onStepClic
               {idx < steps.length - 1 && (
                 <div
                   className={`flex-1 h-1 mx-2 sm:mx-4 -mt-7 rounded-full transition-all duration-300 ${
-                    currentStep > idx + 1 ? 'bg-[#16a34a]' : 'bg-[#e2e4e1]'
+                    currentStep > idx + 1 ? 'bg-emerald-500' : 'bg-white/10'
                   }`}
                 />
               )}

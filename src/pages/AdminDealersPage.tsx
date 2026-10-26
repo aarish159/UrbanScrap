@@ -482,18 +482,18 @@ export const AdminDealersPage: React.FC = () => {
   return (
     <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-10 space-y-8 animate-in fade-in duration-150">
       {/* Header Banner */}
-      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 border-b border-[#e6e8e5] pb-6">
+      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 border-b border-white/[0.08] pb-6">
         <div>
           <div className="flex items-center gap-2 mb-2 flex-wrap">
-            <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-emerald-100 text-emerald-950 border border-emerald-300 text-xs font-bold">
-              <ShieldCheck className="w-3.5 h-3.5 text-emerald-700 shrink-0" />
+            <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-emerald-500/10 text-emerald-300 border border-emerald-500/25 text-xs font-bold">
+              <ShieldCheck className="w-3.5 h-3.5 text-emerald-400 shrink-0" />
               <span>Admin Verification Dashboard</span>
             </div>
 
             {isConfigured && isSupabaseConfigured() ? (
               <div className="flex items-center gap-2 flex-wrap">
-                <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full bg-blue-100 text-blue-900 text-xs font-bold">
-                  <Database className="w-3 h-3 text-blue-700" />
+                <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full bg-blue-500/15 text-blue-300 border border-blue-500/30 text-xs font-bold">
+                  <Database className="w-3 h-3 text-blue-400" />
                   <span>Supabase Live</span>
                 </span>
                 <button
@@ -501,26 +501,26 @@ export const AdminDealersPage: React.FC = () => {
                   onClick={() => setShowDemoRecords((prev) => !prev)}
                   className={`inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-xs font-semibold border transition-all ${
                     showDemoRecords
-                      ? 'bg-amber-100 text-amber-900 border-amber-300'
-                      : 'bg-[#f1f3f1] text-[#525955] border-[#d1d5db] hover:bg-[#e6e8e5]'
+                      ? 'bg-amber-500/20 text-amber-300 border-amber-500/35'
+                      : 'bg-white/[0.04] text-gray-300 border-white/10 hover:bg-white/[0.08]'
                   }`}
                   title="Toggle local sandbox demo records in list"
                 >
-                  <Sparkles className="w-3 h-3 text-amber-700" />
+                  <Sparkles className="w-3 h-3 text-amber-400" />
                   <span>{showDemoRecords ? 'Demo Rows Included' : 'Include Demo Rows'}</span>
                 </button>
               </div>
             ) : (
-              <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full bg-amber-100 text-amber-900 text-xs font-bold">
-                <Sparkles className="w-3 h-3 text-amber-700" />
+              <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full bg-amber-500/20 text-amber-300 border border-amber-500/35 text-xs font-bold">
+                <Sparkles className="w-3 h-3 text-amber-400" />
                 <span>Demo Sandbox (Offline)</span>
               </span>
             )}
           </div>
-          <h1 className="text-2xl sm:text-3xl font-extrabold text-[#123b26] tracking-tight">
+          <h1 className="text-2xl sm:text-3xl font-extrabold text-white tracking-tight">
             Dealer Applications & GST Review
           </h1>
-          <p className="text-xs sm:text-sm text-[#525955] mt-1 max-w-2xl">
+          <p className="text-xs sm:text-sm text-[#9cb1a4] mt-1 max-w-2xl">
             Review incoming scrap merchant applications, manually verify GST credentials against the official portal, and record verification decisions.
           </p>
         </div>
@@ -529,31 +529,31 @@ export const AdminDealersPage: React.FC = () => {
           <button
             type="button"
             onClick={handleSimulateNewApplicant}
-            className="inline-flex items-center gap-1.5 px-3.5 py-2.5 rounded-xl font-bold text-xs bg-white text-[#123b26] border border-[#d1d5db] hover:bg-[#f1f3f1] shadow-2xs transition-all active:scale-[0.98]"
+            className="inline-flex items-center gap-1.5 px-3.5 py-2.5 rounded-xl font-bold text-xs bg-white/[0.05] hover:bg-white/[0.09] text-white border border-white/10 shadow-sm transition-all active:scale-[0.98]"
           >
-            <Plus className="w-3.5 h-3.5" />
+            <Plus className="w-3.5 h-3.5 text-emerald-400" />
             <span>Simulate New Application</span>
           </button>
           <button
             type="button"
             onClick={() => loadApplications()}
-            className="p-2.5 rounded-xl text-[#525955] hover:text-[#123b26] hover:bg-[#f1f3f1] border border-[#d1d5db] transition-colors"
+            className="p-2.5 rounded-xl text-gray-300 hover:text-white bg-white/[0.05] hover:bg-white/[0.09] border border-white/10 transition-colors"
             title="Refresh List"
           >
-            <RefreshCw className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} />
+            <RefreshCw className={`w-4 h-4 ${loading ? 'animate-spin text-emerald-400' : ''}`} />
           </button>
         </div>
       </div>
 
       {/* Database Error Banner if any */}
       {loadError && (
-        <div className="p-4 rounded-2xl bg-rose-50 border border-rose-300 text-rose-950 flex flex-col sm:flex-row sm:items-center justify-between gap-3 shadow-xs">
+        <div className="p-4 rounded-2xl bg-rose-950/40 border border-rose-500/30 text-rose-200 flex flex-col sm:flex-row sm:items-center justify-between gap-3 shadow-lg">
           <div className="flex items-start gap-2.5">
-            <AlertTriangle className="w-5 h-5 text-rose-600 shrink-0 mt-0.5" />
+            <AlertTriangle className="w-5 h-5 text-rose-400 shrink-0 mt-0.5" />
             <div>
-              <h4 className="font-bold text-xs text-rose-950">Database Connection Notice</h4>
-              <p className="text-xs text-rose-900 mt-0.5 leading-relaxed">{loadError}</p>
-              <p className="text-[11px] text-rose-800 mt-0.5">
+              <h4 className="font-bold text-xs text-rose-200">Database Connection Notice</h4>
+              <p className="text-xs text-rose-300/90 mt-0.5 leading-relaxed">{loadError}</p>
+              <p className="text-[11px] text-rose-400/80 mt-0.5">
                 Urban Scrap will not silently substitute mock data in production mode. Real database records only are queried.
               </p>
             </div>
@@ -562,14 +562,14 @@ export const AdminDealersPage: React.FC = () => {
             <button
               type="button"
               onClick={() => setShowDemoRecords(true)}
-              className="px-3 py-1.5 rounded-xl text-xs font-bold bg-amber-100 text-amber-900 border border-amber-300 hover:bg-amber-200"
+              className="px-3 py-1.5 rounded-xl text-xs font-bold bg-amber-500/20 text-amber-300 border border-amber-500/35 hover:bg-amber-500/30"
             >
               Show Demo Data
             </button>
             <button
               type="button"
               onClick={() => loadApplications()}
-              className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-bold bg-rose-600 hover:bg-rose-700 text-white shadow-xs transition-colors"
+              className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-bold bg-rose-600 hover:bg-rose-500 text-white shadow-sm transition-colors"
             >
               <RefreshCw className="w-3.5 h-3.5" />
               <span>Retry</span>
@@ -578,77 +578,76 @@ export const AdminDealersPage: React.FC = () => {
         </div>
       )}
 
-
       {/* Metrics Cards */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
         {/* Total */}
-        <div className="p-4 sm:p-5 rounded-2xl bg-white border border-[#e6e8e5] shadow-xs">
+        <div className="p-4 sm:p-5 rounded-2xl glass-card shadow-sm">
           <div className="flex items-center justify-between">
-            <span className="text-xs font-bold text-[#717a75] uppercase tracking-wider">
+            <span className="text-xs font-bold text-emerald-200/70 uppercase tracking-wider">
               Total Applicants
             </span>
-            <Building2 className="w-5 h-5 text-[#123b26]" />
+            <Building2 className="w-5 h-5 text-emerald-400" />
           </div>
-          <div className="mt-2 text-2xl sm:text-3xl font-extrabold text-[#123b26]">
+          <div className="mt-2 text-2xl sm:text-3xl font-extrabold text-white">
             {metrics.total}
           </div>
-          <div className="text-[11px] text-[#717a75] mt-0.5">Commercial scrap merchants</div>
+          <div className="text-[11px] text-[#9cb1a4] mt-0.5">Commercial scrap merchants</div>
         </div>
 
         {/* Pending */}
-        <div className="p-4 sm:p-5 rounded-2xl bg-amber-50/70 border border-amber-200 shadow-xs">
+        <div className="p-4 sm:p-5 rounded-2xl bg-amber-500/[0.08] border border-amber-500/25 shadow-sm">
           <div className="flex items-center justify-between">
-            <span className="text-xs font-bold text-amber-800 uppercase tracking-wider">
+            <span className="text-xs font-bold text-amber-300 uppercase tracking-wider">
               Pending GST Review
             </span>
-            <Clock className="w-5 h-5 text-amber-600 animate-pulse" />
+            <Clock className="w-5 h-5 text-amber-400 animate-pulse" />
           </div>
-          <div className="mt-2 text-2xl sm:text-3xl font-extrabold text-amber-900">
+          <div className="mt-2 text-2xl sm:text-3xl font-extrabold text-amber-200">
             {metrics.pending}
           </div>
-          <div className="text-[11px] text-amber-700 mt-0.5">Awaiting manual admin audit</div>
+          <div className="text-[11px] text-amber-300/80 mt-0.5">Awaiting manual admin audit</div>
         </div>
 
         {/* Verified */}
-        <div className="p-4 sm:p-5 rounded-2xl bg-emerald-50/70 border border-emerald-200 shadow-xs">
+        <div className="p-4 sm:p-5 rounded-2xl bg-emerald-500/[0.08] border border-emerald-500/25 shadow-sm">
           <div className="flex items-center justify-between">
-            <span className="text-xs font-bold text-emerald-800 uppercase tracking-wider">
+            <span className="text-xs font-bold text-emerald-300 uppercase tracking-wider">
               Verified Partners
             </span>
-            <CheckCircle2 className="w-5 h-5 text-emerald-600" />
+            <CheckCircle2 className="w-5 h-5 text-emerald-400" />
           </div>
-          <div className="mt-2 text-2xl sm:text-3xl font-extrabold text-emerald-900">
+          <div className="mt-2 text-2xl sm:text-3xl font-extrabold text-emerald-300">
             {metrics.verified}
           </div>
-          <div className="text-[11px] text-emerald-700 mt-0.5">Active dashboard access</div>
+          <div className="text-[11px] text-emerald-300/80 mt-0.5">Active dashboard access</div>
         </div>
 
         {/* Rejected */}
-        <div className="p-4 sm:p-5 rounded-2xl bg-rose-50/70 border border-rose-200 shadow-xs">
+        <div className="p-4 sm:p-5 rounded-2xl bg-rose-500/[0.08] border border-rose-500/25 shadow-sm">
           <div className="flex items-center justify-between">
-            <span className="text-xs font-bold text-rose-800 uppercase tracking-wider">
+            <span className="text-xs font-bold text-rose-300 uppercase tracking-wider">
               Rejected
             </span>
-            <XCircle className="w-5 h-5 text-rose-600" />
+            <XCircle className="w-5 h-5 text-rose-400" />
           </div>
-          <div className="mt-2 text-2xl sm:text-3xl font-extrabold text-rose-900">
+          <div className="mt-2 text-2xl sm:text-3xl font-extrabold text-rose-300">
             {metrics.rejected}
           </div>
-          <div className="text-[11px] text-rose-700 mt-0.5">Access denied / Resubmission open</div>
+          <div className="text-[11px] text-rose-300/80 mt-0.5">Access denied / Resubmission open</div>
         </div>
       </div>
 
       {/* Filters & Search */}
       <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3">
         {/* Filter Pills */}
-        <div className="flex items-center gap-1.5 p-1 rounded-xl bg-[#f1f3f1] text-xs font-bold overflow-x-auto">
+        <div className="flex items-center gap-1.5 p-1 rounded-xl bg-white/[0.04] border border-white/[0.08] text-xs font-bold overflow-x-auto">
           <button
             type="button"
             onClick={() => setStatusFilter('all')}
             className={`px-3 py-1.5 rounded-lg transition-all whitespace-nowrap ${
               statusFilter === 'all'
-                ? 'bg-white text-[#123b26] shadow-2xs'
-                : 'text-[#525955] hover:text-[#191c1a]'
+                ? 'bg-emerald-500/20 text-emerald-300 border border-emerald-500/30 shadow-sm'
+                : 'text-gray-400 hover:text-white'
             }`}
           >
             All ({metrics.total})
@@ -658,8 +657,8 @@ export const AdminDealersPage: React.FC = () => {
             onClick={() => setStatusFilter('pending')}
             className={`px-3 py-1.5 rounded-lg transition-all whitespace-nowrap ${
               statusFilter === 'pending'
-                ? 'bg-white text-amber-900 shadow-2xs'
-                : 'text-[#525955] hover:text-[#191c1a]'
+                ? 'bg-amber-500/20 text-amber-300 border border-amber-500/30 shadow-sm'
+                : 'text-gray-400 hover:text-white'
             }`}
           >
             Pending Review ({metrics.pending})
@@ -669,8 +668,8 @@ export const AdminDealersPage: React.FC = () => {
             onClick={() => setStatusFilter('verified')}
             className={`px-3 py-1.5 rounded-lg transition-all whitespace-nowrap ${
               statusFilter === 'verified'
-                ? 'bg-white text-emerald-900 shadow-2xs'
-                : 'text-[#525955] hover:text-[#191c1a]'
+                ? 'bg-emerald-500/20 text-emerald-300 border border-emerald-500/30 shadow-sm'
+                : 'text-gray-400 hover:text-white'
             }`}
           >
             Verified ({metrics.verified})
@@ -680,8 +679,8 @@ export const AdminDealersPage: React.FC = () => {
             onClick={() => setStatusFilter('rejected')}
             className={`px-3 py-1.5 rounded-lg transition-all whitespace-nowrap ${
               statusFilter === 'rejected'
-                ? 'bg-white text-rose-900 shadow-2xs'
-                : 'text-[#525955] hover:text-[#191c1a]'
+                ? 'bg-rose-500/20 text-rose-300 border border-rose-500/30 shadow-sm'
+                : 'text-gray-400 hover:text-white'
             }`}
           >
             Rejected ({metrics.rejected})
@@ -690,25 +689,25 @@ export const AdminDealersPage: React.FC = () => {
 
         {/* Search Input */}
         <div className="relative w-full sm:w-80">
-          <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-[#717a75]" />
+          <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-emerald-400/60" />
           <input
             type="text"
             placeholder="Search business, GSTIN, legal name..."
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
-            className="w-full pl-9 pr-3.5 py-2 text-xs rounded-xl border border-[#d1d5db] bg-white focus:outline-none focus:ring-2 focus:ring-[#16a34a]"
+            className="w-full pl-9 pr-3.5 py-2 text-xs rounded-xl border border-white/10 bg-white/[0.04] text-white placeholder-emerald-100/30 focus:outline-none focus:border-emerald-500 transition-colors"
           />
         </div>
       </div>
 
       {/* Applications List Table */}
       {filteredApps.length === 0 ? (
-        <div className="p-12 text-center bg-white rounded-2xl border border-[#e6e8e5] space-y-3">
-          <div className="w-12 h-12 rounded-xl bg-gray-50 text-[#717a75] mx-auto flex items-center justify-center">
+        <div className="p-12 text-center glass-card rounded-2xl border border-white/[0.08] space-y-3">
+          <div className="w-12 h-12 rounded-xl bg-white/[0.04] border border-white/10 text-emerald-400 mx-auto flex items-center justify-center">
             <Filter className="w-6 h-6 stroke-[2]" />
           </div>
-          <h3 className="font-extrabold text-base text-[#123b26]">No Dealer Applications Found</h3>
-          <p className="text-xs text-[#525955] max-w-md mx-auto">
+          <h3 className="font-extrabold text-base text-white">No Dealer Applications Found</h3>
+          <p className="text-xs text-[#9cb1a4] max-w-md mx-auto">
             {searchTerm
               ? `No applicants matched "${searchTerm}". Try adjusting your search term.`
               : isConfigured && isSupabaseConfigured() && !showDemoRecords
@@ -720,16 +719,16 @@ export const AdminDealersPage: React.FC = () => {
               <button
                 type="button"
                 onClick={() => setShowDemoRecords(true)}
-                className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl text-xs font-bold bg-amber-50 text-amber-900 border border-amber-300 hover:bg-amber-100"
+                className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl text-xs font-bold bg-amber-500/15 text-amber-300 border border-amber-500/30 hover:bg-amber-500/25 transition-colors"
               >
-                <Sparkles className="w-3.5 h-3.5 text-amber-700" />
+                <Sparkles className="w-3.5 h-3.5 text-amber-400" />
                 <span>Show Demo Sandbox Records</span>
               </button>
             )}
             <button
               type="button"
               onClick={handleSimulateNewApplicant}
-              className="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl text-xs font-bold bg-[#123b26] text-white hover:bg-[#1a5336]"
+              className="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl text-xs font-bold bg-emerald-600 hover:bg-emerald-500 text-white shadow-lg shadow-emerald-950/40 transition-colors"
             >
               <Plus className="w-3.5 h-3.5" />
               <span>Create Test Application</span>
@@ -737,11 +736,11 @@ export const AdminDealersPage: React.FC = () => {
           </div>
         </div>
       ) : (
-        <div className="bg-white rounded-2xl border border-[#e6e8e5] shadow-xs overflow-hidden">
+        <div className="glass-card rounded-2xl border border-white/[0.08] shadow-2xl overflow-hidden">
           <div className="overflow-x-auto">
             <table className="w-full text-left border-collapse">
               <thead>
-                <tr className="border-b border-[#e6e8e5] bg-[#f8faf9] text-[11px] font-bold text-[#525955] uppercase tracking-wider">
+                <tr className="border-b border-white/[0.08] bg-white/[0.03] text-[11px] font-bold text-emerald-200/70 uppercase tracking-wider">
                   <th className="py-3.5 px-4 sm:px-6">Business / Yard Name</th>
                   <th className="py-3.5 px-4">GSTIN & Legal Name</th>
                   <th className="py-3.5 px-4">Contact Person</th>
@@ -750,125 +749,124 @@ export const AdminDealersPage: React.FC = () => {
                   <th className="py-3.5 px-4 sm:px-6 text-right">Review Action</th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-[#f1f3f1] text-xs">
+              <tbody className="divide-y divide-white/[0.05] text-xs">
                 {filteredApps.map((app) => {
                   const isDemoRow = app.isDemo || !isValidUuid(app.id);
                   return (
-                    <tr key={app.id} className="hover:bg-[#fcfdfc] transition-colors">
+                    <tr key={app.id} className="hover:bg-white/[0.025] transition-colors">
                       {/* Business Name */}
                       <td className="py-4 px-4 sm:px-6">
                         <div className="flex items-center gap-3">
-                          <div className="w-9 h-9 rounded-xl bg-[#123b26] text-[#4ade80] flex items-center justify-center font-bold text-xs uppercase shrink-0">
+                          <div className="w-9 h-9 rounded-xl bg-emerald-500/15 border border-emerald-500/30 text-emerald-300 flex items-center justify-center font-bold text-xs uppercase shrink-0">
                             {app.businessName[0]}
                           </div>
                           <div>
                             <div className="flex items-center gap-1.5 flex-wrap">
-                              <span className="font-bold text-[#123b26] block text-sm">
+                              <span className="font-bold text-white block text-sm">
                                 {app.businessName}
                               </span>
                               {isDemoRow ? (
-                                <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-md bg-amber-100 text-amber-900 border border-amber-300 text-[10px] font-bold">
-                                  <Sparkles className="w-2.5 h-2.5 text-amber-700" /> Demo Record
+                                <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-md bg-amber-500/15 text-amber-300 border border-amber-500/30 text-[10px] font-bold">
+                                  <Sparkles className="w-2.5 h-2.5 text-amber-400" /> Demo Record
                                 </span>
                               ) : (
-                                <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-md bg-emerald-100 text-emerald-950 border border-emerald-300 text-[10px] font-bold">
-                                  <Database className="w-2.5 h-2.5 text-emerald-700" /> Database Live
+                                <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-md bg-emerald-500/15 text-emerald-300 border border-emerald-500/30 text-[10px] font-bold">
+                                  <Database className="w-2.5 h-2.5 text-emerald-400" /> Database Live
                                 </span>
                               )}
                             </div>
-                            <span className="text-[11px] text-[#717a75] font-mono block mt-0.5">
+                            <span className="text-[11px] text-emerald-100/50 font-mono block mt-0.5">
                               {isDemoRow ? `ID: ${app.id} (Local Sandbox)` : `UUID: ${app.id.slice(0, 8)}...${app.id.slice(-4)}`}
                             </span>
                           </div>
                         </div>
                       </td>
 
-
-                    {/* GSTIN & Legal Name */}
-                    <td className="py-4 px-4">
-                      {app.gstin ? (
-                        <div className="space-y-0.5">
-                          <span className="inline-block px-2 py-0.5 rounded bg-blue-50 text-blue-900 border border-blue-200 font-mono font-bold text-[11px]">
-                            {app.gstin}
-                          </span>
-                          <p className="text-[11px] text-[#525955] font-medium line-clamp-1">
-                            {app.legalBusinessName || 'Not specified'}
-                          </p>
-                          {app.gstCertificateUrl && (
-                            <span className="inline-flex items-center gap-1 text-[10px] text-emerald-700 font-semibold">
-                              <FileText className="w-3 h-3" /> Certificate Uploaded
+                      {/* GSTIN & Legal Name */}
+                      <td className="py-4 px-4">
+                        {app.gstin ? (
+                          <div className="space-y-0.5">
+                            <span className="inline-block px-2 py-0.5 rounded bg-blue-500/15 text-blue-300 border border-blue-500/30 font-mono font-bold text-[11px]">
+                              {app.gstin}
                             </span>
+                            <p className="text-[11px] text-[#9cb1a4] font-medium line-clamp-1">
+                              {app.legalBusinessName || 'Not specified'}
+                            </p>
+                            {app.gstCertificateUrl && (
+                              <span className="inline-flex items-center gap-1 text-[10px] text-emerald-400 font-semibold">
+                                <FileText className="w-3 h-3" /> Certificate Uploaded
+                              </span>
+                            )}
+                          </div>
+                        ) : (
+                          <span className="inline-block px-2 py-0.5 rounded bg-white/[0.04] text-gray-400 border border-white/[0.08] text-[11px] font-medium">
+                            No GST Provided
+                          </span>
+                        )}
+                      </td>
+
+                      {/* Contact Person */}
+                      <td className="py-4 px-4">
+                        <div className="space-y-0.5">
+                          <span className="font-semibold text-white block">
+                            {app.applicantName}
+                          </span>
+                          <div className="flex items-center gap-1.5 text-[#9cb1a4] text-[11px]">
+                            <Phone className="w-3 h-3 text-emerald-400/70" />
+                            <span>+91 {app.phone}</span>
+                          </div>
+                          {app.email && (
+                            <div className="flex items-center gap-1.5 text-gray-400 text-[11px]">
+                              <Mail className="w-3 h-3 text-emerald-400/50" />
+                              <span className="truncate max-w-[140px]">{app.email}</span>
+                            </div>
                           )}
                         </div>
-                      ) : (
-                        <span className="inline-block px-2 py-0.5 rounded bg-gray-100 text-[#717a75] text-[11px] font-medium">
-                          No GST Provided
-                        </span>
-                      )}
-                    </td>
+                      </td>
 
-                    {/* Contact Person */}
-                    <td className="py-4 px-4">
-                      <div className="space-y-0.5">
-                        <span className="font-semibold text-[#191c1a] block">
-                          {app.applicantName}
-                        </span>
-                        <div className="flex items-center gap-1.5 text-[#525955] text-[11px]">
-                          <Phone className="w-3 h-3 text-[#717a75]" />
-                          <span>+91 {app.phone}</span>
+                      {/* Operational Area */}
+                      <td className="py-4 px-4">
+                        <div className="flex items-center gap-1.5 text-emerald-100/90">
+                          <MapPin className="w-3.5 h-3.5 text-emerald-400 shrink-0" />
+                          <span className="font-medium">{app.serviceArea}</span>
                         </div>
-                        {app.email && (
-                          <div className="flex items-center gap-1.5 text-[#717a75] text-[11px]">
-                            <Mail className="w-3 h-3" />
-                            <span className="truncate max-w-[140px]">{app.email}</span>
-                          </div>
+                      </td>
+
+                      {/* Status Badge */}
+                      <td className="py-4 px-4 text-center">
+                        {app.status === 'pending' ? (
+                          <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[11px] font-bold bg-amber-500/15 text-amber-300 border border-amber-500/30">
+                            <Clock className="w-3 h-3" />
+                            <span>Pending Review</span>
+                          </span>
+                        ) : app.status === 'verified' ? (
+                          <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[11px] font-bold bg-emerald-500/15 text-emerald-300 border border-emerald-500/30">
+                            <CheckCircle2 className="w-3 h-3 text-emerald-400" />
+                            <span>Verified Partner</span>
+                          </span>
+                        ) : (
+                          <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[11px] font-bold bg-rose-500/15 text-rose-300 border border-rose-500/30">
+                            <XCircle className="w-3 h-3 text-rose-400" />
+                            <span>Rejected</span>
+                          </span>
                         )}
-                      </div>
-                    </td>
+                      </td>
 
-                    {/* Operational Area */}
-                    <td className="py-4 px-4">
-                      <div className="flex items-center gap-1.5 text-[#191c1a]">
-                        <MapPin className="w-3.5 h-3.5 text-[#16a34a] shrink-0" />
-                        <span className="font-medium">{app.serviceArea}</span>
-                      </div>
-                    </td>
-
-                    {/* Status Badge */}
-                    <td className="py-4 px-4 text-center">
-                      {app.status === 'pending' ? (
-                        <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[11px] font-bold bg-amber-100 text-amber-900 border border-amber-200">
-                          <Clock className="w-3 h-3" />
-                          <span>Pending Review</span>
-                        </span>
-                      ) : app.status === 'verified' ? (
-                        <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[11px] font-bold bg-emerald-100 text-emerald-950 border border-emerald-300">
-                          <CheckCircle2 className="w-3 h-3 text-emerald-700" />
-                          <span>Verified Partner</span>
-                        </span>
-                      ) : (
-                        <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[11px] font-bold bg-rose-100 text-rose-900 border border-rose-200">
-                          <XCircle className="w-3 h-3 text-rose-700" />
-                          <span>Rejected</span>
-                        </span>
-                      )}
-                    </td>
-
-                    {/* Actions */}
-                    <td className="py-4 px-4 sm:px-6 text-right whitespace-nowrap">
-                      <button
-                        type="button"
-                        onClick={() => setSelectedApp(app)}
-                        className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-bold bg-[#123b26] hover:bg-[#1a5336] text-white shadow-2xs transition-all active:scale-[0.98]"
-                      >
-                        <Eye className="w-3.5 h-3.5" />
-                        <span>Review & Verify</span>
-                      </button>
-                    </td>
-                  </tr>
-                );
-              })}
-            </tbody>
+                      {/* Actions */}
+                      <td className="py-4 px-4 sm:px-6 text-right whitespace-nowrap">
+                        <button
+                          type="button"
+                          onClick={() => setSelectedApp(app)}
+                          className="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl text-xs font-bold bg-emerald-600 hover:bg-emerald-500 text-white shadow-lg shadow-emerald-950/40 transition-all active:scale-[0.98]"
+                        >
+                          <Eye className="w-3.5 h-3.5" />
+                          <span>Review & Verify</span>
+                        </button>
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
             </table>
           </div>
         </div>
@@ -880,48 +878,48 @@ export const AdminDealersPage: React.FC = () => {
         return (
           <div className="fixed inset-0 z-[9999] flex items-center justify-center p-4 overflow-y-auto">
             <div
-              className="fixed inset-0 bg-[#0a2417]/65 backdrop-blur-xs"
+              className="fixed inset-0 bg-black/80 backdrop-blur-md"
               onClick={() => setSelectedApp(null)}
             />
-            <div className="relative w-full max-w-2xl max-h-[90vh] overflow-y-auto rounded-3xl bg-white p-6 sm:p-8 shadow-2xl border border-[#e6e8e5] animate-in zoom-in-95 space-y-6">
+            <div className="relative w-full max-w-2xl max-h-[90vh] overflow-y-auto rounded-3xl bg-[#091610]/95 backdrop-blur-2xl p-6 sm:p-8 shadow-2xl border border-white/[0.12] text-white animate-in zoom-in-95 space-y-6">
               {/* Header */}
-              <div className="flex items-start justify-between border-b border-[#f1f3f1] pb-4">
+              <div className="flex items-start justify-between border-b border-white/[0.08] pb-4">
                 <div>
                   <div className="flex items-center gap-2 mb-1 flex-wrap">
-                    <span className="text-[11px] font-bold text-[#16a34a] uppercase tracking-wider">
+                    <span className="text-[11px] font-bold text-emerald-400 uppercase tracking-wider">
                       Dealer Verification Review
                     </span>
                     {isDemoSelected ? (
-                      <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold bg-amber-100 text-amber-900 border border-amber-300">
-                        <Sparkles className="w-3 h-3 text-amber-700" /> Demo Sandbox (No DB UUID)
+                      <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold bg-amber-500/15 text-amber-300 border border-amber-500/30">
+                        <Sparkles className="w-3 h-3 text-amber-400" /> Demo Sandbox (No DB UUID)
                       </span>
                     ) : (
-                      <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-100 text-emerald-950 border border-emerald-300">
-                        <Database className="w-3 h-3 text-emerald-700" /> Supabase Database Record
+                      <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-500/15 text-emerald-300 border border-emerald-500/30">
+                        <Database className="w-3 h-3 text-emerald-400" /> Supabase Database Record
                       </span>
                     )}
                     {selectedApp.status === 'verified' ? (
-                      <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-100 text-emerald-950">
-                        <CheckCircle2 className="w-3 h-3 text-emerald-700" /> Verified Partner
+                      <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-500/15 text-emerald-300 border border-emerald-500/30">
+                        <CheckCircle2 className="w-3 h-3 text-emerald-400" /> Verified Partner
                       </span>
                     ) : selectedApp.status === 'pending' ? (
-                      <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold bg-amber-100 text-amber-900">
-                        <Clock className="w-3 h-3 text-amber-600" /> Pending Review
+                      <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold bg-amber-500/15 text-amber-300 border border-amber-500/30">
+                        <Clock className="w-3 h-3 text-amber-400" /> Pending Review
                       </span>
                     ) : (
-                      <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold bg-rose-100 text-rose-900">
-                        <XCircle className="w-3 h-3 text-rose-600" /> Rejected
+                      <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold bg-rose-500/15 text-rose-300 border border-rose-500/30">
+                        <XCircle className="w-3 h-3 text-rose-400" /> Rejected
                       </span>
                     )}
                   </div>
-                  <h3 className="text-xl font-extrabold text-[#123b26]">
+                  <h3 className="text-xl font-extrabold text-white">
                     {selectedApp.businessName}
                   </h3>
                 </div>
                 <button
                   type="button"
                   onClick={() => setSelectedApp(null)}
-                  className="p-1.5 rounded-xl text-[#717a75] hover:bg-[#f1f3f1] -mr-1"
+                  className="p-1.5 rounded-xl text-gray-400 hover:text-white hover:bg-white/[0.06] -mr-1 transition-colors"
                 >
                   <X className="w-5 h-5" />
                 </button>
@@ -929,298 +927,297 @@ export const AdminDealersPage: React.FC = () => {
 
               {/* Demo Sandbox Alert or Supabase Live Confirmation */}
               {isDemoSelected ? (
-                <div className="p-4 rounded-2xl bg-amber-50/90 border border-amber-300 text-amber-950 space-y-1.5">
+                <div className="p-4 rounded-2xl bg-amber-500/10 border border-amber-500/25 text-amber-200 space-y-1.5">
                   <div className="flex items-start gap-2.5">
-                    <AlertTriangle className="w-5 h-5 text-amber-700 shrink-0 mt-0.5" />
+                    <AlertTriangle className="w-5 h-5 text-amber-400 shrink-0 mt-0.5" />
                     <div>
-                      <h4 className="font-extrabold text-xs text-amber-950 uppercase tracking-wide">
+                      <h4 className="font-extrabold text-xs text-amber-300 uppercase tracking-wide">
                         Demo / Sandbox Application (ID: {selectedApp.id})
                       </h4>
-                      <p className="text-xs text-amber-900/90 mt-0.5 leading-relaxed">
+                      <p className="text-xs text-amber-200/90 mt-0.5 leading-relaxed">
                         This application is local demonstration data and does not have a PostgreSQL database UUID. Database actions are skipped to prevent syntax errors. Review decisions (approve/reject) will be recorded only in your local browser sandbox.
                       </p>
                     </div>
                   </div>
                 </div>
               ) : (
-                <div className="p-3 rounded-xl bg-emerald-50/80 border border-emerald-200 text-emerald-950 flex flex-col sm:flex-row sm:items-center justify-between gap-2 text-xs">
+                <div className="p-3 rounded-xl bg-emerald-500/10 border border-emerald-500/20 text-emerald-200 flex flex-col sm:flex-row sm:items-center justify-between gap-2 text-xs">
                   <div className="flex items-center gap-2">
-                    <Database className="w-4 h-4 text-emerald-700 shrink-0" />
+                    <Database className="w-4 h-4 text-emerald-400 shrink-0" />
                     <span>
-                      Persisted Supabase Record: <code className="font-mono font-bold text-emerald-900">{selectedApp.id}</code>
+                      Persisted Supabase Record: <code className="font-mono font-bold text-emerald-300">{selectedApp.id}</code>
                     </span>
                   </div>
-                  <span className="text-[10px] font-bold px-2 py-0.5 rounded bg-emerald-200 text-emerald-900 self-start sm:self-auto">
+                  <span className="text-[10px] font-bold px-2 py-0.5 rounded bg-emerald-500/20 text-emerald-300 border border-emerald-500/30 self-start sm:self-auto">
                     Valid UUID
                   </span>
                 </div>
               )}
 
-
-            {/* Official GST Portal Manual Verification Banner */}
-            <div className="p-4 rounded-2xl bg-amber-50/80 border border-amber-300 text-amber-950 space-y-2.5">
-              <div className="flex items-start gap-2.5">
-                <AlertTriangle className="w-5 h-5 text-amber-700 shrink-0 mt-0.5" />
-                <div className="text-xs">
-                  <h4 className="font-extrabold text-amber-950">
-                    Mandatory Manual Verification Protocol
-                  </h4>
-                  <p className="text-amber-900/90 mt-0.5 leading-relaxed">
-                    Urban Scrap does not perform automated government lookups. The administrator must manually cross-verify the submitted GSTIN, legal business name, and active registration status on the official GST portal before granting approval.
-                  </p>
+              {/* Official GST Portal Manual Verification Banner */}
+              <div className="p-4 rounded-2xl bg-amber-500/10 border border-amber-500/25 text-amber-200 space-y-2.5">
+                <div className="flex items-start gap-2.5">
+                  <AlertTriangle className="w-5 h-5 text-amber-400 shrink-0 mt-0.5" />
+                  <div className="text-xs">
+                    <h4 className="font-extrabold text-amber-300">
+                      Mandatory Manual Verification Protocol
+                    </h4>
+                    <p className="text-amber-200/90 mt-0.5 leading-relaxed">
+                      Urban Scrap does not perform automated government lookups. The administrator must manually cross-verify the submitted GSTIN, legal business name, and active registration status on the official GST portal before granting approval.
+                    </p>
+                  </div>
                 </div>
-              </div>
 
-              <div className="pt-1 flex flex-wrap items-center gap-2">
-                <a
-                  href="https://services.gst.gov.in/services/searchtp"
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl text-xs font-bold bg-[#123b26] hover:bg-[#1a5336] text-white shadow-xs transition-colors"
-                >
-                  <ExternalLink className="w-3.5 h-3.5" />
-                  <span>Open Official GST Portal (searchtp)</span>
-                </a>
-                {selectedApp.gstin && (
-                  <button
-                    type="button"
-                    onClick={() => copyToClipboard(selectedApp.gstin!)}
-                    className="inline-flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-semibold bg-white text-[#123b26] border border-amber-300 hover:bg-amber-100/50 transition-colors"
+                <div className="pt-1 flex flex-wrap items-center gap-2">
+                  <a
+                    href="https://services.gst.gov.in/services/searchtp"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl text-xs font-bold bg-emerald-600 hover:bg-emerald-500 text-white shadow-sm transition-colors"
                   >
-                    {copiedGstin ? <Check className="w-3.5 h-3.5 text-emerald-600" /> : <Copy className="w-3.5 h-3.5" />}
-                    <span>{copiedGstin ? 'Copied GSTIN' : 'Copy GSTIN'}</span>
-                  </button>
-                )}
-              </div>
-            </div>
-
-            {/* Application Data Grid */}
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 text-xs">
-              {/* GSTIN Box */}
-              <div className="p-3.5 rounded-xl bg-[#f8faf9] border border-[#e5e8e5] sm:col-span-2">
-                <div className="flex items-center justify-between mb-1">
-                  <span className="text-[#717a75] font-semibold">Submitted GSTIN</span>
+                    <ExternalLink className="w-3.5 h-3.5" />
+                    <span>Open Official GST Portal (searchtp)</span>
+                  </a>
                   {selectedApp.gstin && (
                     <button
                       type="button"
                       onClick={() => copyToClipboard(selectedApp.gstin!)}
-                      className="text-[#16a34a] hover:underline font-bold inline-flex items-center gap-1"
+                      className="inline-flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-semibold bg-white/[0.05] hover:bg-white/[0.09] text-white border border-white/10 transition-colors"
                     >
-                      <Copy className="w-3 h-3" /> Copy
+                      {copiedGstin ? <Check className="w-3.5 h-3.5 text-emerald-400" /> : <Copy className="w-3.5 h-3.5" />}
+                      <span>{copiedGstin ? 'Copied GSTIN' : 'Copy GSTIN'}</span>
                     </button>
                   )}
                 </div>
-                <div className="text-base font-mono font-extrabold text-[#123b26]">
-                  {selectedApp.gstin || 'No GSTIN submitted'}
+              </div>
+
+              {/* Application Data Grid */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 text-xs">
+                {/* GSTIN Box */}
+                <div className="p-3.5 rounded-xl bg-white/[0.03] border border-white/[0.08] sm:col-span-2">
+                  <div className="flex items-center justify-between mb-1">
+                    <span className="text-emerald-200/60 font-semibold">Submitted GSTIN</span>
+                    {selectedApp.gstin && (
+                      <button
+                        type="button"
+                        onClick={() => copyToClipboard(selectedApp.gstin!)}
+                        className="text-emerald-400 hover:underline font-bold inline-flex items-center gap-1"
+                      >
+                        <Copy className="w-3 h-3" /> Copy
+                      </button>
+                    )}
+                  </div>
+                  <div className="text-base font-mono font-extrabold text-white">
+                    {selectedApp.gstin || 'No GSTIN submitted'}
+                  </div>
                 </div>
-              </div>
 
-              {/* Legal Name */}
-              <div className="p-3.5 rounded-xl bg-[#f8faf9] border border-[#e5e8e5]">
-                <span className="text-[#717a75] block font-semibold mb-1">GST-Registered Legal Name</span>
-                <span className="font-bold text-[#123b26] block">
-                  {selectedApp.legalBusinessName || selectedApp.businessName}
-                </span>
-              </div>
-
-              {/* State */}
-              <div className="p-3.5 rounded-xl bg-[#f8faf9] border border-[#e5e8e5]">
-                <span className="text-[#717a75] block font-semibold mb-1">Registered State</span>
-                <span className="font-bold text-[#123b26] block">
-                  {selectedApp.state || 'Karnataka'}
-                </span>
-              </div>
-
-              {/* Registered Address */}
-              <div className="p-3.5 rounded-xl bg-[#f8faf9] border border-[#e5e8e5] sm:col-span-2">
-                <span className="text-[#717a75] block font-semibold mb-1">Registered Business Address</span>
-                <span className="text-[#191c1a] block leading-relaxed">
-                  {selectedApp.businessAddress || 'Not provided'}
-                </span>
-              </div>
-
-              {/* Certificate Download/View */}
-              <div className="p-3.5 rounded-xl bg-[#f8faf9] border border-[#e5e8e5] sm:col-span-2">
-                <span className="text-[#717a75] block font-semibold mb-1">GST Registration Certificate</span>
-                {selectedApp.gstCertificateUrl ? (
-                  <a
-                    href={selectedApp.gstCertificateUrl}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold bg-white text-[#16a34a] border border-[#16a34a] hover:bg-emerald-50 transition-colors"
-                  >
-                    <FileText className="w-3.5 h-3.5" />
-                    <span>View Submitted Certificate (PDF/Image)</span>
-                    <ExternalLink className="w-3 h-3" />
-                  </a>
-                ) : (
-                  <span className="text-[#717a75] italic">No document file uploaded</span>
-                )}
-              </div>
-
-              {/* Contact and Operational info */}
-              <div className="p-3.5 rounded-xl bg-[#f8faf9] border border-[#e5e8e5]">
-                <span className="text-[#717a75] block font-semibold mb-1">Contact Person</span>
-                <span className="font-bold text-[#123b26]">{selectedApp.applicantName}</span>
-                <div className="text-[#525955] mt-1">+91 {selectedApp.phone}</div>
-              </div>
-
-              <div className="p-3.5 rounded-xl bg-[#f8faf9] border border-[#e5e8e5]">
-                <span className="text-[#717a75] block font-semibold mb-1">Operational Fleet</span>
-                <span className="font-bold text-[#123b26]">{selectedApp.vehicleType}</span>
-                <div className="text-[#525955] mt-1">{selectedApp.serviceArea}</div>
-              </div>
-
-              {/* Submission Date */}
-              <div className="p-3.5 rounded-xl bg-[#f8faf9] border border-[#e5e8e5] sm:col-span-2">
-                <div className="flex items-center gap-2 text-[#717a75]">
-                  <Calendar className="w-3.5 h-3.5" />
-                  <span>
-                    Application Submitted:{' '}
-                    <strong className="text-[#191c1a]">
-                      {new Date(selectedApp.submittedAt || selectedApp.createdAt).toLocaleString()}
-                    </strong>
+                {/* Legal Name */}
+                <div className="p-3.5 rounded-xl bg-white/[0.03] border border-white/[0.08]">
+                  <span className="text-emerald-200/60 block font-semibold mb-1">GST-Registered Legal Name</span>
+                  <span className="font-bold text-white block">
+                    {selectedApp.legalBusinessName || selectedApp.businessName}
                   </span>
                 </div>
-              </div>
-            </div>
 
-            {/* Audit History (if any) */}
-            {auditReviews.length > 0 && (
-              <div className="p-4 rounded-2xl bg-[#f8faf9] border border-[#e5e8e5] space-y-2 text-xs">
-                <div className="flex items-center gap-1.5 font-bold text-[#123b26]">
-                  <History className="w-3.5 h-3.5 text-[#16a34a]" />
-                  <span>Previous Review History</span>
+                {/* State */}
+                <div className="p-3.5 rounded-xl bg-white/[0.03] border border-white/[0.08]">
+                  <span className="text-emerald-200/60 block font-semibold mb-1">Registered State</span>
+                  <span className="font-bold text-white block">
+                    {selectedApp.state || 'Karnataka'}
+                  </span>
                 </div>
-                <div className="divide-y divide-[#e5e8e5]">
-                  {auditReviews.map((rev) => (
-                    <div key={rev.id} className="py-2 space-y-1">
-                      <div className="flex items-center justify-between">
-                        <span className={`font-bold uppercase text-[10px] px-2 py-0.5 rounded-full ${
-                          rev.action === 'approved'
-                            ? 'bg-emerald-100 text-emerald-950'
-                            : 'bg-rose-100 text-rose-950'
-                        }`}>
-                          {rev.action}
-                        </span>
-                        <span className="text-[10px] text-[#717a75]">
-                          {new Date(rev.createdAt).toLocaleString()}
-                        </span>
-                      </div>
-                      {rev.notes && (
-                        <p className="text-[#525955] italic text-[11px]">{rev.notes}</p>
-                      )}
-                    </div>
-                  ))}
+
+                {/* Registered Address */}
+                <div className="p-3.5 rounded-xl bg-white/[0.03] border border-white/[0.08] sm:col-span-2">
+                  <span className="text-emerald-200/60 block font-semibold mb-1">Registered Business Address</span>
+                  <span className="text-[#9cb1a4] block leading-relaxed">
+                    {selectedApp.businessAddress || 'Not provided'}
+                  </span>
                 </div>
-              </div>
-            )}
 
-            {/* Admin Review Notes & Actions */}
-            <div className="space-y-3 pt-2 border-t border-[#f1f3f1]">
-              <div>
-                <label className="block text-xs font-bold text-[#123b26] mb-1">
-                  Internal Review Notes (Optional for approval, recorded in audit log)
-                </label>
-                <textarea
-                  rows={2}
-                  placeholder="e.g. Cross-checked with GST portal. Name and address verified against Peenya tax jurisdiction."
-                  value={reviewNotes}
-                  onChange={(e) => setReviewNotes(e.target.value)}
-                  className="w-full p-2.5 text-xs rounded-xl border border-[#d1d5db] bg-white focus:outline-none focus:ring-2 focus:ring-[#16a34a]"
-                />
-              </div>
+                {/* Certificate Download/View */}
+                <div className="p-3.5 rounded-xl bg-white/[0.03] border border-white/[0.08] sm:col-span-2">
+                  <span className="text-emerald-200/60 block font-semibold mb-1">GST Registration Certificate</span>
+                  {selectedApp.gstCertificateUrl ? (
+                    <a
+                      href={selectedApp.gstCertificateUrl}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold bg-emerald-500/15 text-emerald-300 border border-emerald-500/30 hover:bg-emerald-500/25 transition-colors"
+                    >
+                      <FileText className="w-3.5 h-3.5" />
+                      <span>View Submitted Certificate (PDF/Image)</span>
+                      <ExternalLink className="w-3 h-3" />
+                    </a>
+                  ) : (
+                    <span className="text-gray-400 italic">No document file uploaded</span>
+                  )}
+                </div>
 
-              {/* If rejecting, show required rejection reason */}
-              {showRejectInput && (
-                <div className="p-4 rounded-2xl bg-rose-50/70 border border-rose-300 space-y-2 animate-in fade-in">
-                  <div className="flex items-center gap-1.5 text-rose-900 font-bold text-xs">
-                    <XCircle className="w-4 h-4 text-rose-600 shrink-0" />
-                    <span>Rejection Reason (Required — shown to dealer for resubmission)</span>
+                {/* Contact and Operational info */}
+                <div className="p-3.5 rounded-xl bg-white/[0.03] border border-white/[0.08]">
+                  <span className="text-emerald-200/60 block font-semibold mb-1">Contact Person</span>
+                  <span className="font-bold text-white">{selectedApp.applicantName}</span>
+                  <div className="text-[#9cb1a4] mt-1">+91 {selectedApp.phone}</div>
+                </div>
+
+                <div className="p-3.5 rounded-xl bg-white/[0.03] border border-white/[0.08]">
+                  <span className="text-emerald-200/60 block font-semibold mb-1">Operational Fleet</span>
+                  <span className="font-bold text-white">{selectedApp.vehicleType}</span>
+                  <div className="text-[#9cb1a4] mt-1">{selectedApp.serviceArea}</div>
+                </div>
+
+                {/* Submission Date */}
+                <div className="p-3.5 rounded-xl bg-white/[0.03] border border-white/[0.08] sm:col-span-2">
+                  <div className="flex items-center gap-2 text-emerald-200/70">
+                    <Calendar className="w-3.5 h-3.5" />
+                    <span>
+                      Application Submitted:{' '}
+                      <strong className="text-white">
+                        {new Date(selectedApp.submittedAt || selectedApp.createdAt).toLocaleString()}
+                      </strong>
+                    </span>
                   </div>
+                </div>
+              </div>
+
+              {/* Audit History (if any) */}
+              {auditReviews.length > 0 && (
+                <div className="p-4 rounded-2xl bg-white/[0.03] border border-white/[0.08] space-y-2 text-xs">
+                  <div className="flex items-center gap-1.5 font-bold text-emerald-300">
+                    <History className="w-3.5 h-3.5 text-emerald-400" />
+                    <span>Previous Review History</span>
+                  </div>
+                  <div className="divide-y divide-white/[0.06]">
+                    {auditReviews.map((rev) => (
+                      <div key={rev.id} className="py-2 space-y-1">
+                        <div className="flex items-center justify-between">
+                          <span className={`font-bold uppercase text-[10px] px-2 py-0.5 rounded-full ${
+                            rev.action === 'approved'
+                              ? 'bg-emerald-500/15 text-emerald-300 border border-emerald-500/30'
+                              : 'bg-rose-500/15 text-rose-300 border border-rose-500/30'
+                          }`}>
+                            {rev.action}
+                          </span>
+                          <span className="text-[10px] text-gray-400">
+                            {new Date(rev.createdAt).toLocaleString()}
+                          </span>
+                        </div>
+                        {rev.notes && (
+                          <p className="text-[#9cb1a4] italic text-[11px]">{rev.notes}</p>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {/* Admin Review Notes & Actions */}
+              <div className="space-y-3 pt-2 border-t border-white/[0.08]">
+                <div>
+                  <label className="block text-xs font-bold text-emerald-200 mb-1">
+                    Internal Review Notes (Optional for approval, recorded in audit log)
+                  </label>
                   <textarea
                     rows={2}
-                    placeholder="e.g. GSTIN provided does not match the legal business name or is marked inactive/cancelled on the GST portal."
-                    value={rejectionReason}
-                    onChange={(e) => setRejectionReason(e.target.value)}
-                    className="w-full p-2.5 text-xs rounded-xl border border-rose-300 bg-white focus:outline-none focus:ring-2 focus:ring-rose-500"
+                    placeholder="e.g. Cross-checked with GST portal. Name and address verified against Peenya tax jurisdiction."
+                    value={reviewNotes}
+                    onChange={(e) => setReviewNotes(e.target.value)}
+                    className="w-full p-2.5 text-xs rounded-xl border border-white/10 bg-white/[0.04] text-white placeholder-emerald-100/30 focus:outline-none focus:border-emerald-500 transition-colors"
                   />
-                  <div className="flex justify-end gap-2">
-                    <button
-                      type="button"
-                      onClick={() => setShowRejectInput(false)}
-                      className="px-3 py-1.5 rounded-lg text-xs font-semibold text-[#525955] hover:bg-white"
-                    >
-                      Cancel Reject
-                    </button>
-                    <button
-                      type="button"
-                      disabled={isProcessing || !rejectionReason.trim()}
-                      onClick={() => handleConfirmReject(selectedApp)}
-                      className="px-4 py-1.5 rounded-lg text-xs font-bold bg-rose-600 hover:bg-rose-700 text-white shadow-xs disabled:opacity-50"
-                    >
-                      {isProcessing
-                        ? 'Rejecting...'
-                        : isDemoSelected
-                        ? 'Confirm Rejection (Local Sandbox Only)'
-                        : 'Confirm Rejection (Supabase)'}
-                    </button>
-                  </div>
                 </div>
-              )}
 
-              {/* Action Buttons */}
-              {!showRejectInput && (
-                <div className="flex items-center justify-between pt-2">
-                  <button
-                    type="button"
-                    onClick={() => setSelectedApp(null)}
-                    className="px-4 py-2 rounded-xl text-xs font-semibold text-[#525955] hover:bg-[#f1f3f1]"
-                  >
-                    Close
-                  </button>
-
-                  <div className="flex items-center gap-2">
-                    <button
-                      type="button"
-                      disabled={isProcessing}
-                      onClick={() => setShowRejectInput(true)}
-                      className="px-4 py-2 rounded-xl text-xs font-bold text-rose-700 bg-rose-50 hover:bg-rose-100 border border-rose-200 transition-colors"
-                    >
-                      Reject Application
-                    </button>
-                    <button
-                      type="button"
-                      disabled={isProcessing}
-                      onClick={() => handleApprove(selectedApp)}
-                      className={`inline-flex items-center gap-1.5 px-5 py-2 rounded-xl text-xs font-bold text-white shadow-md transition-all active:scale-[0.98] disabled:opacity-50 ${
-                        isDemoSelected
-                          ? 'bg-amber-600 hover:bg-amber-700'
-                          : 'bg-[#16a34a] hover:bg-[#15803d]'
-                      }`}
-                      title={
-                        isDemoSelected
-                          ? 'Local sandbox approval only (no database query)'
-                          : 'Approve and activate dealer partner in Supabase'
-                      }
-                    >
-                      <CheckCircle2 className="w-4 h-4" />
-                      <span>
+                {/* If rejecting, show required rejection reason */}
+                {showRejectInput && (
+                  <div className="p-4 rounded-2xl bg-rose-950/40 border border-rose-500/30 space-y-2 animate-in fade-in">
+                    <div className="flex items-center gap-1.5 text-rose-300 font-bold text-xs">
+                      <XCircle className="w-4 h-4 text-rose-400 shrink-0" />
+                      <span>Rejection Reason (Required — shown to dealer for resubmission)</span>
+                    </div>
+                    <textarea
+                      rows={2}
+                      placeholder="e.g. GSTIN provided does not match the legal business name or is marked inactive/cancelled on the GST portal."
+                      value={rejectionReason}
+                      onChange={(e) => setRejectionReason(e.target.value)}
+                      className="w-full p-2.5 text-xs rounded-xl border border-rose-500/40 bg-white/[0.04] text-white placeholder-rose-200/40 focus:outline-none focus:border-rose-400 transition-colors"
+                    />
+                    <div className="flex justify-end gap-2">
+                      <button
+                        type="button"
+                        onClick={() => setShowRejectInput(false)}
+                        className="px-3 py-1.5 rounded-lg text-xs font-semibold text-gray-300 hover:text-white hover:bg-white/[0.06]"
+                      >
+                        Cancel Reject
+                      </button>
+                      <button
+                        type="button"
+                        disabled={isProcessing || !rejectionReason.trim()}
+                        onClick={() => handleConfirmReject(selectedApp)}
+                        className="px-4 py-1.5 rounded-lg text-xs font-bold bg-rose-600 hover:bg-rose-500 text-white shadow-sm disabled:opacity-50 transition-colors"
+                      >
                         {isProcessing
-                          ? 'Approving...'
+                          ? 'Rejecting...'
                           : isDemoSelected
-                          ? 'Approve (Local Sandbox Only)'
-                          : 'Approve & Unlock Portal'}
-                      </span>
-                    </button>
+                          ? 'Confirm Rejection (Local Sandbox Only)'
+                          : 'Confirm Rejection (Supabase)'}
+                      </button>
+                    </div>
                   </div>
-                </div>
-              )}
+                )}
+
+                {/* Action Buttons */}
+                {!showRejectInput && (
+                  <div className="flex items-center justify-between pt-2">
+                    <button
+                      type="button"
+                      onClick={() => setSelectedApp(null)}
+                      className="px-4 py-2 rounded-xl text-xs font-semibold text-gray-400 hover:text-white hover:bg-white/[0.06] transition-colors"
+                    >
+                      Close
+                    </button>
+
+                    <div className="flex items-center gap-2">
+                      <button
+                        type="button"
+                        disabled={isProcessing}
+                        onClick={() => setShowRejectInput(true)}
+                        className="px-4 py-2 rounded-xl text-xs font-bold text-rose-300 bg-rose-500/15 hover:bg-rose-500/25 border border-rose-500/30 transition-colors"
+                      >
+                        Reject Application
+                      </button>
+                      <button
+                        type="button"
+                        disabled={isProcessing}
+                        onClick={() => handleApprove(selectedApp)}
+                        className={`inline-flex items-center gap-1.5 px-5 py-2 rounded-xl text-xs font-bold text-white shadow-lg transition-all active:scale-[0.98] disabled:opacity-50 ${
+                          isDemoSelected
+                            ? 'bg-amber-600 hover:bg-amber-500 shadow-amber-950/40'
+                            : 'bg-emerald-600 hover:bg-emerald-500 shadow-emerald-950/40'
+                        }`}
+                        title={
+                          isDemoSelected
+                            ? 'Local sandbox approval only (no database query)'
+                            : 'Approve and activate dealer partner in Supabase'
+                        }
+                      >
+                        <CheckCircle2 className="w-4 h-4" />
+                        <span>
+                          {isProcessing
+                            ? 'Approving...'
+                            : isDemoSelected
+                            ? 'Approve (Local Sandbox Only)'
+                            : 'Approve & Unlock Portal'}
+                        </span>
+                      </button>
+                    </div>
+                  </div>
+                )}
+              </div>
             </div>
           </div>
-        </div>
-      );
-    })()}
+        );
+      })()}
     </div>
   );
 };

@@ -326,19 +326,19 @@ export const BookingsListPage: React.FC = () => {
   };
 
   return (
-    <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-10 space-y-8">
+    <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-10 space-y-8 animate-fade-in text-white">
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
           <div className="flex items-center gap-2 mb-2 flex-wrap">
             {isConfigured && isSupabaseConfigured() ? (
-              <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-emerald-50 text-emerald-800 border border-emerald-200 text-xs font-semibold">
-                <Database className="w-3.5 h-3.5 text-emerald-600 shrink-0" />
+              <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-emerald-500/15 text-emerald-300 border border-emerald-500/30 text-xs font-semibold backdrop-blur-md">
+                <Database className="w-3.5 h-3.5 text-emerald-400 shrink-0" />
                 <span>Supabase Live Tracking Active</span>
               </div>
             ) : (
-              <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-amber-50 text-amber-900 border border-amber-200 text-xs font-semibold">
-                <Sparkles className="w-3.5 h-3.5 text-amber-600 shrink-0" />
+              <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-amber-500/15 text-amber-300 border border-amber-500/30 text-xs font-semibold backdrop-blur-md">
+                <Sparkles className="w-3.5 h-3.5 text-amber-400 shrink-0" />
                 <span>Local Browser Sandbox • Sample Data</span>
               </div>
             )}
@@ -346,27 +346,27 @@ export const BookingsListPage: React.FC = () => {
               type="button"
               onClick={() => fetchBookings()}
               disabled={loading}
-              className="inline-flex items-center gap-1.5 px-2.5 py-1 text-xs font-medium text-emerald-800 hover:text-emerald-950 bg-emerald-50/80 rounded-full border border-emerald-200/90 transition-colors shadow-2xs"
+              className="inline-flex items-center gap-1.5 px-2.5 py-1 text-xs font-medium text-emerald-300 hover:text-white bg-white/[0.04] hover:bg-white/[0.08] rounded-full border border-white/10 transition-colors shadow-2xs"
               title="Refresh tracking status"
             >
               <RefreshCw className={`w-3 h-3 ${loading ? 'animate-spin' : ''}`} />
               <span>{loading ? 'Refreshing...' : 'Refresh Status'}</span>
             </button>
-            <span className="text-[11px] text-[#717a75] hidden sm:inline">
+            <span className="text-[11px] text-[#9cb1a4] hidden sm:inline">
               Auto-syncs live • Last checked: {lastRefreshedAt.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' })}
             </span>
           </div>
-          <h1 className="text-3xl font-extrabold text-[#123b26] tracking-tight">
+          <h1 className="text-3xl font-extrabold text-white tracking-tight">
             My Pickup Bookings
           </h1>
-          <p className="text-sm text-[#525955] mt-1">
+          <p className="text-sm text-[#9cb1a4] mt-1">
             Realtime 7-stage doorstep pickup tracking, assigned collection partner, electronic weighing, and payout status.
           </p>
         </div>
 
         <Link
           to="/book"
-          className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl font-bold text-sm bg-[#16a34a] hover:bg-[#15803d] text-white shadow-md shadow-[#16a34a]/20 transition-all self-start sm:self-center active:scale-[0.98]"
+          className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl font-bold text-sm bg-emerald-500 hover:bg-emerald-400 text-[#07130c] shadow-lg shadow-emerald-500/20 transition-all self-start sm:self-center active:scale-[0.98]"
         >
           <Plus className="w-4 h-4 shrink-0" />
           <span>New Pickup Request</span>
@@ -375,20 +375,20 @@ export const BookingsListPage: React.FC = () => {
 
       {/* Bookings List or Empty State */}
       {bookings.length === 0 ? (
-        <div className="bg-white rounded-3xl p-12 text-center border border-[#e6e8e5] space-y-4">
-          <div className="w-16 h-16 rounded-2xl bg-[#eaf8ef] text-[#16a34a] mx-auto flex items-center justify-center">
+        <div className="glass-card rounded-3xl p-12 text-center border-white/[0.08] space-y-4">
+          <div className="w-16 h-16 rounded-2xl bg-emerald-500/15 text-emerald-400 mx-auto flex items-center justify-center border border-emerald-500/25">
             <Calendar className="w-8 h-8 stroke-[2]" />
           </div>
           <div className="space-y-1">
-            <h2 className="text-xl font-bold text-[#123b26]">No Bookings Found</h2>
-            <p className="text-sm text-[#717a75] max-w-md mx-auto">
+            <h2 className="text-xl font-bold text-white">No Bookings Found</h2>
+            <p className="text-sm text-[#9cb1a4] max-w-md mx-auto">
               You haven't scheduled any scrap pickups yet. Check indicative rates and book your first doorstep pickup.
             </p>
           </div>
           <div className="pt-2">
             <Link
               to="/book"
-              className="inline-flex items-center gap-2 px-6 py-3 rounded-xl font-bold text-sm bg-[#123b26] text-white hover:bg-[#1a5336] transition-colors active:scale-[0.98]"
+              className="inline-flex items-center gap-2 px-6 py-3 rounded-xl font-bold text-sm bg-emerald-500 text-[#07130c] hover:bg-emerald-400 transition-colors active:scale-[0.98] shadow-lg shadow-emerald-500/20"
             >
               <span>Schedule a Pickup</span>
               <ArrowRight className="w-4 h-4" />
@@ -408,12 +408,12 @@ export const BookingsListPage: React.FC = () => {
             return (
               <div
                 key={booking.id}
-                className="bg-white rounded-2xl p-5 sm:p-6 border border-[#e6e8e5] shadow-xs hover:shadow-md transition-all flex flex-col gap-4"
+                className="glass-card rounded-2xl p-5 sm:p-6 border-white/[0.08] hover:border-emerald-500/30 shadow-xl transition-all flex flex-col gap-4"
               >
                 {/* Top Row: ID, Status Badge, Payout */}
                 <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
                   <div className="flex flex-wrap items-center gap-2.5">
-                    <span className="font-extrabold text-base text-[#123b26] font-mono">
+                    <span className="font-extrabold text-base text-white font-mono">
                       {booking.id}
                     </span>
                     <span
@@ -423,20 +423,20 @@ export const BookingsListPage: React.FC = () => {
                       <span>{statusInfo.label}</span>
                     </span>
                     {booking.isDemoSample && (
-                      <span className="px-2 py-0.5 text-[10px] font-semibold bg-gray-100 text-gray-700 rounded border border-gray-200">
+                      <span className="px-2 py-0.5 text-[10px] font-semibold bg-white/[0.06] text-emerald-200 rounded border border-white/10">
                         Sample Demo
                       </span>
                     )}
-                    <span className="text-xs text-[#717a75]">
+                    <span className="text-xs text-emerald-100/60">
                       Created {formatDate(booking.createdAt)}
                     </span>
                   </div>
 
                   <div className="flex items-center gap-2 self-start sm:self-auto">
-                    <span className="text-xs text-[#717a75] font-semibold">
+                    <span className="text-xs text-[#9cb1a4] font-semibold">
                       {booking.actualTotal != null ? 'Verified Payout:' : 'Est. Payout:'}
                     </span>
-                    <span className="text-lg font-black text-[#123b26]">
+                    <span className="text-lg font-black text-emerald-400">
                       {formatINR(booking.actualTotal != null ? booking.actualTotal : booking.estimatedTotal)}
                     </span>
                   </div>
@@ -448,21 +448,21 @@ export const BookingsListPage: React.FC = () => {
                 </div>
 
                 {/* Bottom Row: Address, Slot, Items, Actions */}
-                <div className="flex flex-col lg:flex-row lg:items-center justify-between pt-3 border-t border-[#f1f3f1] gap-4">
+                <div className="flex flex-col lg:flex-row lg:items-center justify-between pt-3 border-t border-white/[0.06] gap-4">
                   <div className="space-y-2 flex-1 min-w-0">
-                    <div className="flex flex-wrap items-center gap-x-6 gap-y-1.5 text-xs text-[#525955]">
-                      <div className="flex items-center gap-1.5 font-bold text-[#191c1a]">
-                        <Calendar className="w-4 h-4 text-[#16a34a] shrink-0" />
+                    <div className="flex flex-wrap items-center gap-x-6 gap-y-1.5 text-xs text-[#9cb1a4]">
+                      <div className="flex items-center gap-1.5 font-bold text-white">
+                        <Calendar className="w-4 h-4 text-emerald-400 shrink-0" />
                         <span>
                           {formatDate(booking.scheduledDate || booking.address.preferredDate)}
                         </span>
                       </div>
                       <div className="flex items-center gap-1.5 font-medium">
-                        <Clock className="w-4 h-4 text-[#16a34a] shrink-0" />
+                        <Clock className="w-4 h-4 text-emerald-400 shrink-0" />
                         <span>{booking.scheduledTimeSlot || booking.address.timeSlot}</span>
                       </div>
                       <div className="flex items-center gap-1.5 font-medium">
-                        <MapPin className="w-4 h-4 text-[#16a34a] shrink-0" />
+                        <MapPin className="w-4 h-4 text-emerald-400 shrink-0" />
                         <span>{booking.address.area}, {booking.address.city}</span>
                       </div>
                     </div>
@@ -472,7 +472,7 @@ export const BookingsListPage: React.FC = () => {
                       {booking.materials.map((m) => (
                         <span
                           key={m.materialId}
-                          className="px-2.5 py-0.5 text-xs rounded-lg bg-[#f8faf9] border border-[#e2e4e1] text-[#282c2a] font-medium"
+                          className="px-2.5 py-0.5 text-xs rounded-lg bg-white/[0.04] border border-white/10 text-white/90 font-medium"
                         >
                           {m.materialName} ({m.actualQuantity != null ? `${m.actualQuantity} ${m.unit} weighed` : `${m.quantity} ${m.unit}`})
                         </span>
@@ -488,7 +488,7 @@ export const BookingsListPage: React.FC = () => {
                           setCancellingBooking(booking);
                           setCancelReason('');
                         }}
-                        className="px-3.5 py-2 text-xs font-semibold text-rose-600 hover:text-rose-800 hover:bg-rose-50 rounded-xl transition-colors"
+                        className="px-3.5 py-2 text-xs font-semibold text-rose-400 hover:text-rose-300 hover:bg-rose-500/10 rounded-xl transition-colors"
                       >
                         Cancel
                       </button>
@@ -497,7 +497,7 @@ export const BookingsListPage: React.FC = () => {
                     <button
                       type="button"
                       onClick={() => handleOpenDetails(booking)}
-                      className="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl text-xs font-bold bg-[#123b26] hover:bg-[#16a34a] text-white shadow-2xs transition-all active:scale-[0.98]"
+                      className="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl text-xs font-bold bg-white/10 hover:bg-emerald-500 text-white hover:text-[#07130c] border border-white/15 hover:border-emerald-400 shadow-sm transition-all active:scale-[0.98]"
                     >
                       <span>Track Pickup</span>
                       <ChevronRight className="w-4 h-4" />
@@ -525,8 +525,8 @@ export const BookingsListPage: React.FC = () => {
               selectedBooking.status === 'dealer_assigned' ||
               selectedBooking.status === 'scheduled' ||
               selectedBooking.status === 'rescheduled') && (
-              <div className="flex items-center justify-between p-3 rounded-xl bg-stone-50 border border-stone-200 text-xs">
-                <span className="text-[#525955]">
+              <div className="flex items-center justify-between p-3 rounded-xl bg-white/[0.03] border border-white/10 text-xs">
+                <span className="text-[#9cb1a4]">
                   Need to change your pickup plan before collection partner arrives?
                 </span>
                 <button
@@ -535,7 +535,7 @@ export const BookingsListPage: React.FC = () => {
                     setCancellingBooking(selectedBooking);
                     setCancelReason('');
                   }}
-                  className="px-3 py-1 rounded-lg text-xs font-bold text-rose-700 bg-white hover:bg-rose-50 border border-rose-300 transition-colors shrink-0 ml-3"
+                  className="px-3 py-1 rounded-lg text-xs font-bold text-rose-400 hover:text-rose-300 bg-rose-500/10 hover:bg-rose-500/20 border border-rose-500/30 transition-colors shrink-0 ml-3"
                 >
                   Cancel Pickup
                 </button>
@@ -547,30 +547,30 @@ export const BookingsListPage: React.FC = () => {
 
             {/* Materials Breakdown */}
             <div className="space-y-2">
-              <span className="text-xs font-bold uppercase tracking-wider text-[#717a75] block">
+              <span className="text-xs font-bold uppercase tracking-wider text-emerald-400 block">
                 Itemized Manifest & Rates
               </span>
-              <div className="border border-[#e6e8e5] rounded-xl overflow-hidden divide-y divide-[#f1f3f1] text-xs">
+              <div className="border border-white/10 rounded-xl overflow-hidden divide-y divide-white/[0.06] text-xs">
                 {selectedBooking.materials.map((m) => (
-                  <div key={m.materialId} className="p-3 flex items-center justify-between bg-white">
+                  <div key={m.materialId} className="p-3 flex items-center justify-between bg-white/[0.02]">
                     <div>
-                      <span className="font-bold text-sm text-[#123b26]">{m.materialName}</span>
-                      <span className="text-[#717a75] block">
+                      <span className="font-bold text-sm text-white">{m.materialName}</span>
+                      <span className="text-[#9cb1a4] block">
                         Estimated: {m.quantity} {m.unit} @ {formatINR(m.ratePerUnit)}/{m.unit}
                       </span>
                     </div>
                     <div className="text-right">
                       {m.actualQuantity != null ? (
                         <>
-                          <span className="font-black text-sm text-[#16a34a] block">
+                          <span className="font-black text-sm text-emerald-400 block">
                             {formatINR(m.actualSubtotal || m.estimatedSubtotal)}
                           </span>
-                          <span className="text-[10px] text-emerald-800 font-bold bg-emerald-50 px-1.5 py-0.5 rounded">
+                          <span className="text-[10px] text-emerald-300 font-bold bg-emerald-500/20 px-1.5 py-0.5 rounded border border-emerald-500/30">
                             Weighed: {m.actualQuantity} {m.unit}
                           </span>
                         </>
                       ) : (
-                        <span className="font-black text-sm text-[#123b26]">
+                        <span className="font-black text-sm text-white">
                           {formatINR(m.estimatedSubtotal)}
                         </span>
                       )}
@@ -579,18 +579,18 @@ export const BookingsListPage: React.FC = () => {
                 ))}
               </div>
 
-              <div className="p-3.5 rounded-xl bg-[#eaf8ef] border border-[#bbf7d0] flex items-center justify-between">
+              <div className="p-3.5 rounded-xl bg-emerald-950/30 border border-emerald-500/30 flex items-center justify-between">
                 <div>
-                  <span className="text-xs font-bold text-[#16a34a] uppercase tracking-wider block">
+                  <span className="text-xs font-bold text-emerald-400 uppercase tracking-wider block">
                     {selectedBooking.actualTotal != null ? 'Verified Settlement Total' : 'Estimated Payout'}
                   </span>
-                  <span className="text-[11px] text-[#525955]">
+                  <span className="text-[11px] text-[#9cb1a4]">
                     {selectedBooking.actualTotal != null
                       ? 'Confirmed via digital scale weighing'
                       : 'Subject to digital scale verification on doorstep'}
                   </span>
                 </div>
-                <span className="text-2xl font-black text-[#123b26]">
+                <span className="text-2xl font-black text-emerald-400">
                   {formatINR(selectedBooking.actualTotal != null ? selectedBooking.actualTotal : selectedBooking.estimatedTotal)}
                 </span>
               </div>
@@ -600,7 +600,7 @@ export const BookingsListPage: React.FC = () => {
               <button
                 type="button"
                 onClick={handleCloseDetails}
-                className="px-6 py-2.5 rounded-xl text-xs font-bold bg-[#123b26] text-white hover:bg-[#1a5336] transition-colors"
+                className="px-6 py-2.5 rounded-xl text-xs font-bold bg-white/10 hover:bg-white/20 text-white border border-white/15 transition-colors"
               >
                 Close Tracking Sheet
               </button>
@@ -624,16 +624,16 @@ export const BookingsListPage: React.FC = () => {
           maxWidth="md"
         >
           <div className="space-y-4 text-xs sm:text-sm">
-            <div className="p-3.5 rounded-xl bg-amber-50 border border-amber-200 text-amber-900 flex items-start gap-2.5 text-xs">
-              <AlertTriangle className="w-4 h-4 text-amber-600 mt-0.5 shrink-0" />
+            <div className="p-3.5 rounded-xl bg-amber-500/10 border border-amber-500/25 text-amber-200 flex items-start gap-2.5 text-xs">
+              <AlertTriangle className="w-4 h-4 text-amber-400 mt-0.5 shrink-0" />
               <span>
                 Cancelling this pickup request will notify your assigned dealer partner and immediately cancel the scheduled slot.
               </span>
             </div>
 
             <div className="space-y-2">
-              <label htmlFor="cancel-reason-input" className="font-bold text-[#123b26] block">
-                Reason for Cancellation <span className="text-rose-500">*</span>
+              <label htmlFor="cancel-reason-input" className="font-bold text-white block">
+                Reason for Cancellation <span className="text-rose-400">*</span>
               </label>
 
               {/* Quick Reason Chips */}
@@ -650,8 +650,8 @@ export const BookingsListPage: React.FC = () => {
                     onClick={() => setCancelReason(preset)}
                     className={`px-2.5 py-1 text-xs rounded-lg border transition-colors ${
                       cancelReason === preset
-                        ? 'bg-[#123b26] text-white border-[#123b26]'
-                        : 'bg-white text-[#525955] border-[#d1d5db] hover:border-[#123b26]'
+                        ? 'bg-emerald-500 text-[#07130c] font-bold border-emerald-400'
+                        : 'bg-white/[0.04] text-[#9cb1a4] border-white/10 hover:border-emerald-500/40 hover:text-white'
                     }`}
                   >
                     {preset}
@@ -665,11 +665,11 @@ export const BookingsListPage: React.FC = () => {
                 placeholder="E.g. Out of town, or scrap collected by apartment society drive..."
                 value={cancelReason}
                 onChange={(e) => setCancelReason(e.target.value)}
-                className="w-full px-3 py-2 text-xs rounded-xl border border-[#d1d5db] bg-white focus:outline-none focus:ring-2 focus:ring-[#16a34a] text-[#191c1a]"
+                className="w-full px-3 py-2 text-xs rounded-xl border border-white/10 bg-white/[0.04] focus:outline-none focus:ring-2 focus:ring-emerald-500 text-white placeholder-emerald-100/30"
               />
             </div>
 
-            <div className="flex items-center justify-end gap-2 pt-2 border-t border-[#f1f3f1]">
+            <div className="flex items-center justify-end gap-2 pt-2 border-t border-white/10">
               <button
                 type="button"
                 disabled={isSubmittingCancel}
@@ -677,7 +677,7 @@ export const BookingsListPage: React.FC = () => {
                   setCancellingBooking(null);
                   setCancelReason('');
                 }}
-                className="px-4 py-2 rounded-xl text-xs font-semibold text-[#525955] hover:bg-stone-100 transition-colors"
+                className="px-4 py-2 rounded-xl text-xs font-semibold text-[#9cb1a4] hover:bg-white/10 transition-colors"
               >
                 Keep Pickup
               </button>
@@ -686,7 +686,7 @@ export const BookingsListPage: React.FC = () => {
                 type="button"
                 disabled={isSubmittingCancel}
                 onClick={handleConfirmCancel}
-                className="px-4 py-2 rounded-xl text-xs font-bold bg-rose-600 hover:bg-rose-700 text-white shadow-xs transition-colors flex items-center gap-1.5"
+                className="px-4 py-2 rounded-xl text-xs font-bold bg-rose-600 hover:bg-rose-500 text-white shadow-md transition-colors flex items-center gap-1.5"
               >
                 {isSubmittingCancel ? (
                   <>

@@ -425,21 +425,21 @@ export const DealerDashboardPage: React.FC = () => {
   }
 
   return (
-    <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-10 space-y-8">
+    <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-10 space-y-8 animate-fade-in text-white">
       {/* Header Banner */}
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div>
           <div className="flex items-center gap-2 mb-2 flex-wrap">
             {isConfigured && isSupabaseConfigured() ? (
-              <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-emerald-100 text-emerald-950 border border-emerald-300 text-xs font-bold">
-                <Database className="w-3.5 h-3.5 text-emerald-700 shrink-0" />
+              <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-emerald-500/15 text-emerald-300 border border-emerald-500/30 text-xs font-bold backdrop-blur-md">
+                <Database className="w-3.5 h-3.5 text-emerald-400 shrink-0" />
                 <span>
                   Supabase Live • Role: {profile?.role ? profile.role.toUpperCase() : 'DEALER'}
                 </span>
               </div>
             ) : (
-              <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-amber-100 text-amber-950 border border-amber-300 text-xs font-bold">
-                <Sparkles className="w-3.5 h-3.5 text-amber-700 shrink-0" />
+              <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-amber-500/15 text-amber-300 border border-amber-500/30 text-xs font-bold backdrop-blur-md">
+                <Sparkles className="w-3.5 h-3.5 text-amber-400 shrink-0" />
                 <span>Interactive Dealer Operations Sandbox</span>
               </div>
             )}
@@ -447,9 +447,9 @@ export const DealerDashboardPage: React.FC = () => {
             {(profile?.role === 'admin' || !isConfigured) && (
               <Link
                 to="/admin"
-                className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-[#123b26] text-white hover:bg-[#1a5336] text-xs font-bold shadow-2xs transition-all"
+                className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-white/10 hover:bg-emerald-500 text-white hover:text-[#07130c] border border-white/15 text-xs font-bold shadow-sm transition-all"
               >
-                <ShieldCheck className="w-3.5 h-3.5 text-[#4ade80]" />
+                <ShieldCheck className="w-3.5 h-3.5 text-emerald-400" />
                 <span>Admin: Manage Dealer Applications &rarr;</span>
               </Link>
             )}
@@ -458,24 +458,24 @@ export const DealerDashboardPage: React.FC = () => {
               type="button"
               onClick={() => fetchBookings()}
               disabled={loading}
-              className="inline-flex items-center gap-1.5 px-2.5 py-1 text-xs font-semibold text-emerald-900 bg-white/80 hover:bg-white rounded-full border border-emerald-300 shadow-2xs transition-colors"
+              className="inline-flex items-center gap-1.5 px-2.5 py-1 text-xs font-semibold text-emerald-300 bg-white/[0.04] hover:bg-white/[0.08] rounded-full border border-white/10 shadow-sm transition-colors"
               title="Refresh requests"
             >
               <RefreshCw className={`w-3 h-3 ${loading ? 'animate-spin' : ''}`} />
               <span>{loading ? 'Refreshing...' : 'Refresh'}</span>
             </button>
           </div>
-          <h1 className="text-3xl font-extrabold text-[#123b26] tracking-tight">
+          <h1 className="text-3xl font-extrabold text-white tracking-tight">
             Scrap Dealer Operations Portal
           </h1>
-          <p className="text-sm text-[#525955] mt-1">
+          <p className="text-sm text-[#9cb1a4] mt-1">
             Manage your assigned collection leads, pickup routes, and live weighing status updates.
           </p>
         </div>
 
         {/* Prototype/Live indicator */}
-        <div className="px-3.5 py-2.5 rounded-2xl bg-amber-50/90 border border-amber-300 text-xs text-amber-900 flex items-center gap-2.5 self-start md:self-center shadow-2xs">
-          <ShieldCheck className="w-4 h-4 text-amber-600 shrink-0" />
+        <div className="px-3.5 py-2.5 rounded-2xl bg-white/[0.03] border border-white/10 text-xs text-[#9cb1a4] flex items-center gap-2.5 self-start md:self-center shadow-sm">
+          <ShieldCheck className="w-4 h-4 text-emerald-400 shrink-0" />
           <span>
             {isConfigured && isSupabaseConfigured()
               ? 'Row-Level-Security enforced • Authorized dealer access only'
@@ -485,9 +485,9 @@ export const DealerDashboardPage: React.FC = () => {
       </div>
 
       {/* Dealer Profile Card */}
-      <div className="bg-gradient-to-r from-[#123b26] to-[#1a5336] rounded-3xl p-6 sm:p-7 text-white shadow-lg shadow-[#123b26]/10 flex flex-col md:flex-row items-start md:items-center justify-between gap-6">
+      <div className="glass-card rounded-3xl p-6 sm:p-7 text-white border border-emerald-500/25 bg-gradient-to-r from-emerald-950/40 via-white/[0.02] to-transparent shadow-xl flex flex-col md:flex-row items-start md:items-center justify-between gap-6">
         <div className="flex items-center gap-4">
-          <div className="w-14 h-14 rounded-2xl bg-[#22c55e] text-[#123b26] flex items-center justify-center font-bold shadow-inner shrink-0">
+          <div className="w-14 h-14 rounded-2xl bg-emerald-500/20 text-emerald-300 border border-emerald-500/30 flex items-center justify-center font-bold shadow-inner shrink-0">
             <Store className="w-8 h-8 stroke-[2.2]" />
           </div>
           <div>
@@ -495,24 +495,24 @@ export const DealerDashboardPage: React.FC = () => {
               <h2 className="text-xl font-bold text-white">
                 {currentDealer?.business_name || profile?.full_name || DEMO_DEALER.name}
               </h2>
-              <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-[#86efac] text-[#123b26]">
+              <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-emerald-500/20 text-emerald-300 border border-emerald-500/30">
                 {profile?.role === 'admin'
                   ? 'System Admin'
                   : currentDealer?.is_verified
                   ? 'Verified Partner'
                   : 'Demo Partner'}
               </span>
-              <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-amber-300 text-stone-950">
+              <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-amber-500/20 text-amber-300 border border-amber-500/30">
                 ⭐ {currentDealer?.rating || DEMO_DEALER.rating} / 5.0
               </span>
             </div>
-            <p className="text-xs text-[#cad5ce] mt-0.5">
+            <p className="text-xs text-[#9cb1a4] mt-0.5">
               {currentDealer?.service_area
                 ? `Operational Zone: ${currentDealer.service_area}`
                 : `${DEMO_DEALER.businessName} • Operational Zone: HSR & Koramangala Ward, Bengaluru`}
             </p>
-            <p className="text-xs text-[#a7b5ad] mt-1 flex items-center gap-1.5">
-              <Truck className="w-3.5 h-3.5 text-[#86efac] shrink-0" />
+            <p className="text-xs text-emerald-100/70 mt-1 flex items-center gap-1.5">
+              <Truck className="w-3.5 h-3.5 text-emerald-400 shrink-0" />
               <span>
                 Assigned Fleet: {currentDealer?.vehicle_type || DEMO_DEALER.vehicleType}
               </span>
@@ -520,10 +520,10 @@ export const DealerDashboardPage: React.FC = () => {
           </div>
         </div>
 
-        <div className="flex items-center gap-3 self-stretch md:self-auto border-t md:border-t-0 pt-3 md:pt-0 border-[#246944]">
-          <div className="px-4 py-2.5 rounded-xl bg-[#0a2417] border border-[#236843] text-xs">
-            <span className="text-[#86efac] font-bold block">Certified Equipment</span>
-            <span className="text-[#cad5ce]">Electronic Scale (150kg certified)</span>
+        <div className="flex items-center gap-3 self-stretch md:self-auto border-t md:border-t-0 pt-3 md:pt-0 border-white/10">
+          <div className="px-4 py-2.5 rounded-xl bg-white/[0.03] border border-white/10 text-xs">
+            <span className="text-emerald-400 font-bold block">Certified Equipment</span>
+            <span className="text-[#9cb1a4]">Electronic Scale (150kg certified)</span>
           </div>
         </div>
       </div>
@@ -533,76 +533,76 @@ export const DealerDashboardPage: React.FC = () => {
         {/* Metric 1: Available Leads */}
         <div
           onClick={() => setActiveTab('available')}
-          className={`rounded-2xl p-5 border shadow-xs cursor-pointer transition-all ${
+          className={`rounded-2xl p-5 border shadow-sm cursor-pointer transition-all ${
             activeTab === 'available'
-              ? 'bg-amber-50/50 border-amber-300 ring-2 ring-amber-400'
-              : 'bg-white border-[#e6e8e5] hover:border-amber-300'
+              ? 'bg-amber-500/10 border-amber-500/40 ring-2 ring-amber-500/20'
+              : 'glass-card border-white/[0.08] hover:border-amber-400/30'
           }`}
         >
-          <div className="flex items-center justify-between text-xs font-semibold text-[#717a75]">
+          <div className="flex items-center justify-between text-xs font-semibold text-[#9cb1a4]">
             <span>Available Pickup Leads</span>
-            <span className="px-2 py-0.5 rounded-full bg-amber-100 text-amber-900 text-[10px] font-bold">
+            <span className="px-2 py-0.5 rounded-full bg-amber-500/20 text-amber-300 border border-amber-500/30 text-[10px] font-bold">
               Unassigned
             </span>
           </div>
-          <div className="text-3xl font-black text-[#123b26] mt-2">
+          <div className="text-3xl font-black text-white mt-2">
             {metrics.unassignedCount}
           </div>
-          <span className="text-[11px] text-[#9aa19d] mt-1 block">Awaiting partner claiming</span>
+          <span className="text-[11px] text-[#9cb1a4] mt-1 block">Awaiting partner claiming</span>
         </div>
 
         {/* Metric 2: Active Assigned */}
         <div
           onClick={() => setActiveTab('assigned')}
-          className={`rounded-2xl p-5 border shadow-xs cursor-pointer transition-all ${
+          className={`rounded-2xl p-5 border shadow-sm cursor-pointer transition-all ${
             activeTab === 'assigned'
-              ? 'bg-emerald-50/50 border-emerald-300 ring-2 ring-emerald-400'
-              : 'bg-white border-[#e6e8e5] hover:border-emerald-300'
+              ? 'bg-emerald-500/10 border-emerald-500/40 ring-2 ring-emerald-500/20'
+              : 'glass-card border-white/[0.08] hover:border-emerald-400/30'
           }`}
         >
-          <div className="flex items-center justify-between text-xs font-semibold text-[#717a75]">
+          <div className="flex items-center justify-between text-xs font-semibold text-[#9cb1a4]">
             <span>My Active Pickups</span>
-            <span className="px-2 py-0.5 rounded-full bg-blue-100 text-blue-900 text-[10px] font-bold">
+            <span className="px-2 py-0.5 rounded-full bg-blue-500/20 text-blue-300 border border-blue-500/30 text-[10px] font-bold">
               In Route
             </span>
           </div>
-          <div className="text-3xl font-black text-[#123b26] mt-2">
+          <div className="text-3xl font-black text-white mt-2">
             {metrics.activeAssigned}
           </div>
-          <span className="text-[11px] text-[#9aa19d] mt-1 block">Assigned / Scheduled / In Progress</span>
+          <span className="text-[11px] text-[#9cb1a4] mt-1 block">Assigned / Scheduled / In Progress</span>
         </div>
 
         {/* Metric 3: Completed */}
-        <div className="bg-white rounded-2xl p-5 border border-[#e6e8e5] shadow-xs">
-          <div className="flex items-center justify-between text-xs font-semibold text-[#717a75]">
+        <div className="glass-card rounded-2xl p-5 border border-white/[0.08] shadow-sm">
+          <div className="flex items-center justify-between text-xs font-semibold text-[#9cb1a4]">
             <span>Completed Pickups</span>
-            <span className="px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-900 text-[10px] font-bold">
+            <span className="px-2 py-0.5 rounded-full bg-emerald-500/20 text-emerald-300 border border-emerald-500/30 text-[10px] font-bold">
               Settled
             </span>
           </div>
-          <div className="text-3xl font-black text-[#16a34a] mt-2">
+          <div className="text-3xl font-black text-emerald-400 mt-2">
             {metrics.completed}
           </div>
-          <span className="text-[11px] text-[#9aa19d] mt-1 block">Collected & recycled</span>
+          <span className="text-[11px] text-[#9cb1a4] mt-1 block">Collected & recycled</span>
         </div>
 
         {/* Metric 4: Earnings */}
-        <div className="bg-white rounded-2xl p-5 border border-[#e6e8e5] shadow-xs">
-          <div className="flex items-center justify-between text-xs font-semibold text-[#717a75]">
+        <div className="glass-card rounded-2xl p-5 border border-white/[0.08] shadow-sm">
+          <div className="flex items-center justify-between text-xs font-semibold text-[#9cb1a4]">
             <span>Total Settled Payouts</span>
-            <span className="px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-900 text-[10px] font-bold">
+            <span className="px-2 py-0.5 rounded-full bg-emerald-500/20 text-emerald-300 border border-emerald-500/30 text-[10px] font-bold">
               Paid Out
             </span>
           </div>
-          <div className="text-3xl font-black text-[#123b26] mt-2">
+          <div className="text-3xl font-black text-emerald-400 mt-2">
             {formatINR(metrics.earnings)}
           </div>
-          <span className="text-[11px] text-[#9aa19d] mt-1 block">Direct customer payouts settled</span>
+          <span className="text-[11px] text-[#9cb1a4] mt-1 block">Direct customer payouts settled</span>
         </div>
       </div>
 
       {/* Main Tab Navigation: Assigned vs Available Leads */}
-      <div className="flex items-center gap-3 border-b border-[#e2e4e1] pb-2">
+      <div className="flex items-center gap-3 border-b border-white/10 pb-2">
         <button
           type="button"
           onClick={() => {
@@ -611,12 +611,12 @@ export const DealerDashboardPage: React.FC = () => {
           }}
           className={`flex items-center gap-2 pb-2 px-1 text-sm font-bold border-b-2 transition-all ${
             activeTab === 'assigned'
-              ? 'border-[#16a34a] text-[#123b26]'
-              : 'border-transparent text-[#717a75] hover:text-[#191c1a]'
+              ? 'border-emerald-400 text-white'
+              : 'border-transparent text-[#9cb1a4] hover:text-white'
           }`}
         >
           <span>My Assigned Pickups</span>
-          <span className="px-2 py-0.5 text-xs rounded-full bg-[#eaf8ef] text-[#16a34a] font-mono">
+          <span className="px-2 py-0.5 text-xs rounded-full bg-emerald-500/20 text-emerald-300 border border-emerald-500/30 font-mono">
             {assignedList.length}
           </span>
         </button>
@@ -629,12 +629,12 @@ export const DealerDashboardPage: React.FC = () => {
           }}
           className={`flex items-center gap-2 pb-2 px-1 text-sm font-bold border-b-2 transition-all ${
             activeTab === 'available'
-              ? 'border-[#16a34a] text-[#123b26]'
-              : 'border-transparent text-[#717a75] hover:text-[#191c1a]'
+              ? 'border-emerald-400 text-white'
+              : 'border-transparent text-[#9cb1a4] hover:text-white'
           }`}
         >
           <span>Available Lead Pool</span>
-          <span className="px-2 py-0.5 text-xs rounded-full bg-amber-100 text-amber-900 font-mono">
+          <span className="px-2 py-0.5 text-xs rounded-full bg-amber-500/20 text-amber-300 border border-amber-500/30 font-mono">
             {metrics.unassignedCount}
           </span>
         </button>
@@ -645,19 +645,19 @@ export const DealerDashboardPage: React.FC = () => {
         <div className="flex flex-col sm:flex-row gap-4 items-stretch sm:items-center justify-between">
           {/* Search box */}
           <div className="relative flex-1 max-w-md">
-            <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-[#717a75]" />
+            <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-emerald-100/40" />
             <input
               type="text"
               placeholder="Search by ID, customer name, locality, or material..."
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
-              className="w-full pl-10 pr-9 py-2.5 text-sm rounded-xl border border-[#d1d5db] bg-white focus:outline-none focus:ring-2 focus:ring-[#16a34a] text-[#191c1a] shadow-xs transition-colors"
+              className="w-full pl-10 pr-9 py-2.5 text-sm rounded-xl border border-white/10 bg-white/[0.04] focus:outline-none focus:ring-2 focus:ring-emerald-500 text-white placeholder-emerald-100/30 shadow-xs transition-colors"
             />
             {searchTerm && (
               <button
                 type="button"
                 onClick={() => setSearchTerm('')}
-                className="absolute right-3 top-1/2 -translate-y-1/2 p-1 text-[#717a75] hover:text-[#191c1a]"
+                className="absolute right-3 top-1/2 -translate-y-1/2 p-1 text-[#9cb1a4] hover:text-white"
                 aria-label="Clear search"
               >
                 <X className="w-3.5 h-3.5" />
@@ -665,8 +665,8 @@ export const DealerDashboardPage: React.FC = () => {
             )}
           </div>
 
-          <div className="text-xs text-[#717a75] font-semibold">
-            Showing <strong className="text-[#123b26]">{filteredBookings.length}</strong> of{' '}
+          <div className="text-xs text-[#9cb1a4] font-semibold">
+            Showing <strong className="text-white">{filteredBookings.length}</strong> of{' '}
             {currentTabList.length} {activeTab === 'assigned' ? 'assigned orders' : 'available leads'}
           </div>
         </div>
@@ -682,14 +682,14 @@ export const DealerDashboardPage: React.FC = () => {
                 onClick={() => setStatusFilter(opt.value)}
                 className={`flex items-center gap-2 px-3.5 py-1.5 rounded-xl text-xs sm:text-sm font-semibold whitespace-nowrap transition-all duration-150 active:scale-[0.98] ${
                   isSelected
-                    ? 'bg-[#123b26] text-white shadow-sm'
-                    : 'bg-white text-[#525955] border border-[#d1d5db] hover:border-[#123b26] hover:bg-[#eef2ee]'
+                    ? 'bg-emerald-500 text-[#07130c] font-black shadow-lg shadow-emerald-500/20'
+                    : 'bg-white/[0.04] text-[#9cb1a4] border border-white/10 hover:border-emerald-500/30 hover:text-white'
                 }`}
               >
                 <span>{opt.label}</span>
                 <span
                   className={`text-[10px] font-bold px-1.5 py-0.2 rounded-full ${
-                    isSelected ? 'bg-[#17482f] text-[#86efac]' : 'bg-[#f1f3f1] text-[#717a75]'
+                    isSelected ? 'bg-emerald-950 text-emerald-300' : 'bg-white/[0.06] text-[#9cb1a4]'
                   }`}
                 >
                   {opt.count}
@@ -702,14 +702,14 @@ export const DealerDashboardPage: React.FC = () => {
 
       {/* Requests Table / Cards */}
       {filteredBookings.length === 0 ? (
-        <div className="bg-white rounded-3xl p-12 text-center border border-[#e6e8e5] space-y-3">
-          <AlertCircle className="w-10 h-10 text-[#9aa19d] mx-auto stroke-[2]" />
-          <h2 className="font-bold text-base text-[#123b26]">
+        <div className="glass-card rounded-3xl p-12 text-center border border-white/[0.08] space-y-3">
+          <AlertCircle className="w-10 h-10 text-emerald-100/30 mx-auto stroke-[2]" />
+          <h2 className="font-bold text-base text-white">
             {activeTab === 'assigned'
               ? 'No assigned pickups found for this view'
               : 'No available leads currently pending'}
           </h2>
-          <p className="text-xs text-[#717a75] max-w-sm mx-auto">
+          <p className="text-xs text-[#9cb1a4] max-w-sm mx-auto">
             {activeTab === 'assigned'
               ? 'Check the "Available Lead Pool" tab to claim new customer requests in your service zone.'
               : 'All incoming pickup requests in this operational area have been claimed.'}
@@ -720,18 +720,18 @@ export const DealerDashboardPage: React.FC = () => {
               setSearchTerm('');
               setStatusFilter('all');
             }}
-            className="px-4 py-2 rounded-xl text-xs font-semibold bg-[#f1f3f1] text-[#191c1a] hover:bg-[#e2e4e1] transition-colors"
+            className="px-4 py-2 rounded-xl text-xs font-semibold bg-white/10 text-white hover:bg-white/15 border border-white/10 transition-colors"
           >
             Clear Filters
           </button>
         </div>
       ) : (
-        <div className="bg-white rounded-2xl border border-[#e6e8e5] shadow-xs overflow-hidden">
+        <div className="glass-card rounded-2xl border border-white/[0.08] shadow-xl overflow-hidden">
           {/* Desktop Table View */}
           <div className="hidden lg:block overflow-x-auto">
             <table className="w-full text-left border-collapse">
               <thead>
-                <tr className="bg-[#f8faf9] border-b border-[#e6e8e5] text-[11px] font-bold uppercase tracking-wider text-[#717a75]">
+                <tr className="bg-white/[0.02] border-b border-white/[0.06] text-[11px] font-bold uppercase tracking-wider text-[#9cb1a4]">
                   <th className="py-3.5 px-6">ID & Date</th>
                   <th className="py-3.5 px-4">Customer & Location</th>
                   <th className="py-3.5 px-4">Scheduled Slot</th>
@@ -741,41 +741,41 @@ export const DealerDashboardPage: React.FC = () => {
                   <th className="py-3.5 px-6 text-right">Step Actions</th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-[#f1f3f1] text-xs">
+              <tbody className="divide-y divide-white/[0.04] text-xs">
                 {filteredBookings.map((req) => {
                   const statusInfo = getStatusDetails(req.status);
                   return (
-                    <tr key={req.id} className="hover:bg-[#fbfbf9] transition-colors">
+                    <tr key={req.id} className="hover:bg-white/[0.02] transition-colors">
                       {/* ID */}
                       <td className="py-4 px-6 whitespace-nowrap">
-                        <span className="font-extrabold text-sm text-[#123b26] font-mono block">
+                        <span className="font-extrabold text-sm text-white font-mono block">
                           {req.id}
                         </span>
-                        <span className="text-[11px] text-[#9aa19d]">
+                        <span className="text-[11px] text-emerald-100/50">
                           {formatDate(req.createdAt)}
                         </span>
                       </td>
 
                       {/* Customer & Area */}
                       <td className="py-4 px-4">
-                        <span className="font-bold text-sm text-[#191c1a] block">
+                        <span className="font-bold text-sm text-white block">
                           {req.address.fullName}
                         </span>
-                        <span className="text-[#525955] flex items-center gap-1 mt-0.5">
-                          <MapPin className="w-3 h-3 text-[#16a34a] shrink-0" />
+                        <span className="text-[#9cb1a4] flex items-center gap-1 mt-0.5">
+                          <MapPin className="w-3 h-3 text-emerald-400 shrink-0" />
                           <span>{req.address.area}, {req.address.city}</span>
                         </span>
-                        <span className="text-[11px] text-[#717a75] block mt-0.5">
+                        <span className="text-[11px] text-emerald-100/60 block mt-0.5">
                           Ph: +91 {req.address.phoneNumber}
                         </span>
                       </td>
 
                       {/* Scheduled Slot */}
                       <td className="py-4 px-4 whitespace-nowrap">
-                        <span className="font-semibold text-[#123b26] block">
+                        <span className="font-semibold text-white block">
                           {formatDate(req.scheduledDate || req.address.preferredDate)}
                         </span>
-                        <span className="text-[#717a75]">
+                        <span className="text-[#9cb1a4]">
                           {req.scheduledTimeSlot || req.address.timeSlot}
                         </span>
                       </td>
@@ -786,7 +786,7 @@ export const DealerDashboardPage: React.FC = () => {
                           {req.materials.map((m) => (
                             <span
                               key={m.materialId}
-                              className="px-2 py-0.5 text-[10px] rounded-md bg-[#f1f3f1] font-medium text-[#282c2a]"
+                              className="px-2 py-0.5 text-[10px] rounded-md bg-white/[0.04] border border-white/10 font-medium text-white/90"
                             >
                               {m.materialName} ({m.actualQuantity != null ? `${m.actualQuantity} ${m.unit} weighed` : `${m.quantity} ${m.unit}`})
                             </span>
@@ -796,10 +796,10 @@ export const DealerDashboardPage: React.FC = () => {
 
                       {/* Value */}
                       <td className="py-4 px-4 whitespace-nowrap">
-                        <span className="font-black text-sm text-[#123b26] block">
+                        <span className="font-black text-sm text-emerald-400 block">
                           {formatINR(req.actualTotal != null ? req.actualTotal : req.estimatedTotal)}
                         </span>
-                        <span className="text-[10px] text-[#717a75]">
+                        <span className="text-[10px] text-[#9cb1a4]">
                           {req.actualTotal != null ? 'Scale verified' : 'Indicative est.'}
                         </span>
                       </td>
@@ -821,7 +821,7 @@ export const DealerDashboardPage: React.FC = () => {
                             <button
                               type="button"
                               onClick={() => openActionModal(req, 'claim')}
-                              className="px-3 py-1.5 rounded-xl text-xs font-bold bg-[#16a34a] hover:bg-[#15803d] text-white shadow-2xs active:scale-[0.98] transition-all"
+                              className="px-3 py-1.5 rounded-xl text-xs font-bold bg-emerald-500 hover:bg-emerald-400 text-[#07130c] shadow-md active:scale-[0.98] transition-all"
                             >
                               Claim Lead
                             </button>
@@ -831,7 +831,7 @@ export const DealerDashboardPage: React.FC = () => {
                             <button
                               type="button"
                               onClick={() => openActionModal(req, 'schedule')}
-                              className="px-3 py-1.5 rounded-xl text-xs font-bold bg-indigo-600 hover:bg-indigo-700 text-white shadow-2xs active:scale-[0.98] transition-all"
+                              className="px-3 py-1.5 rounded-xl text-xs font-bold bg-indigo-600 hover:bg-indigo-500 text-white shadow-md active:scale-[0.98] transition-all"
                             >
                               Schedule Pickup
                             </button>
@@ -841,7 +841,7 @@ export const DealerDashboardPage: React.FC = () => {
                             <button
                               type="button"
                               onClick={() => openActionModal(req, 'on_the_way')}
-                              className="px-3 py-1.5 rounded-xl text-xs font-bold bg-purple-600 hover:bg-purple-700 text-white shadow-2xs active:scale-[0.98] transition-all"
+                              className="px-3 py-1.5 rounded-xl text-xs font-bold bg-purple-600 hover:bg-purple-500 text-white shadow-md active:scale-[0.98] transition-all"
                             >
                               Start Route
                             </button>
@@ -851,7 +851,7 @@ export const DealerDashboardPage: React.FC = () => {
                             <button
                               type="button"
                               onClick={() => openActionModal(req, 'weigh')}
-                              className="px-3 py-1.5 rounded-xl text-xs font-bold bg-teal-600 hover:bg-teal-700 text-white shadow-2xs active:scale-[0.98] transition-all"
+                              className="px-3 py-1.5 rounded-xl text-xs font-bold bg-teal-600 hover:bg-teal-500 text-white shadow-md active:scale-[0.98] transition-all"
                             >
                               Weigh Scrap
                             </button>
@@ -861,7 +861,7 @@ export const DealerDashboardPage: React.FC = () => {
                             <button
                               type="button"
                               onClick={() => openActionModal(req, 'payment')}
-                              className="px-3 py-1.5 rounded-xl text-xs font-bold bg-emerald-600 hover:bg-emerald-700 text-white shadow-2xs active:scale-[0.98] transition-all"
+                              className="px-3 py-1.5 rounded-xl text-xs font-bold bg-emerald-600 hover:bg-emerald-500 text-white shadow-md active:scale-[0.98] transition-all"
                             >
                               Settle Payment
                             </button>
@@ -871,7 +871,7 @@ export const DealerDashboardPage: React.FC = () => {
                             <button
                               type="button"
                               onClick={() => openActionModal(req, 'complete')}
-                              className="px-3 py-1.5 rounded-xl text-xs font-bold bg-emerald-700 hover:bg-emerald-800 text-white shadow-2xs active:scale-[0.98] transition-all"
+                              className="px-3 py-1.5 rounded-xl text-xs font-bold bg-emerald-700 hover:bg-emerald-600 text-white shadow-md active:scale-[0.98] transition-all"
                             >
                               Complete
                             </button>
@@ -881,7 +881,7 @@ export const DealerDashboardPage: React.FC = () => {
                             <button
                               type="button"
                               onClick={() => openActionModal(req, 'schedule')}
-                              className="px-3 py-1.5 rounded-xl text-xs font-bold bg-orange-600 hover:bg-orange-700 text-white shadow-2xs active:scale-[0.98] transition-all"
+                              className="px-3 py-1.5 rounded-xl text-xs font-bold bg-orange-600 hover:bg-orange-500 text-white shadow-md active:scale-[0.98] transition-all"
                             >
                               Confirm Slot
                             </button>
@@ -892,7 +892,7 @@ export const DealerDashboardPage: React.FC = () => {
                             <button
                               type="button"
                               onClick={() => openActionModal(req, 'reschedule')}
-                              className="px-2 py-1 text-[11px] font-semibold text-orange-700 hover:bg-orange-50 rounded-lg transition-colors"
+                              className="px-2 py-1 text-[11px] font-semibold text-orange-400 hover:bg-orange-500/10 rounded-lg transition-colors"
                               title="Reschedule Pickup"
                             >
                               Reschedule
@@ -902,7 +902,7 @@ export const DealerDashboardPage: React.FC = () => {
                           <button
                             type="button"
                             onClick={() => setSelectedBooking(req)}
-                            className="p-1.5 rounded-xl text-[#525955] hover:text-[#191c1a] hover:bg-[#f1f3f1] transition-colors"
+                            className="p-1.5 rounded-xl text-emerald-300 hover:text-white hover:bg-white/10 transition-colors"
                             title="Inspect Order Sheet"
                             aria-label={`Inspect Order Sheet for ${req.id}`}
                           >
@@ -918,20 +918,20 @@ export const DealerDashboardPage: React.FC = () => {
           </div>
 
           {/* Mobile Card View */}
-          <div className="lg:hidden divide-y divide-[#f1f3f1]">
+          <div className="lg:hidden divide-y divide-white/[0.06]">
             {filteredBookings.map((req) => {
               const statusInfo = getStatusDetails(req.status);
               return (
                 <div key={req.id} className="p-4 space-y-3">
                   <div className="flex items-start justify-between gap-2">
                     <div>
-                      <span className="font-mono font-extrabold text-sm text-[#123b26]">
+                      <span className="font-mono font-extrabold text-sm text-white">
                         {req.id}
                       </span>
-                      <h4 className="font-bold text-base text-[#191c1a] mt-0.5">
+                      <h4 className="font-bold text-base text-white mt-0.5">
                         {req.address.fullName}
                       </h4>
-                      <p className="text-xs text-[#525955]">
+                      <p className="text-xs text-[#9cb1a4]">
                         {req.address.area}, {req.address.city}
                       </p>
                     </div>
@@ -944,28 +944,28 @@ export const DealerDashboardPage: React.FC = () => {
                     </span>
                   </div>
 
-                  <div className="text-xs text-[#525955] space-y-1">
+                  <div className="text-xs text-[#9cb1a4] space-y-1">
                     <p>
-                      <strong>Slot:</strong>{' '}
+                      <strong className="text-white">Slot:</strong>{' '}
                       {formatDate(req.scheduledDate || req.address.preferredDate)} •{' '}
                       {req.scheduledTimeSlot || req.address.timeSlot}
                     </p>
                     <p>
-                      <strong>Materials:</strong>{' '}
+                      <strong className="text-white">Materials:</strong>{' '}
                       {req.materials.map((m) => `${m.materialName} (${m.actualQuantity != null ? `${m.actualQuantity} ${m.unit} weighed` : `${m.quantity} ${m.unit}`})`).join(', ')}
                     </p>
-                    <p className="font-black text-sm text-[#123b26] pt-1">
+                    <p className="font-black text-sm text-emerald-400 pt-1">
                       Payout:{' '}
                       {formatINR(req.actualTotal != null ? req.actualTotal : req.estimatedTotal)}
                     </p>
                   </div>
 
                   {/* Actions */}
-                  <div className="pt-2 flex items-center justify-between border-t border-[#f1f3f1] gap-2 flex-wrap">
+                  <div className="pt-2 flex items-center justify-between border-t border-white/[0.06] gap-2 flex-wrap">
                     <button
                       type="button"
                       onClick={() => setSelectedBooking(req)}
-                      className="text-xs font-bold text-[#16a34a] hover:underline"
+                      className="text-xs font-bold text-emerald-400 hover:underline"
                     >
                       Order Sheet &rarr;
                     </button>
@@ -975,7 +975,7 @@ export const DealerDashboardPage: React.FC = () => {
                         <button
                           type="button"
                           onClick={() => openActionModal(req, 'claim')}
-                          className="px-3 py-1.5 rounded-xl text-xs font-bold bg-[#16a34a] text-white"
+                          className="px-3 py-1.5 rounded-xl text-xs font-bold bg-emerald-500 text-[#07130c]"
                         >
                           Claim
                         </button>
@@ -1045,12 +1045,12 @@ export const DealerDashboardPage: React.FC = () => {
         >
           <div className="space-y-6 text-xs sm:text-sm">
             {/* Quick Actions Stepper Bar inside modal */}
-            <div className="p-4 rounded-2xl bg-[#f8faf9] border border-[#e2e4e1] flex flex-wrap items-center justify-between gap-3">
+            <div className="p-4 rounded-2xl bg-white/[0.03] border border-white/10 flex flex-wrap items-center justify-between gap-3">
               <div>
-                <span className="text-xs font-bold uppercase tracking-wider text-[#717a75] block">
+                <span className="text-xs font-bold uppercase tracking-wider text-[#9cb1a4] block">
                   Next Order Transition
                 </span>
-                <span className="text-xs text-[#123b26] font-semibold">
+                <span className="text-xs text-white font-semibold">
                   Current Status: {getStatusDetails(selectedBooking.status).label}
                 </span>
               </div>
@@ -1060,7 +1060,7 @@ export const DealerDashboardPage: React.FC = () => {
                   <button
                     type="button"
                     onClick={() => openActionModal(selectedBooking, 'claim')}
-                    className="px-3.5 py-1.5 rounded-xl text-xs font-bold bg-[#16a34a] text-white shadow-2xs"
+                    className="px-3.5 py-1.5 rounded-xl text-xs font-bold bg-emerald-500 hover:bg-emerald-400 text-[#07130c] shadow-md"
                   >
                     Claim Lead
                   </button>
@@ -1070,7 +1070,7 @@ export const DealerDashboardPage: React.FC = () => {
                   <button
                     type="button"
                     onClick={() => openActionModal(selectedBooking, 'schedule')}
-                    className="px-3.5 py-1.5 rounded-xl text-xs font-bold bg-indigo-600 text-white shadow-2xs"
+                    className="px-3.5 py-1.5 rounded-xl text-xs font-bold bg-indigo-600 hover:bg-indigo-500 text-white shadow-md"
                   >
                     Confirm Schedule
                   </button>
@@ -1080,7 +1080,7 @@ export const DealerDashboardPage: React.FC = () => {
                   <button
                     type="button"
                     onClick={() => openActionModal(selectedBooking, 'on_the_way')}
-                    className="px-3.5 py-1.5 rounded-xl text-xs font-bold bg-purple-600 text-white shadow-2xs"
+                    className="px-3.5 py-1.5 rounded-xl text-xs font-bold bg-purple-600 hover:bg-purple-500 text-white shadow-md"
                   >
                     Dispatch / On the Way
                   </button>
@@ -1091,7 +1091,7 @@ export const DealerDashboardPage: React.FC = () => {
                   <button
                     type="button"
                     onClick={() => openActionModal(selectedBooking, 'weigh')}
-                    className="px-3.5 py-1.5 rounded-xl text-xs font-bold bg-teal-600 text-white shadow-2xs"
+                    className="px-3.5 py-1.5 rounded-xl text-xs font-bold bg-teal-600 hover:bg-teal-500 text-white shadow-md"
                   >
                     Scale Weighing
                   </button>
@@ -1101,7 +1101,7 @@ export const DealerDashboardPage: React.FC = () => {
                   <button
                     type="button"
                     onClick={() => openActionModal(selectedBooking, 'payment')}
-                    className="px-3.5 py-1.5 rounded-xl text-xs font-bold bg-emerald-600 text-white shadow-2xs"
+                    className="px-3.5 py-1.5 rounded-xl text-xs font-bold bg-emerald-600 hover:bg-emerald-500 text-white shadow-md"
                   >
                     Record Payment
                   </button>
@@ -1111,7 +1111,7 @@ export const DealerDashboardPage: React.FC = () => {
                   <button
                     type="button"
                     onClick={() => openActionModal(selectedBooking, 'complete')}
-                    className="px-3.5 py-1.5 rounded-xl text-xs font-bold bg-emerald-700 text-white shadow-2xs"
+                    className="px-3.5 py-1.5 rounded-xl text-xs font-bold bg-emerald-700 hover:bg-emerald-600 text-white shadow-md"
                   >
                     Finish Order
                   </button>
@@ -1122,7 +1122,7 @@ export const DealerDashboardPage: React.FC = () => {
                     <button
                       type="button"
                       onClick={() => openActionModal(selectedBooking, 'reschedule')}
-                      className="px-3 py-1.5 rounded-xl text-xs font-bold text-orange-700 bg-orange-50 border border-orange-200"
+                      className="px-3 py-1.5 rounded-xl text-xs font-bold text-orange-400 bg-orange-500/10 border border-orange-500/20"
                     >
                       Reschedule
                     </button>
@@ -1130,7 +1130,7 @@ export const DealerDashboardPage: React.FC = () => {
                     <button
                       type="button"
                       onClick={() => openActionModal(selectedBooking, 'cancel')}
-                      className="px-3 py-1.5 rounded-xl text-xs font-bold text-rose-700 bg-rose-50 border border-rose-200"
+                      className="px-3 py-1.5 rounded-xl text-xs font-bold text-rose-400 bg-rose-500/10 border border-rose-500/20"
                     >
                       Cancel Order
                     </button>
@@ -1149,7 +1149,7 @@ export const DealerDashboardPage: React.FC = () => {
               <button
                 type="button"
                 onClick={() => setSelectedBooking(null)}
-                className="px-6 py-2.5 rounded-xl text-xs font-bold bg-[#123b26] text-white hover:bg-[#1a5336] transition-colors"
+                className="px-6 py-2.5 rounded-xl text-xs font-bold bg-white/10 hover:bg-white/20 text-white border border-white/15 transition-colors"
               >
                 Close Order Sheet
               </button>

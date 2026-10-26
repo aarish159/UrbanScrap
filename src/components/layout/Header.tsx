@@ -131,28 +131,28 @@ export const Header: React.FC = () => {
   };
 
   return (
-    <header className="sticky top-0 z-40 bg-[#fbfbf9]/95 backdrop-blur-md border-b border-[#e6e8e5] transition-all">
+    <header className="sticky top-0 z-40 bg-[#07130c]/85 backdrop-blur-xl border-b border-white/[0.08] transition-all">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="flex items-center justify-between h-20">
           {/* Logo / Wordmark */}
           <Link
             to="/"
-            className="flex items-center gap-3 group focus:outline-none focus-visible:ring-2 focus-visible:ring-[#16a34a] rounded-xl p-1 -ml-1 transition-transform active:scale-[0.98]"
+            className="flex items-center gap-3 group focus:outline-none focus-visible:ring-2 focus-visible:ring-[#22c55e] rounded-xl p-1 -ml-1 transition-transform active:scale-[0.98]"
             aria-label="Urban Scrap Home"
           >
-            <div className="w-11 h-11 rounded-xl bg-gradient-to-br from-[#123b26] to-[#1a5336] flex items-center justify-center text-white shadow-md shadow-[#123b26]/20 group-hover:scale-105 transition-transform duration-200">
+            <div className="w-11 h-11 rounded-xl bg-gradient-to-br from-[#0e2c1c] to-[#144229] border border-emerald-500/30 flex items-center justify-center text-white shadow-lg shadow-black/40 group-hover:scale-105 group-hover:border-emerald-500/50 transition-all duration-200">
               <Recycle className="w-6 h-6 text-[#4ade80] stroke-[2.3]" />
             </div>
             <div className="flex flex-col">
-              <div className="flex items-center gap-1.5">
-                <span className="font-extrabold text-2xl tracking-tight text-[#123b26]">
-                  Urban<span className="text-[#16a34a]">Scrap</span>
+              <div className="flex items-center gap-2">
+                <span className="font-extrabold text-2xl tracking-tight text-white">
+                  Urban<span className="text-[#22c55e]">Scrap</span>
                 </span>
-                <span className="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-bold bg-[#eaf8ef] text-[#123b26] border border-[#bbf7d0]/70">
+                <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-500/10 text-emerald-300 border border-emerald-500/30">
                   India
                 </span>
               </div>
-              <span className="text-[11px] text-[#717a75] font-medium -mt-1 hidden sm:inline">
+              <span className="text-[11px] text-[#789082] font-medium -mt-1 hidden sm:inline">
                 Doorstep Scrap Recycling
               </span>
             </div>
@@ -171,20 +171,20 @@ export const Header: React.FC = () => {
                   className={({ isActive }) =>
                     `flex items-center gap-2 px-3.5 py-2 rounded-xl text-sm font-semibold transition-all duration-150 ${
                       isActive
-                        ? 'bg-[#123b26] text-white shadow-sm'
-                        : 'text-[#3f4541] hover:text-[#123b26] hover:bg-[#eef2ee]'
+                        ? 'bg-emerald-500/15 text-emerald-300 border border-emerald-500/30 shadow-[0_0_20px_rgba(34,197,94,0.15)]'
+                        : 'text-[#9cb1a4] hover:text-white hover:bg-white/[0.05] border border-transparent'
                     }`
                   }
                 >
                   <Icon className="w-4 h-4 shrink-0 stroke-[2.2]" />
                   <span>{link.label}</span>
                   {link.badge !== undefined && link.badge > 0 && (
-                    <span className="ml-1 px-1.5 py-0.5 text-[11px] font-bold rounded-full bg-[#16a34a] text-white leading-none">
+                    <span className="ml-1 px-1.5 py-0.5 text-[11px] font-bold rounded-full bg-[#22c55e] text-black leading-none">
                       {link.badge}
                     </span>
                   )}
                   {link.demoTag && (
-                    <span className="ml-1 px-1.5 py-0.5 text-[9px] font-bold uppercase tracking-wider rounded bg-amber-100 text-amber-900 border border-amber-300/80">
+                    <span className="ml-1 px-1.5 py-0.5 text-[9px] font-bold uppercase tracking-wider rounded bg-amber-500/10 text-amber-300 border border-amber-500/30">
                       Demo
                     </span>
                   )}
@@ -197,15 +197,15 @@ export const Header: React.FC = () => {
           <div className="hidden md:flex items-center gap-3">
             {user ? (
               <div className="flex items-center gap-2">
-                <div className="flex items-center gap-2 px-3 py-1.5 rounded-xl bg-[#eaf8ef] border border-[#bbf7d0] text-xs">
-                  <div className="w-7 h-7 rounded-lg bg-[#123b26] text-[#4ade80] flex items-center justify-center font-bold text-xs uppercase">
+                <div className="flex items-center gap-2 px-3 py-1.5 rounded-xl bg-[#0e261a] border border-emerald-500/25 text-xs text-white">
+                  <div className="w-7 h-7 rounded-lg bg-emerald-500/20 text-[#4ade80] border border-emerald-500/30 flex items-center justify-center font-bold text-xs uppercase">
                     {(profile?.full_name || user.email || 'U')[0]}
                   </div>
                   <div className="flex flex-col text-left">
-                    <span className="font-bold text-[#123b26] leading-tight">
+                    <span className="font-bold text-white leading-tight">
                       {profile?.full_name || user.email?.split('@')[0]}
                     </span>
-                    <span className="text-[10px] text-[#16a34a] capitalize font-medium">
+                    <span className="text-[10px] text-emerald-400 capitalize font-medium">
                       {profile?.role || 'Customer'}
                     </span>
                   </div>
@@ -214,7 +214,7 @@ export const Header: React.FC = () => {
                 <button
                   type="button"
                   onClick={handleSignOut}
-                  className="p-2 text-[#717a75] hover:text-rose-600 hover:bg-rose-50 rounded-xl transition-colors"
+                  className="p-2 text-[#789082] hover:text-rose-400 hover:bg-rose-500/10 rounded-xl transition-colors border border-transparent hover:border-rose-500/20"
                   title="Sign Out"
                   aria-label="Sign Out"
                 >
@@ -225,7 +225,7 @@ export const Header: React.FC = () => {
               <button
                 type="button"
                 onClick={() => openAuthModal({ initialRole: null })}
-                className="inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl font-bold text-sm text-[#123b26] hover:text-[#16a34a] border border-[#d1d5db] hover:border-[#123b26] hover:bg-[#eef2ee] active:scale-[0.98] transition-all duration-150 focus:outline-none focus-visible:ring-2 focus-visible:ring-[#16a34a]"
+                className="inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl font-bold text-sm text-[#e2ede7] hover:text-white bg-white/[0.04] hover:bg-white/[0.08] border border-white/[0.12] hover:border-emerald-500/30 active:scale-[0.98] transition-all duration-150 focus:outline-none focus-visible:ring-2 focus-visible:ring-[#22c55e]"
               >
                 <User className="w-4 h-4 stroke-[2.2]" />
                 <span>Login / Sign Up</span>
@@ -235,7 +235,7 @@ export const Header: React.FC = () => {
             <Link
               to="/book"
               onClick={handleBookPickupClick}
-              className="inline-flex items-center justify-center gap-2 px-5 py-2.5 rounded-xl font-bold text-sm bg-gradient-to-r from-[#16a34a] to-[#15803d] hover:from-[#15803d] hover:to-[#123b26] text-white shadow-md shadow-[#16a34a]/25 hover:shadow-lg hover:shadow-[#16a34a]/30 active:scale-[0.98] transition-all duration-150 focus:outline-none focus-visible:ring-2 focus-visible:ring-[#16a34a]"
+              className="inline-flex items-center justify-center gap-2 px-5 py-2.5 rounded-xl font-bold text-sm bg-gradient-to-r from-[#16a34a] to-[#15803d] hover:from-[#22c55e] hover:to-[#16a34a] text-white shadow-lg shadow-emerald-950/60 hover:shadow-emerald-500/25 active:scale-[0.98] transition-all duration-150 focus:outline-none focus-visible:ring-2 focus-visible:ring-[#22c55e]"
             >
               <Truck className="w-4 h-4 stroke-[2.3]" />
               <span>Book a Pickup</span>
@@ -248,7 +248,7 @@ export const Header: React.FC = () => {
               <button
                 type="button"
                 onClick={handleSignOut}
-                className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-xs font-semibold text-rose-700 bg-rose-50 border border-rose-200"
+                className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-xs font-semibold text-rose-300 bg-rose-500/10 border border-rose-500/20 hover:bg-rose-500/20 transition-colors"
               >
                 <LogOut className="w-3.5 h-3.5" />
                 <span>Exit</span>
@@ -257,7 +257,7 @@ export const Header: React.FC = () => {
               <button
                 type="button"
                 onClick={() => openAuthModal({ initialRole: null })}
-                className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg font-bold text-xs text-[#123b26] border border-[#d1d5db] hover:bg-[#eef2ee] transition-colors"
+                className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg font-bold text-xs text-white/90 border border-white/10 hover:bg-white/10 transition-colors"
               >
                 <User className="w-3.5 h-3.5" />
                 <span>Login</span>
@@ -267,7 +267,7 @@ export const Header: React.FC = () => {
             <Link
               to="/book"
               onClick={handleBookPickupClick}
-              className="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-lg font-bold text-xs bg-[#16a34a] text-white shadow-sm"
+              className="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-lg font-bold text-xs bg-gradient-to-r from-emerald-500 to-green-600 text-white shadow-md shadow-emerald-950/50"
             >
               <Truck className="w-3.5 h-3.5" />
               <span>Book</span>
@@ -276,7 +276,7 @@ export const Header: React.FC = () => {
             <button
               type="button"
               onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
-              className="p-2 rounded-xl text-[#3f4441] hover:text-[#123b26] hover:bg-[#eef2ee] focus:outline-none focus-visible:ring-2 focus-visible:ring-[#16a34a]"
+              className="p-2 rounded-xl text-white/70 hover:text-white hover:bg-white/10 focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500 transition-colors"
               aria-label="Toggle navigation menu"
               aria-expanded={mobileMenuOpen}
             >
@@ -288,18 +288,18 @@ export const Header: React.FC = () => {
 
       {/* Mobile Drawer */}
       {mobileMenuOpen && (
-        <div className="md:hidden border-t border-[#e6e8e5] bg-[#fbfbf9] px-4 pt-3 pb-6 shadow-xl animate-in slide-in-from-top-2">
+        <div className="md:hidden border-t border-white/[0.08] bg-[#07130c]/95 backdrop-blur-2xl px-4 pt-3 pb-6 shadow-2xl animate-in slide-in-from-top-2">
           {user && (
-            <div className="mb-3 p-3 rounded-2xl bg-[#eaf8ef] border border-[#bbf7d0] flex items-center justify-between text-xs">
+            <div className="mb-3 p-3 rounded-2xl bg-white/[0.04] border border-white/10 flex items-center justify-between text-xs">
               <div className="flex items-center gap-2.5">
-                <div className="w-8 h-8 rounded-xl bg-[#123b26] text-[#4ade80] flex items-center justify-center font-bold uppercase">
+                <div className="w-8 h-8 rounded-xl bg-emerald-500/20 border border-emerald-500/30 text-emerald-300 flex items-center justify-center font-bold uppercase">
                   {(profile?.full_name || user.email || 'U')[0]}
                 </div>
                 <div>
-                  <span className="font-bold text-[#123b26] block">
+                  <span className="font-bold text-white block">
                     {profile?.full_name || user.email}
                   </span>
-                  <span className="text-[10px] text-[#16a34a] capitalize">
+                  <span className="text-[10px] text-emerald-400 capitalize">
                     {profile?.role || 'Customer'}
                   </span>
                 </div>
@@ -307,7 +307,7 @@ export const Header: React.FC = () => {
               <button
                 type="button"
                 onClick={handleSignOut}
-                className="px-2.5 py-1 rounded-lg text-xs font-semibold text-rose-700 bg-white border border-rose-200"
+                className="px-2.5 py-1 rounded-lg text-xs font-semibold text-rose-300 bg-rose-500/10 border border-rose-500/20 hover:bg-rose-500/20 transition-colors"
               >
                 Sign Out
               </button>
@@ -331,8 +331,8 @@ export const Header: React.FC = () => {
                   className={({ isActive }) =>
                     `flex items-center justify-between px-4 py-3 rounded-xl text-base font-semibold transition-all ${
                       isActive
-                        ? 'bg-[#123b26] text-white shadow-sm'
-                        : 'text-[#282c2a] hover:bg-[#eef2ee]'
+                        ? 'bg-emerald-500/15 text-emerald-400 border border-emerald-500/25 shadow-sm'
+                        : 'text-white/80 hover:bg-white/[0.06] hover:text-white'
                     }`
                   }
                 >
@@ -342,12 +342,12 @@ export const Header: React.FC = () => {
                   </div>
                   <div className="flex items-center gap-2">
                     {link.badge !== undefined && link.badge > 0 && (
-                      <span className="px-2 py-0.5 text-xs font-bold rounded-full bg-[#16a34a] text-white">
+                      <span className="px-2 py-0.5 text-xs font-bold rounded-full bg-emerald-500 text-white">
                         {link.badge} active
                       </span>
                     )}
                     {link.demoTag && (
-                      <span className="px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider rounded bg-amber-100 text-amber-900 border border-amber-300">
+                      <span className="px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider rounded bg-amber-500/15 text-amber-300 border border-amber-500/30">
                         Demo
                       </span>
                     )}
@@ -357,7 +357,7 @@ export const Header: React.FC = () => {
             })}
           </div>
 
-          <div className="mt-5 pt-4 border-t border-[#e6e8e5] space-y-2.5">
+          <div className="mt-5 pt-4 border-t border-white/[0.08] space-y-2.5">
             {!user && (
               <button
                 type="button"
@@ -365,7 +365,7 @@ export const Header: React.FC = () => {
                   setMobileMenuOpen(false);
                   openAuthModal({ initialRole: null });
                 }}
-                className="w-full flex items-center justify-center gap-2 px-5 py-3 rounded-xl font-bold text-sm text-[#123b26] border-2 border-[#123b26] hover:bg-[#eef2ee] transition-all"
+                className="w-full flex items-center justify-center gap-2 px-5 py-3 rounded-xl font-bold text-sm text-white bg-white/[0.05] border border-white/10 hover:bg-white/10 transition-all"
               >
                 <User className="w-4 h-4 stroke-[2.2]" />
                 <span>Login / Sign Up</span>
@@ -378,15 +378,15 @@ export const Header: React.FC = () => {
                 setMobileMenuOpen(false);
                 handleBookPickupClick(e);
               }}
-              className="w-full flex items-center justify-center gap-2 px-5 py-3.5 rounded-xl font-bold text-base bg-gradient-to-r from-[#16a34a] to-[#123b26] text-white shadow-md shadow-[#16a34a]/20 active:scale-[0.98] transition-transform"
+              className="w-full flex items-center justify-center gap-2 px-5 py-3.5 rounded-xl font-bold text-base bg-gradient-to-r from-emerald-500 to-green-600 text-white shadow-lg shadow-emerald-950/60 active:scale-[0.98] transition-transform"
             >
               <Truck className="w-5 h-5 stroke-[2.3]" />
               <span>Schedule Free Doorstep Pickup</span>
             </Link>
           </div>
 
-          <div className="mt-4 px-3 py-2.5 rounded-xl bg-amber-50/90 border border-amber-200/80 text-[11px] text-amber-900 flex items-start gap-2">
-            <Sparkles className="w-4 h-4 text-amber-600 shrink-0 mt-0.5" />
+          <div className="mt-4 px-3 py-2.5 rounded-xl bg-white/[0.03] border border-white/10 text-[11px] text-emerald-200/80 flex items-start gap-2">
+            <Sparkles className="w-4 h-4 text-emerald-400 shrink-0 mt-0.5" />
             <span>
               {isSupabaseConfigured()
                 ? 'Connected to Supabase PostgreSQL backend with Row Level Security.'

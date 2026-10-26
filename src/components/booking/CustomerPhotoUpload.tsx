@@ -53,24 +53,24 @@ export const CustomerPhotoUpload: React.FC<CustomerPhotoUploadProps> = ({
   };
 
   return (
-    <div className="p-5 rounded-2xl bg-[#f8faf9] border border-[#e2e4e1] space-y-4">
+    <div className="p-5 rounded-2xl bg-white/[0.035] backdrop-blur-xl border border-white/[0.08] space-y-4 text-white">
       {/* Header with Title and Disclaimer */}
       <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-3">
         <div className="space-y-1">
           <div className="flex items-center gap-2">
-            <div className="w-8 h-8 rounded-lg bg-emerald-100 text-[#123b26] flex items-center justify-center">
-              <Camera className="w-4 h-4 text-[#16a34a]" />
+            <div className="w-8 h-8 rounded-lg bg-emerald-500/15 border border-emerald-500/25 text-emerald-300 flex items-center justify-center">
+              <Camera className="w-4 h-4 text-emerald-400" />
             </div>
             <div>
-              <h3 className="text-sm font-bold text-[#123b26]">
-                Add photos for your dealer <span className="font-normal text-[#717a75]">(Optional)</span>
+              <h3 className="text-sm font-bold text-white">
+                Add photos for your dealer <span className="font-normal text-emerald-300/60">(Optional)</span>
               </h3>
-              <span className="text-[11px] text-[#717a75]">
+              <span className="text-[11px] text-emerald-300/60">
                 {photos.length} of {maxPhotos} photos added
               </span>
             </div>
           </div>
-          <p className="text-xs text-[#525955] leading-relaxed pt-1">
+          <p className="text-xs text-[#9cb1a4] leading-relaxed pt-1">
             Photos help your dealer review the request. Material, weight, quality, and payout are confirmed by the dealer at pickup.
           </p>
         </div>
@@ -80,10 +80,10 @@ export const CustomerPhotoUpload: React.FC<CustomerPhotoUploadProps> = ({
           <button
             type="button"
             onClick={onAddDemoPhoto}
-            className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-semibold bg-white border border-[#d1d5db] text-[#123b26] hover:bg-[#eaf8ef] hover:border-[#16a34a] transition-colors shrink-0 shadow-2xs self-start"
+            className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-semibold bg-white/[0.05] border border-white/10 text-white hover:bg-white/10 hover:border-emerald-500/40 transition-colors shrink-0 shadow-sm self-start"
             title="Load a demo scrap sample photo"
           >
-            <Sparkles className="w-3.5 h-3.5 text-amber-600" />
+            <Sparkles className="w-3.5 h-3.5 text-amber-400" />
             <span>Load Demo Photo</span>
           </button>
         )}
@@ -91,8 +91,8 @@ export const CustomerPhotoUpload: React.FC<CustomerPhotoUploadProps> = ({
 
       {/* Validation Error Banner */}
       {error && (
-        <div className="p-3 rounded-xl bg-rose-50 border border-rose-200 text-xs text-rose-700 flex items-center gap-2">
-          <AlertCircle className="w-4 h-4 shrink-0 text-rose-600" />
+        <div className="p-3 rounded-xl bg-rose-500/10 border border-rose-500/25 text-xs text-rose-300 flex items-center gap-2">
+          <AlertCircle className="w-4 h-4 shrink-0 text-rose-400" />
           <span>{error}</span>
         </div>
       )}
@@ -102,14 +102,14 @@ export const CustomerPhotoUpload: React.FC<CustomerPhotoUploadProps> = ({
         {previews.map((preview, index) => (
           <div
             key={index}
-            className="relative group rounded-xl overflow-hidden border border-[#d1d5db] bg-white aspect-square shadow-2xs"
+            className="relative group rounded-xl overflow-hidden border border-white/10 bg-black/40 aspect-square shadow-sm"
           >
             <img
               src={preview}
               alt={`Scrap photo ${index + 1}`}
               className="w-full h-full object-cover"
             />
-            <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center p-2">
+            <div className="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center p-2">
               <button
                 type="button"
                 onClick={() => onRemovePhoto(index)}
@@ -120,7 +120,7 @@ export const CustomerPhotoUpload: React.FC<CustomerPhotoUploadProps> = ({
                 <Trash2 className="w-4 h-4" />
               </button>
             </div>
-            <div className="absolute bottom-1 right-1 bg-black/60 text-white text-[10px] px-1.5 py-0.5 rounded font-mono">
+            <div className="absolute bottom-1 right-1 bg-black/70 text-white text-[10px] px-1.5 py-0.5 rounded font-mono border border-white/10">
               #{index + 1}
             </div>
           </div>
@@ -132,15 +132,15 @@ export const CustomerPhotoUpload: React.FC<CustomerPhotoUploadProps> = ({
             type="button"
             onClick={() => fileInputRef.current?.click()}
             disabled={disabled}
-            className="flex flex-col items-center justify-center p-4 border-2 border-dashed border-[#c4c8c4] hover:border-[#16a34a] hover:bg-[#f2faf5] rounded-xl aspect-square transition-all text-center group cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
+            className="flex flex-col items-center justify-center p-4 border-2 border-dashed border-white/15 hover:border-emerald-500/50 hover:bg-white/[0.04] rounded-xl aspect-square transition-all text-center group cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
           >
-            <div className="w-9 h-9 rounded-full bg-white border border-[#d1d5db] group-hover:border-[#16a34a] flex items-center justify-center mb-1 text-[#16a34a] transition-colors shadow-2xs">
+            <div className="w-9 h-9 rounded-full bg-white/[0.05] border border-white/10 group-hover:border-emerald-500/40 flex items-center justify-center mb-1 text-emerald-400 transition-colors shadow-sm">
               <Plus className="w-5 h-5" />
             </div>
-            <span className="text-xs font-bold text-[#123b26] group-hover:text-[#16a34a]">
+            <span className="text-xs font-bold text-white group-hover:text-emerald-300">
               Take / Add Photo
             </span>
-            <span className="text-[10px] text-[#717a75] mt-0.5">JPG, PNG, WebP (up to 5MB)</span>
+            <span className="text-[10px] text-emerald-300/50 mt-0.5">JPG, PNG, WebP (up to 5MB)</span>
           </button>
         )}
       </div>
@@ -156,8 +156,8 @@ export const CustomerPhotoUpload: React.FC<CustomerPhotoUploadProps> = ({
       />
 
       {/* Reassurance note */}
-      <div className="flex items-center gap-2 text-[11px] text-[#717a75] pt-1 border-t border-[#e2e4e1]">
-        <Info className="w-3.5 h-3.5 shrink-0 text-[#16a34a]" />
+      <div className="flex items-center gap-2 text-[11px] text-[#9cb1a4] pt-1 border-t border-white/[0.08]">
+        <Info className="w-3.5 h-3.5 shrink-0 text-emerald-400" />
         <span>
           Uploading photos is completely optional. You can continue and submit your pickup without photos.
         </span>

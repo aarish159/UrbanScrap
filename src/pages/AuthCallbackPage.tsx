@@ -181,35 +181,35 @@ export const AuthCallbackPage: React.FC = () => {
 
   return (
     <div className="min-h-[70vh] flex items-center justify-center px-4 py-16">
-      <div className="w-full max-w-md bg-white rounded-2xl border border-[#e6e8e5] p-8 shadow-xl text-center space-y-6">
+      <div className="w-full max-w-md glass-card rounded-2xl border border-white/[0.08] p-8 shadow-2xl text-center space-y-6 text-white">
         {status === 'processing' && (
           <div className="space-y-4">
             <div className="relative w-16 h-16 mx-auto flex items-center justify-center">
-              <div className="absolute inset-0 rounded-full border-4 border-[#16a34a]/20 animate-ping" />
-              <div className="w-16 h-16 rounded-full border-4 border-[#123b26] border-t-transparent animate-spin flex items-center justify-center bg-[#eaf8ef]/40">
-                <Loader2 className="w-7 h-7 text-[#123b26] animate-spin" />
+              <div className="absolute inset-0 rounded-full border-4 border-emerald-500/20 animate-ping" />
+              <div className="w-16 h-16 rounded-full border-4 border-emerald-500 border-t-transparent animate-spin flex items-center justify-center bg-emerald-500/10">
+                <Loader2 className="w-7 h-7 text-emerald-400 animate-spin" />
               </div>
             </div>
             <div className="space-y-1.5">
-              <h2 className="text-xl font-bold text-[#123b26]">Authenticating with Google</h2>
-              <p className="text-xs sm:text-sm text-[#717a75] leading-relaxed">
+              <h2 className="text-xl font-bold text-white">Authenticating with Google</h2>
+              <p className="text-xs sm:text-sm text-[#9cb1a4] leading-relaxed">
                 Verifying your credentials and establishing a secure session...
               </p>
             </div>
-            <div className="h-1.5 w-full bg-[#f1f3f1] rounded-full overflow-hidden">
-              <div className="h-full bg-gradient-to-r from-[#16a34a] to-[#123b26] rounded-full animate-pulse w-3/4" />
+            <div className="h-1.5 w-full bg-white/[0.05] rounded-full overflow-hidden">
+              <div className="h-full bg-gradient-to-r from-emerald-500 to-emerald-400 rounded-full animate-pulse w-3/4" />
             </div>
           </div>
         )}
 
         {status === 'success' && (
           <div className="space-y-4">
-            <div className="w-16 h-16 rounded-full bg-[#eaf8ef] text-[#16a34a] mx-auto flex items-center justify-center border border-[#16a34a]/30 shadow-inner">
+            <div className="w-16 h-16 rounded-full bg-emerald-500/15 text-emerald-400 mx-auto flex items-center justify-center border border-emerald-500/30 shadow-inner">
               <CheckCircle2 className="w-9 h-9 stroke-[2.4]" />
             </div>
             <div className="space-y-1.5">
-              <h2 className="text-xl font-bold text-[#123b26]">Authentication Successful</h2>
-              <p className="text-xs sm:text-sm text-[#525955]">
+              <h2 className="text-xl font-bold text-white">Authentication Successful</h2>
+              <p className="text-xs sm:text-sm text-[#9cb1a4]">
                 Redirecting you to your destination...
               </p>
             </div>
@@ -218,12 +218,12 @@ export const AuthCallbackPage: React.FC = () => {
 
         {status === 'error' && (
           <div className="space-y-5">
-            <div className="w-16 h-16 rounded-full bg-rose-50 text-rose-600 mx-auto flex items-center justify-center border border-rose-200">
+            <div className="w-16 h-16 rounded-full bg-rose-500/15 text-rose-400 mx-auto flex items-center justify-center border border-rose-500/30">
               <AlertCircle className="w-9 h-9 stroke-[2.2]" />
             </div>
             <div className="space-y-2">
-              <h2 className="text-xl font-bold text-[#191c1a]">Sign In Notice</h2>
-              <p className="text-xs sm:text-sm text-rose-700 bg-rose-50 p-3 rounded-xl border border-rose-100 text-left leading-relaxed">
+              <h2 className="text-xl font-bold text-white">Sign In Notice</h2>
+              <p className="text-xs sm:text-sm text-rose-300 bg-rose-950/40 p-3 rounded-xl border border-rose-500/30 text-left leading-relaxed">
                 {errorMessage || 'Unable to complete sign-in. Please try again.'}
               </p>
             </div>
@@ -234,14 +234,14 @@ export const AuthCallbackPage: React.FC = () => {
                   navigate('/', { replace: true });
                   setTimeout(() => openAuthModal(), 100);
                 }}
-                className="w-full inline-flex items-center justify-center gap-2 px-5 py-3 rounded-xl font-bold text-sm bg-[#123b26] hover:bg-[#1a5336] text-white shadow-md transition-all active:scale-[0.98]"
+                className="w-full inline-flex items-center justify-center gap-2 px-5 py-3 rounded-xl font-bold text-sm bg-emerald-600 hover:bg-emerald-500 text-white shadow-lg shadow-emerald-950/40 transition-all active:scale-[0.98]"
               >
                 <RefreshCw className="w-4 h-4" />
                 <span>Try Signing In Again</span>
               </button>
               <Link
                 to="/"
-                className="w-full inline-flex items-center justify-center gap-2 px-5 py-2.5 rounded-xl text-xs font-semibold text-[#525955] hover:bg-[#f1f3f1] transition-colors"
+                className="w-full inline-flex items-center justify-center gap-2 px-5 py-2.5 rounded-xl text-xs font-semibold text-gray-400 hover:text-white hover:bg-white/[0.05] transition-colors"
               >
                 <Home className="w-4 h-4" />
                 <span>Return to Home</span>

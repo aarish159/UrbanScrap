@@ -495,92 +495,92 @@ export const BookingPage: React.FC = () => {
   // SUCCESS SCREEN
   if (submittedBooking) {
     return (
-      <div className="max-w-3xl mx-auto px-4 py-12">
-        <div className="bg-white rounded-3xl p-8 sm:p-10 border border-[#e6e8e5] shadow-xl text-center space-y-6">
-          <div className="w-16 h-16 rounded-2xl bg-[#eaf8ef] text-[#16a34a] mx-auto flex items-center justify-center shadow-inner">
+      <div className="max-w-3xl mx-auto px-4 py-12 text-white">
+        <div className="bg-white/[0.035] backdrop-blur-2xl rounded-3xl p-8 sm:p-10 border border-white/10 shadow-2xl shadow-black/80 text-center space-y-6">
+          <div className="w-16 h-16 rounded-2xl bg-emerald-500/20 border border-emerald-500/30 text-emerald-400 mx-auto flex items-center justify-center shadow-lg shadow-emerald-950/50">
             <Check className="w-9 h-9 stroke-[3]" />
           </div>
 
           <div className="space-y-2">
-            <span className="inline-block px-3 py-1 rounded-full text-xs font-bold uppercase tracking-wider bg-emerald-100 text-emerald-800 border border-emerald-200">
+            <span className="inline-block px-3 py-1 rounded-full text-xs font-bold uppercase tracking-wider bg-emerald-500/15 text-emerald-300 border border-emerald-500/30">
               Demo Request Created
             </span>
-            <h1 className="text-3xl font-extrabold text-[#123b26]">
+            <h1 className="text-3xl font-extrabold text-white">
               Pickup request received!
             </h1>
-            <p className="text-sm text-[#525955] max-w-lg mx-auto">
+            <p className="text-sm text-[#9cb1a4] max-w-lg mx-auto">
               Your pickup booking has been recorded and assigned to a verified demo scrap partner.
             </p>
           </div>
 
           {/* Prototype disclaimer pill */}
-          <div className="p-4 rounded-xl bg-amber-50/90 border border-amber-300/80 text-xs text-amber-900 text-left flex items-start gap-3">
-            <Sparkles className="w-4 h-4 text-amber-600 shrink-0 mt-0.5" />
+          <div className="p-4 rounded-xl bg-amber-500/10 border border-amber-500/25 text-xs text-amber-200 text-left flex items-start gap-3">
+            <Sparkles className="w-4 h-4 text-amber-400 shrink-0 mt-0.5" />
             <div className="leading-relaxed">
-              <span className="font-bold">Frontend Demonstration Notice: </span>
+              <span className="font-bold text-amber-300">Frontend Demonstration Notice: </span>
               This is an interactive client-side prototype operating on browser storage. No real pickup truck is dispatched and rates shown are sample benchmarks.
             </div>
           </div>
 
           {/* Booking Summary Card */}
-          <div className="bg-[#fbfbf9] rounded-2xl p-6 text-left border border-[#e6e8e5] space-y-4">
-            <div className="flex flex-wrap items-center justify-between pb-3 border-b border-[#e6e8e5] gap-2">
+          <div className="bg-white/[0.03] rounded-2xl p-6 text-left border border-white/[0.08] space-y-4">
+            <div className="flex flex-wrap items-center justify-between pb-3 border-b border-white/[0.08] gap-2">
               <div>
-                <span className="text-xs text-[#717a75]">Booking Reference</span>
-                <p className="font-extrabold text-lg text-[#123b26] font-mono">{submittedBooking.id}</p>
+                <span className="text-xs text-emerald-300/60">Booking Reference</span>
+                <p className="font-extrabold text-lg text-white font-mono">{submittedBooking.id}</p>
               </div>
               <div className="text-right">
-                <span className="text-xs text-[#717a75]">Estimated Payout</span>
-                <p className="font-black text-xl text-[#16a34a]">
+                <span className="text-xs text-emerald-300/60">Estimated Payout</span>
+                <p className="font-black text-xl text-emerald-400">
                   {formatINR(submittedBooking.estimatedTotal)}
                 </p>
               </div>
             </div>
 
             {/* Assigned Demo Dealer Card */}
-            <div className="p-4 rounded-xl bg-white border border-[#e2e4e1] flex flex-col sm:flex-row sm:items-center justify-between gap-3 shadow-2xs">
+            <div className="p-4 rounded-xl bg-white/[0.04] border border-white/10 flex flex-col sm:flex-row sm:items-center justify-between gap-3 shadow-sm">
               <div className="flex items-center gap-3">
-                <div className="w-10 h-10 rounded-xl bg-[#123b26] text-[#4ade80] flex items-center justify-center font-bold shrink-0">
+                <div className="w-10 h-10 rounded-xl bg-emerald-500/20 border border-emerald-500/30 text-emerald-300 flex items-center justify-center font-bold shrink-0">
                   <Truck className="w-5 h-5 stroke-[2.2]" />
                 </div>
                 <div>
                   <div className="flex items-center gap-1.5">
-                    <span className="font-bold text-sm text-[#123b26]">
+                    <span className="font-bold text-sm text-white">
                       {submittedBooking.assignedDealer?.name}
                     </span>
-                    <span className="px-1.5 py-0.2 text-[9px] font-bold rounded bg-blue-100 text-blue-800">
+                    <span className="px-1.5 py-0.2 text-[9px] font-bold rounded bg-sky-500/15 text-sky-300 border border-sky-500/25">
                       Mock Assigned
                     </span>
                   </div>
-                  <p className="text-xs text-[#717a75]">
+                  <p className="text-xs text-emerald-200/60">
                     {submittedBooking.assignedDealer?.businessName} • {submittedBooking.assignedDealer?.vehicleType}
                   </p>
                 </div>
               </div>
-              <div className="text-xs text-[#525955] sm:text-right">
-                <span className="font-bold text-[#123b26] block">{submittedBooking.address.timeSlot}</span>
+              <div className="text-xs text-[#9cb1a4] sm:text-right">
+                <span className="font-bold text-white block">{submittedBooking.address.timeSlot}</span>
                 <span>{formatDate(submittedBooking.address.preferredDate)}</span>
               </div>
             </div>
 
             {/* Address & Items */}
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 text-xs text-[#525955] pt-1">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 text-xs text-[#9cb1a4] pt-1">
               <div>
-                <span className="font-bold text-[#123b26] block mb-1">Pickup Address:</span>
-                <p className="font-semibold text-[#191c1a]">{submittedBooking.address.fullName}</p>
+                <span className="font-bold text-white block mb-1">Pickup Address:</span>
+                <p className="font-semibold text-white/90">{submittedBooking.address.fullName}</p>
                 <p>{submittedBooking.address.streetAddress}, {submittedBooking.address.area}</p>
                 <p>{submittedBooking.address.city} - {submittedBooking.address.pincode}</p>
-                <p className="mt-1 font-medium">Phone: +91 {submittedBooking.address.phoneNumber}</p>
+                <p className="mt-1 font-medium text-emerald-300">Phone: +91 {submittedBooking.address.phoneNumber}</p>
               </div>
               <div>
-                <span className="font-bold text-[#123b26] block mb-1">
+                <span className="font-bold text-white block mb-1">
                   Scrap Materials ({submittedBooking.materials.length}):
                 </span>
                 <ul className="space-y-1">
                   {submittedBooking.materials.map((m) => (
-                    <li key={m.materialId} className="flex justify-between items-center py-0.5 border-b border-[#f1f3f1] last:border-b-0">
+                    <li key={m.materialId} className="flex justify-between items-center py-0.5 border-b border-white/[0.06] last:border-b-0">
                       <span>• {m.materialName} ({m.quantity} {m.unit})</span>
-                      <span className="font-bold text-[#123b26]">{formatINR(m.estimatedSubtotal)}</span>
+                      <span className="font-bold text-white">{formatINR(m.estimatedSubtotal)}</span>
                     </li>
                   ))}
                 </ul>
@@ -588,8 +588,8 @@ export const BookingPage: React.FC = () => {
             </div>
 
             {submittedBooking.photoUrls && submittedBooking.photoUrls.length > 0 && (
-              <div className="pt-3 border-t border-[#e6e8e5] space-y-2">
-                <span className="font-bold text-[#123b26] text-xs block">
+              <div className="pt-3 border-t border-white/[0.08] space-y-2">
+                <span className="font-bold text-white text-xs block">
                   Attached Photos for Dealer Review ({submittedBooking.photoUrls.length}):
                 </span>
                 <div className="flex gap-2 overflow-x-auto pb-1">
@@ -598,7 +598,7 @@ export const BookingPage: React.FC = () => {
                       key={idx}
                       src={url}
                       alt={`Attached scrap ${idx + 1}`}
-                      className="w-14 h-14 object-cover rounded-xl border border-[#d1d5db] shadow-2xs shrink-0"
+                      className="w-14 h-14 object-cover rounded-xl border border-white/10 shadow-sm shrink-0"
                     />
                   ))}
                 </div>
@@ -610,7 +610,7 @@ export const BookingPage: React.FC = () => {
           <div className="flex flex-col sm:flex-row items-center justify-center gap-3 pt-2">
             <Link
               to="/bookings"
-              className="w-full sm:w-auto inline-flex items-center justify-center gap-2 px-6 py-3 rounded-xl font-bold text-sm bg-[#123b26] hover:bg-[#1a5336] text-white shadow-md transition-all active:scale-[0.98]"
+              className="w-full sm:w-auto inline-flex items-center justify-center gap-2 px-6 py-3 rounded-xl font-bold text-sm bg-gradient-to-r from-emerald-500 to-green-600 hover:from-emerald-400 hover:to-green-500 text-white shadow-lg shadow-emerald-950/60 transition-all active:scale-[0.98]"
             >
               <span>View in My Bookings</span>
               <ArrowRight className="w-4 h-4" />
@@ -618,14 +618,14 @@ export const BookingPage: React.FC = () => {
 
             <Link
               to="/dealer"
-              className="w-full sm:w-auto inline-flex items-center justify-center gap-2 px-5 py-3 rounded-xl font-bold text-sm bg-amber-100 hover:bg-amber-200 text-amber-950 border border-amber-300 transition-all active:scale-[0.98]"
+              className="w-full sm:w-auto inline-flex items-center justify-center gap-2 px-5 py-3 rounded-xl font-bold text-sm bg-amber-500/15 hover:bg-amber-500/25 text-amber-300 border border-amber-500/30 transition-all active:scale-[0.98]"
             >
               <span>Inspect in Dealer Portal</span>
             </Link>
 
             <Link
               to="/"
-              className="w-full sm:w-auto inline-flex items-center justify-center gap-2 px-5 py-3 rounded-xl font-semibold text-sm bg-white text-[#525955] border border-[#d1d5db] hover:bg-[#f1f3f1] transition-all"
+              className="w-full sm:w-auto inline-flex items-center justify-center gap-2 px-5 py-3 rounded-xl font-semibold text-sm bg-white/[0.05] text-white/80 border border-white/10 hover:bg-white/10 hover:text-white transition-all"
             >
               <span>Return Home</span>
             </Link>
@@ -636,13 +636,13 @@ export const BookingPage: React.FC = () => {
   }
 
   return (
-    <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-8">
+    <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-8 text-white">
       {/* Title */}
       <div className="text-center space-y-2">
-        <h1 className="text-3xl sm:text-4xl font-extrabold text-[#123b26] tracking-tight">
+        <h1 className="text-3xl sm:text-4xl font-extrabold text-white tracking-tight">
           Book Doorstep Scrap Pickup
         </h1>
-        <p className="text-sm text-[#525955] max-w-xl mx-auto">
+        <p className="text-sm text-emerald-200/70 max-w-xl mx-auto">
           Add your scrap items, pick your preferred date and slot, and receive instant doorstep weighing.
         </p>
       </div>
@@ -656,20 +656,20 @@ export const BookingPage: React.FC = () => {
 
       {/* STEP 1: MATERIALS SELECTION */}
       {currentStep === 1 && (
-        <div className="bg-white rounded-3xl p-6 sm:p-8 border border-[#e6e8e5] shadow-xs space-y-6">
-          <div className="flex flex-wrap items-center justify-between pb-4 border-b border-[#f1f3f1] gap-2">
+        <div className="bg-white/[0.035] backdrop-blur-2xl rounded-3xl p-6 sm:p-8 border border-white/10 shadow-2xl space-y-6 text-white">
+          <div className="flex flex-wrap items-center justify-between pb-4 border-b border-white/[0.08] gap-2">
             <div>
-              <h2 className="text-xl font-bold text-[#123b26]">
+              <h2 className="text-xl font-bold text-white">
                 Step 1: Select Scrap Materials
               </h2>
-              <p className="text-xs text-[#717a75] mt-0.5">
+              <p className="text-xs text-[#9cb1a4] mt-0.5">
                 Start with an empty list and add items you wish to sell with approximate quantities.
               </p>
             </div>
             <Link
               to="/prices"
               target="_blank"
-              className="text-xs font-bold text-[#16a34a] hover:underline flex items-center gap-1"
+              className="text-xs font-bold text-emerald-400 hover:text-emerald-300 hover:underline flex items-center gap-1 transition-colors"
             >
               <span>View full price catalogue</span>
               <ArrowRight className="w-3.5 h-3.5" />
@@ -688,7 +688,7 @@ export const BookingPage: React.FC = () => {
 
           {/* Quick Add Popular Chips */}
           <div className="space-y-2">
-            <span className="block text-xs font-bold uppercase tracking-wider text-[#717a75]">
+            <span className="block text-xs font-bold uppercase tracking-wider text-emerald-300/60">
               Quick Add Popular Items:
             </span>
             <div className="flex flex-wrap gap-2">
@@ -702,16 +702,16 @@ export const BookingPage: React.FC = () => {
                     disabled={isAlreadyAdded}
                     className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-semibold border transition-all active:scale-[0.98] ${
                       isAlreadyAdded
-                        ? 'bg-emerald-50 text-emerald-800 border-emerald-300 opacity-70 cursor-not-allowed'
-                        : 'bg-white text-[#123b26] border-[#d1d5db] hover:border-[#16a34a] hover:bg-[#eaf8ef]'
+                        ? 'bg-emerald-500/15 text-emerald-300 border-emerald-500/30 opacity-70 cursor-not-allowed'
+                        : 'bg-white/[0.04] text-white border-white/10 hover:border-emerald-500/40 hover:bg-white/[0.08]'
                     }`}
                   >
-                    <Plus className="w-3.5 h-3.5 text-[#16a34a]" />
+                    <Plus className="w-3.5 h-3.5 text-emerald-400" />
                     <span>{item.name}</span>
-                    <span className="text-[#717a75] text-[11px]">
+                    <span className="text-emerald-300/50 text-[11px]">
                       ({formatINR(item.indicativeRate)}/{item.unit})
                     </span>
-                    {isAlreadyAdded && <span className="font-bold text-[#16a34a]">✓</span>}
+                    {isAlreadyAdded && <span className="font-bold text-emerald-400">✓</span>}
                   </button>
                 );
               })}
@@ -719,21 +719,21 @@ export const BookingPage: React.FC = () => {
           </div>
 
           {/* Material Add dropdown selector */}
-          <div className="p-4 rounded-2xl bg-[#f8faf9] border border-[#e2e4e1] space-y-3">
-            <label className="block text-xs font-bold uppercase tracking-wider text-[#525955]">
+          <div className="p-4 rounded-2xl bg-white/[0.03] border border-white/[0.08] space-y-3">
+            <label className="block text-xs font-bold uppercase tracking-wider text-emerald-300/70">
               Add from Complete Catalogue
             </label>
             <div className="flex flex-col sm:flex-row gap-3">
               <select
                 value={selectedCatalogueId}
                 onChange={(e) => setSelectedCatalogueId(e.target.value)}
-                className="flex-1 px-4 py-2.5 rounded-xl border border-[#d1d5db] bg-white text-sm focus:outline-none focus:ring-2 focus:ring-[#16a34a] text-[#191c1a]"
+                className="flex-1 px-4 py-2.5 rounded-xl border border-white/10 bg-[#07130c] text-sm text-white focus:outline-none focus:ring-1 focus:ring-emerald-500"
               >
-                <option value="">-- Choose a material to add --</option>
+                <option value="" className="bg-[#07130c] text-white">-- Choose a material to add --</option>
                 {materialsList.map((mat) => {
                   const isAdded = selectedItems.some((i) => i.materialId === mat.id);
                   return (
-                    <option key={mat.id} value={mat.id} disabled={isAdded}>
+                    <option key={mat.id} value={mat.id} disabled={isAdded} className="bg-[#07130c] text-white">
                       {mat.name} ({formatINR(mat.indicativeRate)} / {mat.unit}) {isAdded ? '✓ Added' : ''}
                     </option>
                   );
@@ -744,7 +744,7 @@ export const BookingPage: React.FC = () => {
                 type="button"
                 onClick={() => handleAddMaterial(selectedCatalogueId)}
                 disabled={!selectedCatalogueId}
-                className="inline-flex items-center justify-center gap-2 px-5 py-2.5 rounded-xl text-sm font-bold bg-[#123b26] hover:bg-[#16a34a] text-white disabled:opacity-40 disabled:cursor-not-allowed transition-all active:scale-[0.98]"
+                className="inline-flex items-center justify-center gap-2 px-5 py-2.5 rounded-xl text-sm font-bold bg-gradient-to-r from-emerald-500 to-green-600 hover:from-emerald-400 hover:to-green-500 text-white disabled:opacity-40 disabled:cursor-not-allowed transition-all active:scale-[0.98] shadow-md shadow-emerald-950/50"
               >
                 <Plus className="w-4 h-4" />
                 <span>Add Item</span>
@@ -754,54 +754,54 @@ export const BookingPage: React.FC = () => {
 
           {/* Validation Error Banner */}
           {materialError && (
-            <div className="p-3.5 rounded-xl bg-rose-50 border border-rose-200 text-rose-800 text-xs flex items-center gap-2">
-              <AlertCircle className="w-4 h-4 shrink-0" />
+            <div className="p-3.5 rounded-xl bg-rose-500/10 border border-rose-500/25 text-rose-300 text-xs flex items-center gap-2">
+              <AlertCircle className="w-4 h-4 shrink-0 text-rose-400" />
               <span>{materialError}</span>
             </div>
           )}
 
           {/* Selected Materials List */}
           <div className="space-y-3">
-            <h2 className="text-xs font-bold uppercase tracking-wider text-[#717a75]">
+            <h2 className="text-xs font-bold uppercase tracking-wider text-emerald-300/60">
               Items In Your Pickup Request ({selectedItems.length})
             </h2>
 
             {selectedItems.length === 0 ? (
-              <div className="py-12 text-center border-2 border-dashed border-[#d1d5db] rounded-2xl bg-[#fbfbf9] text-[#717a75] space-y-3">
-                <div className="w-12 h-12 rounded-2xl bg-[#eaf8ef] text-[#16a34a] mx-auto flex items-center justify-center">
+              <div className="py-12 text-center border-2 border-dashed border-white/15 rounded-2xl bg-white/[0.02] text-emerald-200/60 space-y-3">
+                <div className="w-12 h-12 rounded-2xl bg-emerald-500/15 border border-emerald-500/25 text-emerald-300 mx-auto flex items-center justify-center">
                   <Scale className="w-6 h-6 stroke-[2.2]" />
                 </div>
                 <div>
-                  <h3 className="text-base font-bold text-[#123b26]">Your pickup list is empty</h3>
-                  <p className="text-xs text-[#717a75] mt-0.5 max-w-sm mx-auto">
+                  <h3 className="text-base font-bold text-white">Your pickup list is empty</h3>
+                  <p className="text-xs text-[#9cb1a4] mt-0.5 max-w-sm mx-auto">
                     Select one or more scrap items from the dropdown or quick chips above to get an instant payout estimate.
                   </p>
                 </div>
               </div>
             ) : (
-              <div className="divide-y divide-[#f1f3f1] border border-[#e6e8e5] rounded-2xl overflow-hidden shadow-2xs">
+              <div className="divide-y divide-white/[0.06] border border-white/[0.08] rounded-2xl overflow-hidden shadow-sm">
                 {selectedItems.map((item) => (
                   <div
                     key={item.materialId}
-                    className="p-4 bg-white flex flex-col sm:flex-row sm:items-center justify-between gap-4 hover:bg-[#fbfbf9] transition-colors"
+                    className="p-4 bg-white/[0.03] flex flex-col sm:flex-row sm:items-center justify-between gap-4 hover:bg-white/[0.05] transition-colors"
                   >
                     <div className="flex-1 min-w-0">
-                      <h4 className="font-bold text-base text-[#123b26]">
+                      <h4 className="font-bold text-base text-white">
                         {item.materialName}
                       </h4>
-                      <p className="text-xs text-[#717a75] mt-0.5">
-                        Sample rate: <span className="font-semibold text-[#191c1a]">{formatINR(item.ratePerUnit)}</span> per {item.unit}
+                      <p className="text-xs text-[#9cb1a4] mt-0.5">
+                        Sample rate: <span className="font-semibold text-emerald-400">{formatINR(item.ratePerUnit)}</span> per {item.unit}
                       </p>
                     </div>
 
                     <div className="flex items-center gap-4">
                       {/* Stepper Quantity control */}
-                      <div className="flex items-center gap-1 bg-[#f8faf9] p-1 rounded-xl border border-[#d1d5db]">
+                      <div className="flex items-center gap-1 bg-black/40 p-1 rounded-xl border border-white/10">
                         <button
                           type="button"
                           onClick={() => handleDecrement(item.materialId)}
                           disabled={item.quantity <= 1}
-                          className="w-7 h-7 rounded-lg bg-white hover:bg-[#eef2ee] text-[#123b26] flex items-center justify-center disabled:opacity-30 disabled:cursor-not-allowed border border-[#d1d5db] transition-colors"
+                          className="w-7 h-7 rounded-lg bg-white/[0.08] hover:bg-white/15 text-white flex items-center justify-center disabled:opacity-30 disabled:cursor-not-allowed border border-white/10 transition-colors"
                           aria-label={`Decrease ${item.materialName} quantity`}
                         >
                           <Minus className="w-3.5 h-3.5" />
@@ -814,24 +814,24 @@ export const BookingPage: React.FC = () => {
                           onChange={(e) =>
                             handleUpdateQuantity(item.materialId, parseInt(e.target.value, 10))
                           }
-                          className="w-14 text-center text-sm font-bold text-[#123b26] bg-transparent focus:outline-none"
+                          className="w-14 text-center text-sm font-bold text-white bg-transparent focus:outline-none"
                           aria-label={`${item.materialName} quantity in ${item.unit}`}
                         />
                         <button
                           type="button"
                           onClick={() => handleIncrement(item.materialId)}
-                          className="w-7 h-7 rounded-lg bg-white hover:bg-[#eef2ee] text-[#123b26] flex items-center justify-center border border-[#d1d5db] transition-colors"
+                          className="w-7 h-7 rounded-lg bg-white/[0.08] hover:bg-white/15 text-white flex items-center justify-center border border-white/10 transition-colors"
                           aria-label={`Increase ${item.materialName} quantity`}
                         >
                           <Plus className="w-3.5 h-3.5" />
                         </button>
-                        <span className="text-xs font-semibold text-[#525955] pr-1.5">{item.unit}</span>
+                        <span className="text-xs font-semibold text-emerald-200/60 pr-1.5">{item.unit}</span>
                       </div>
 
                       {/* Subtotal */}
                       <div className="w-24 text-right">
-                        <span className="text-[10px] text-[#717a75] block uppercase font-bold tracking-wider">Subtotal</span>
-                        <span className="font-black text-sm text-[#123b26]">
+                        <span className="text-[10px] text-emerald-300/60 block uppercase font-bold tracking-wider">Subtotal</span>
+                        <span className="font-black text-sm text-white">
                           {formatINR(item.estimatedSubtotal)}
                         </span>
                       </div>
@@ -840,7 +840,7 @@ export const BookingPage: React.FC = () => {
                       <button
                         type="button"
                         onClick={() => handleRemoveItem(item.materialId)}
-                        className="p-2 text-rose-500 hover:text-rose-700 hover:bg-rose-50 rounded-xl transition-colors"
+                        className="p-2 text-rose-400 hover:text-rose-300 hover:bg-rose-500/15 rounded-xl transition-colors"
                         title="Remove scrap item"
                         aria-label={`Remove ${item.materialName}`}
                       >
@@ -854,21 +854,21 @@ export const BookingPage: React.FC = () => {
           </div>
 
           {/* Pricing Estimation Bar */}
-          <div className="p-5 rounded-2xl bg-[#eaf8ef] border border-[#bbf7d0] flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+          <div className="p-5 rounded-2xl bg-gradient-to-r from-emerald-950/60 via-emerald-900/40 to-white/[0.02] border border-emerald-500/30 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 text-white">
             <div>
-              <span className="text-xs font-bold text-[#123b26] uppercase tracking-wider block">
+              <span className="text-xs font-bold text-emerald-400 uppercase tracking-wider block">
                 Total Estimated Value
               </span>
-              <span className="text-3xl font-black text-[#123b26]">
+              <span className="text-3xl font-black text-white">
                 {formatINR(estimatedTotal)}
               </span>
-              <span className="text-xs text-[#525955] block mt-0.5">
+              <span className="text-xs text-emerald-200/70 block mt-0.5">
                 (Indicative sample estimate based on your provided weights)
               </span>
             </div>
 
-            <div className="text-xs text-[#3f4541] max-w-sm sm:text-right bg-white/70 p-3 rounded-xl border border-[#bbf7d0]">
-              <span className="font-bold text-[#123b26]">Estimate Notice: </span>
+            <div className="text-xs text-emerald-200/70 max-w-sm sm:text-right bg-white/[0.04] p-3 rounded-xl border border-white/10">
+              <span className="font-bold text-white">Estimate Notice: </span>
               Final payout is determined on-site after electronic scale weighing and purity inspection by your assigned dealer.
             </div>
           </div>
@@ -878,7 +878,7 @@ export const BookingPage: React.FC = () => {
             <button
               type="button"
               onClick={handleProceedToStep2}
-              className="inline-flex items-center gap-2 px-7 py-3.5 rounded-xl font-bold text-sm bg-[#16a34a] hover:bg-[#15803d] text-white shadow-md shadow-[#16a34a]/20 transition-all active:scale-[0.98] focus:outline-none focus-visible:ring-2 focus-visible:ring-[#16a34a]"
+              className="inline-flex items-center gap-2 px-7 py-3.5 rounded-xl font-bold text-sm bg-gradient-to-r from-emerald-500 to-green-600 hover:from-emerald-400 hover:to-green-500 text-white shadow-lg shadow-emerald-950/60 transition-all active:scale-[0.98] focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500"
             >
               <span>Continue to Pickup Details</span>
               <ArrowRight className="w-4 h-4" />
@@ -889,20 +889,20 @@ export const BookingPage: React.FC = () => {
 
       {/* STEP 2: PICKUP DETAILS */}
       {currentStep === 2 && (
-        <div className="bg-white rounded-3xl p-6 sm:p-8 border border-[#e6e8e5] shadow-xs space-y-6">
-          <div className="pb-4 border-b border-[#f1f3f1] flex items-center justify-between">
+        <div className="bg-white/[0.035] backdrop-blur-2xl rounded-3xl p-6 sm:p-8 border border-white/10 shadow-2xl space-y-6 text-white">
+          <div className="pb-4 border-b border-white/[0.08] flex items-center justify-between">
             <div>
-              <h2 className="text-xl font-bold text-[#123b26]">
+              <h2 className="text-xl font-bold text-white">
                 Step 2: Pickup Address & Preferred Time Slot
               </h2>
-              <p className="text-xs text-[#717a75] mt-0.5">
+              <p className="text-xs text-[#9cb1a4] mt-0.5">
                 Enter your doorstep location and preferred collection window.
               </p>
             </div>
             <button
               type="button"
               onClick={() => setCurrentStep(1)}
-              className="text-xs font-bold text-[#16a34a] hover:underline flex items-center gap-1"
+              className="text-xs font-bold text-emerald-400 hover:text-emerald-300 hover:underline flex items-center gap-1 transition-colors"
             >
               <ArrowLeft className="w-3.5 h-3.5" />
               <span>Back to items</span>
@@ -912,35 +912,35 @@ export const BookingPage: React.FC = () => {
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             {/* Full Name */}
             <div>
-              <label className="block text-xs font-bold text-[#191c1a] mb-1">
-                Full Name <span className="text-rose-500">*</span>
+              <label className="block text-xs font-bold text-white mb-1">
+                Full Name <span className="text-rose-400">*</span>
               </label>
               <div className="relative">
-                <User className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-[#717a75]" />
+                <User className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-emerald-300/50" />
                 <input
                   type="text"
                   placeholder="e.g. Ramesh Kumar"
                   value={addressForm.fullName}
                   onChange={(e) => setAddressForm({ ...addressForm, fullName: e.target.value })}
-                  className={`w-full pl-10 pr-3.5 py-2.5 text-sm rounded-xl border bg-white focus:outline-none focus:ring-2 ${
+                  className={`w-full pl-10 pr-3.5 py-2.5 text-sm rounded-xl border bg-white/[0.04] text-white placeholder-emerald-100/30 focus:outline-none focus:ring-1 ${
                     formErrors.fullName
                       ? 'border-rose-400 focus:ring-rose-400'
-                      : 'border-[#d1d5db] focus:ring-[#16a34a]'
+                      : 'border-white/10 focus:ring-emerald-500 focus:border-emerald-500'
                   }`}
                 />
               </div>
               {formErrors.fullName && (
-                <p className="text-xs text-rose-500 mt-1">{formErrors.fullName}</p>
+                <p className="text-xs text-rose-400 mt-1">{formErrors.fullName}</p>
               )}
             </div>
 
             {/* Mobile Number */}
             <div>
-              <label className="block text-xs font-bold text-[#191c1a] mb-1">
-                Mobile Number (for pickup coordination) <span className="text-rose-500">*</span>
+              <label className="block text-xs font-bold text-white mb-1">
+                Mobile Number (for pickup coordination) <span className="text-rose-400">*</span>
               </label>
               <div className="relative flex">
-                <span className="inline-flex items-center px-3 rounded-l-xl border border-r-0 border-[#d1d5db] bg-[#f8faf9] text-xs font-bold text-[#525955]">
+                <span className="inline-flex items-center px-3 rounded-l-xl border border-r-0 border-white/10 bg-white/[0.06] text-xs font-bold text-emerald-300">
                   +91
                 </span>
                 <input
@@ -954,49 +954,49 @@ export const BookingPage: React.FC = () => {
                       phoneNumber: e.target.value.replace(/\D/g, ''),
                     })
                   }
-                  className={`w-full px-3.5 py-2.5 text-sm rounded-r-xl border bg-white focus:outline-none focus:ring-2 ${
+                  className={`w-full px-3.5 py-2.5 text-sm rounded-r-xl border bg-white/[0.04] text-white placeholder-emerald-100/30 focus:outline-none focus:ring-1 ${
                     formErrors.phoneNumber
                       ? 'border-rose-400 focus:ring-rose-400'
-                      : 'border-[#d1d5db] focus:ring-[#16a34a]'
+                      : 'border-white/10 focus:ring-emerald-500 focus:border-emerald-500'
                   }`}
                 />
               </div>
               {formErrors.phoneNumber && (
-                <p className="text-xs text-rose-500 mt-1">{formErrors.phoneNumber}</p>
+                <p className="text-xs text-rose-400 mt-1">{formErrors.phoneNumber}</p>
               )}
             </div>
 
             {/* Email (Optional) */}
             <div className="sm:col-span-2">
-              <label className="block text-xs font-bold text-[#191c1a] mb-1">
-                Email Address <span className="text-[#9aa19d] font-normal">(Optional, for digital receipt)</span>
+              <label className="block text-xs font-bold text-white mb-1">
+                Email Address <span className="text-emerald-300/50 font-normal">(Optional, for digital receipt)</span>
               </label>
               <div className="relative">
-                <Mail className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-[#717a75]" />
+                <Mail className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-emerald-300/50" />
                 <input
                   type="email"
                   placeholder="name@example.com"
                   value={addressForm.email}
                   onChange={(e) => setAddressForm({ ...addressForm, email: e.target.value })}
-                  className={`w-full pl-10 pr-3.5 py-2.5 text-sm rounded-xl border bg-white focus:outline-none focus:ring-2 ${
+                  className={`w-full pl-10 pr-3.5 py-2.5 text-sm rounded-xl border bg-white/[0.04] text-white placeholder-emerald-100/30 focus:outline-none focus:ring-1 ${
                     formErrors.email
                       ? 'border-rose-400 focus:ring-rose-400'
-                      : 'border-[#d1d5db] focus:ring-[#16a34a]'
+                      : 'border-white/10 focus:ring-emerald-500 focus:border-emerald-500'
                   }`}
                 />
               </div>
               {formErrors.email && (
-                <p className="text-xs text-rose-500 mt-1">{formErrors.email}</p>
+                <p className="text-xs text-rose-400 mt-1">{formErrors.email}</p>
               )}
             </div>
 
             {/* Street Address */}
             <div className="sm:col-span-2">
-              <label className="block text-xs font-bold text-[#191c1a] mb-1">
-                Flat / House / Floor / Building Name <span className="text-rose-500">*</span>
+              <label className="block text-xs font-bold text-white mb-1">
+                Flat / House / Floor / Building Name <span className="text-rose-400">*</span>
               </label>
               <div className="relative">
-                <MapPin className="absolute left-3.5 top-3 w-4 h-4 text-[#717a75]" />
+                <MapPin className="absolute left-3.5 top-3 w-4 h-4 text-emerald-300/50" />
                 <textarea
                   rows={2}
                   placeholder="e.g. Flat 304, Green Meadows, 12th Main Road"
@@ -1004,49 +1004,49 @@ export const BookingPage: React.FC = () => {
                   onChange={(e) =>
                     setAddressForm({ ...addressForm, streetAddress: e.target.value })
                   }
-                  className={`w-full pl-10 pr-3.5 py-2.5 text-sm rounded-xl border bg-white focus:outline-none focus:ring-2 ${
+                  className={`w-full pl-10 pr-3.5 py-2.5 text-sm rounded-xl border bg-white/[0.04] text-white placeholder-emerald-100/30 focus:outline-none focus:ring-1 ${
                     formErrors.streetAddress
                       ? 'border-rose-400 focus:ring-rose-400'
-                      : 'border-[#d1d5db] focus:ring-[#16a34a]'
+                      : 'border-white/10 focus:ring-emerald-500 focus:border-emerald-500'
                   }`}
                 />
               </div>
               {formErrors.streetAddress && (
-                <p className="text-xs text-rose-500 mt-1">{formErrors.streetAddress}</p>
+                <p className="text-xs text-rose-400 mt-1">{formErrors.streetAddress}</p>
               )}
             </div>
 
             {/* Area */}
             <div>
-              <label className="block text-xs font-bold text-[#191c1a] mb-1">
-                Area / Locality / Sector <span className="text-rose-500">*</span>
+              <label className="block text-xs font-bold text-white mb-1">
+                Area / Locality / Sector <span className="text-rose-400">*</span>
               </label>
               <input
                 type="text"
                 placeholder="e.g. HSR Layout Sector 2"
                 value={addressForm.area}
                 onChange={(e) => setAddressForm({ ...addressForm, area: e.target.value })}
-                className={`w-full px-3.5 py-2.5 text-sm rounded-xl border bg-white focus:outline-none focus:ring-2 ${
+                className={`w-full px-3.5 py-2.5 text-sm rounded-xl border bg-white/[0.04] text-white placeholder-emerald-100/30 focus:outline-none focus:ring-1 ${
                   formErrors.area
                     ? 'border-rose-400 focus:ring-rose-400'
-                    : 'border-[#d1d5db] focus:ring-[#16a34a]'
+                    : 'border-white/10 focus:ring-emerald-500 focus:border-emerald-500'
                 }`}
               />
-              {formErrors.area && <p className="text-xs text-rose-500 mt-1">{formErrors.area}</p>}
+              {formErrors.area && <p className="text-xs text-rose-400 mt-1">{formErrors.area}</p>}
             </div>
 
             {/* City */}
             <div>
-              <label className="block text-xs font-bold text-[#191c1a] mb-1">
-                City <span className="text-rose-500">*</span>
+              <label className="block text-xs font-bold text-white mb-1">
+                City <span className="text-rose-400">*</span>
               </label>
               <select
                 value={addressForm.city}
                 onChange={(e) => setAddressForm({ ...addressForm, city: e.target.value })}
-                className="w-full px-3.5 py-2.5 text-sm rounded-xl border border-[#d1d5db] bg-white focus:outline-none focus:ring-2 focus:ring-[#16a34a]"
+                className="w-full px-3.5 py-2.5 text-sm rounded-xl border border-white/10 bg-[#07130c] text-white focus:outline-none focus:ring-1 focus:ring-emerald-500"
               >
                 {POPULAR_CITIES.map((c) => (
-                  <option key={c} value={c}>
+                  <option key={c} value={c} className="bg-[#07130c] text-white">
                     {c}
                   </option>
                 ))}
@@ -1055,8 +1055,8 @@ export const BookingPage: React.FC = () => {
 
             {/* PIN Code */}
             <div>
-              <label className="block text-xs font-bold text-[#191c1a] mb-1">
-                PIN Code <span className="text-rose-500">*</span>
+              <label className="block text-xs font-bold text-white mb-1">
+                PIN Code <span className="text-rose-400">*</span>
               </label>
               <input
                 type="text"
@@ -1069,21 +1069,21 @@ export const BookingPage: React.FC = () => {
                     pincode: e.target.value.replace(/\D/g, ''),
                   })
                 }
-                className={`w-full px-3.5 py-2.5 text-sm rounded-xl border bg-white focus:outline-none focus:ring-2 ${
+                className={`w-full px-3.5 py-2.5 text-sm rounded-xl border bg-white/[0.04] text-white placeholder-emerald-100/30 focus:outline-none focus:ring-1 ${
                   formErrors.pincode
                     ? 'border-rose-400 focus:ring-rose-400'
-                    : 'border-[#d1d5db] focus:ring-[#16a34a]'
+                    : 'border-white/10 focus:ring-emerald-500 focus:border-emerald-500'
                 }`}
               />
               {formErrors.pincode && (
-                <p className="text-xs text-rose-500 mt-1">{formErrors.pincode}</p>
+                <p className="text-xs text-rose-400 mt-1">{formErrors.pincode}</p>
               )}
             </div>
 
             {/* Preferred Date */}
             <div>
-              <label className="block text-xs font-bold text-[#191c1a] mb-1">
-                Preferred Date <span className="text-rose-500">*</span>
+              <label className="block text-xs font-bold text-white mb-1">
+                Preferred Date <span className="text-rose-400">*</span>
               </label>
               <div className="relative">
                 <input
@@ -1093,22 +1093,22 @@ export const BookingPage: React.FC = () => {
                   onChange={(e) =>
                     setAddressForm({ ...addressForm, preferredDate: e.target.value })
                   }
-                  className={`w-full px-3.5 py-2.5 text-sm rounded-xl border bg-white focus:outline-none focus:ring-2 ${
+                  className={`w-full px-3.5 py-2.5 text-sm rounded-xl border bg-white/[0.04] text-white focus:outline-none focus:ring-1 [color-scheme:dark] ${
                     formErrors.preferredDate
                       ? 'border-rose-400 focus:ring-rose-400'
-                      : 'border-[#d1d5db] focus:ring-[#16a34a]'
+                      : 'border-white/10 focus:ring-emerald-500 focus:border-emerald-500'
                   }`}
                 />
               </div>
               {formErrors.preferredDate && (
-                <p className="text-xs text-rose-500 mt-1">{formErrors.preferredDate}</p>
+                <p className="text-xs text-rose-400 mt-1">{formErrors.preferredDate}</p>
               )}
             </div>
 
             {/* Time Slot selection cards */}
             <div className="sm:col-span-2 space-y-2">
-              <label className="block text-xs font-bold text-[#191c1a]">
-                Pickup Time Slot <span className="text-rose-500">*</span>
+              <label className="block text-xs font-bold text-white">
+                Pickup Time Slot <span className="text-rose-400">*</span>
               </label>
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
                 {TIME_SLOTS.map((slot) => {
@@ -1120,15 +1120,15 @@ export const BookingPage: React.FC = () => {
                       onClick={() => setAddressForm({ ...addressForm, timeSlot: slot })}
                       className={`p-3 rounded-xl border text-left text-xs font-semibold flex items-center justify-between transition-all ${
                         isSelected
-                          ? 'bg-[#eaf8ef] border-[#16a34a] text-[#123b26] ring-1 ring-[#16a34a]'
-                          : 'bg-white border-[#d1d5db] text-[#525955] hover:bg-[#f8faf9]'
+                          ? 'bg-emerald-500/15 border-emerald-500/40 text-emerald-300 ring-1 ring-emerald-500 shadow-sm'
+                          : 'bg-white/[0.03] border-white/10 text-white/70 hover:bg-white/[0.06] hover:text-white'
                       }`}
                     >
                       <div className="flex items-center gap-2">
-                        <Clock className={`w-4 h-4 ${isSelected ? 'text-[#16a34a]' : 'text-[#717a75]'}`} />
+                        <Clock className={`w-4 h-4 ${isSelected ? 'text-emerald-400' : 'text-white/50'}`} />
                         <span>{slot}</span>
                       </div>
-                      {isSelected && <Check className="w-4 h-4 text-[#16a34a] stroke-[2.5]" />}
+                      {isSelected && <Check className="w-4 h-4 text-emerald-400 stroke-[2.5]" />}
                     </button>
                   );
                 })}
@@ -1137,15 +1137,15 @@ export const BookingPage: React.FC = () => {
 
             {/* Special Notes */}
             <div className="sm:col-span-2">
-              <label className="block text-xs font-bold text-[#191c1a] mb-1">
-                Pickup Notes / Landmark <span className="text-[#9aa19d] font-normal">(Optional)</span>
+              <label className="block text-xs font-bold text-white mb-1">
+                Pickup Notes / Landmark <span className="text-emerald-300/50 font-normal">(Optional)</span>
               </label>
               <input
                 type="text"
                 placeholder="e.g. Lift is operational; scrap is packed in boxes near the main gate"
                 value={addressForm.notes}
                 onChange={(e) => setAddressForm({ ...addressForm, notes: e.target.value })}
-                className="w-full px-3.5 py-2.5 text-sm rounded-xl border border-[#d1d5db] bg-white focus:outline-none focus:ring-2 focus:ring-[#16a34a]"
+                className="w-full px-3.5 py-2.5 text-sm rounded-xl border border-white/10 bg-white/[0.04] text-white placeholder-emerald-100/30 focus:outline-none focus:ring-1 focus:ring-emerald-500 focus:border-emerald-500"
               />
             </div>
           </div>
@@ -1155,7 +1155,7 @@ export const BookingPage: React.FC = () => {
             <button
               type="button"
               onClick={() => setCurrentStep(1)}
-              className="inline-flex items-center gap-1.5 px-5 py-2.5 rounded-xl text-sm font-semibold text-[#525955] hover:text-[#191c1a] hover:bg-[#f1f3f1] transition-colors"
+              className="inline-flex items-center gap-1.5 px-5 py-2.5 rounded-xl text-sm font-semibold text-white/70 hover:text-white hover:bg-white/10 transition-colors"
             >
               <ArrowLeft className="w-4 h-4" />
               <span>Back to Materials</span>
@@ -1164,7 +1164,7 @@ export const BookingPage: React.FC = () => {
             <button
               type="button"
               onClick={handleProceedToStep3}
-              className="inline-flex items-center gap-2 px-7 py-3 rounded-xl font-bold text-sm bg-[#16a34a] hover:bg-[#15803d] text-white shadow-md shadow-[#16a34a]/20 transition-all active:scale-[0.98] focus:outline-none focus-visible:ring-2 focus-visible:ring-[#16a34a]"
+              className="inline-flex items-center gap-2 px-7 py-3 rounded-xl font-bold text-sm bg-gradient-to-r from-emerald-500 to-green-600 hover:from-emerald-400 hover:to-green-500 text-white shadow-lg shadow-emerald-950/60 transition-all active:scale-[0.98] focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500"
             >
               <span>Review Booking</span>
               <ArrowRight className="w-4 h-4" />
@@ -1175,20 +1175,20 @@ export const BookingPage: React.FC = () => {
 
       {/* STEP 3: REVIEW & CONFIRM */}
       {currentStep === 3 && (
-        <div className="bg-white rounded-3xl p-6 sm:p-8 border border-[#e6e8e5] shadow-xs space-y-6">
-          <div className="pb-4 border-b border-[#f1f3f1] flex items-center justify-between">
+        <div className="bg-white/[0.035] backdrop-blur-2xl rounded-3xl p-6 sm:p-8 border border-white/10 shadow-2xl space-y-6 text-white">
+          <div className="pb-4 border-b border-white/[0.08] flex items-center justify-between">
             <div>
-              <h2 className="text-xl font-bold text-[#123b26]">
+              <h2 className="text-xl font-bold text-white">
                 Step 3: Review & Confirm Doorstep Pickup
               </h2>
-              <p className="text-xs text-[#717a75] mt-0.5">
+              <p className="text-xs text-[#9cb1a4] mt-0.5">
                 Verify your scrap items, doorstep address, and assigned demo partner.
               </p>
             </div>
             <button
               type="button"
               onClick={() => setCurrentStep(2)}
-              className="text-xs font-bold text-[#16a34a] hover:underline flex items-center gap-1"
+              className="text-xs font-bold text-emerald-400 hover:text-emerald-300 hover:underline flex items-center gap-1 transition-colors"
             >
               <ArrowLeft className="w-3.5 h-3.5" />
               <span>Edit Details</span>
@@ -1197,19 +1197,19 @@ export const BookingPage: React.FC = () => {
 
           {/* Materials Review Table */}
           <div className="space-y-3">
-            <h3 className="text-xs font-bold uppercase tracking-wider text-[#717a75]">
+            <h3 className="text-xs font-bold uppercase tracking-wider text-emerald-300/60">
               Scrap Items Manifest ({selectedItems.length})
             </h3>
-            <div className="border border-[#e6e8e5] rounded-2xl overflow-hidden divide-y divide-[#f1f3f1] text-xs">
+            <div className="border border-white/[0.08] rounded-2xl overflow-hidden divide-y divide-white/[0.06] text-xs">
               {selectedItems.map((m) => (
-                <div key={m.materialId} className="p-3.5 flex items-center justify-between bg-white">
+                <div key={m.materialId} className="p-3.5 flex items-center justify-between bg-white/[0.03]">
                   <div>
-                    <span className="font-bold text-sm text-[#123b26]">{m.materialName}</span>
-                    <span className="text-[#717a75] block mt-0.5">
+                    <span className="font-bold text-sm text-white">{m.materialName}</span>
+                    <span className="text-[#9cb1a4] block mt-0.5">
                       Estimated quantity: {m.quantity} {m.unit} @ {formatINR(m.ratePerUnit)}/{m.unit}
                     </span>
                   </div>
-                  <span className="font-black text-sm text-[#123b26]">
+                  <span className="font-black text-sm text-white">
                     {formatINR(m.estimatedSubtotal)}
                   </span>
                 </div>
@@ -1217,53 +1217,53 @@ export const BookingPage: React.FC = () => {
             </div>
 
             {/* Total Highlight */}
-            <div className="p-4 rounded-2xl bg-[#eaf8ef] border border-[#bbf7d0] flex items-center justify-between">
+            <div className="p-4 rounded-2xl bg-gradient-to-r from-emerald-950/60 via-emerald-900/40 to-white/[0.02] border border-emerald-500/30 flex items-center justify-between text-white">
               <div>
-                <span className="text-xs font-bold text-[#16a34a] uppercase tracking-wider block">
+                <span className="text-xs font-bold text-emerald-400 uppercase tracking-wider block">
                   Indicative Total Payout
                 </span>
-                <span className="text-xs text-[#525955]">
+                <span className="text-xs text-emerald-200/70">
                   Final settlement subject to physical electronic weighing
                 </span>
               </div>
-              <span className="text-2xl font-black text-[#123b26]">
+              <span className="text-2xl font-black text-white">
                 {formatINR(estimatedTotal)}
               </span>
             </div>
           </div>
 
           {/* Address & Slot Review */}
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 text-xs text-[#3f4541]">
-            <div className="p-4 rounded-2xl bg-[#fbfbf9] border border-[#e6e8e5] space-y-1">
-              <span className="font-bold text-[#123b26] text-xs uppercase tracking-wider block mb-1">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 text-xs text-[#9cb1a4]">
+            <div className="p-4 rounded-2xl bg-white/[0.03] border border-white/[0.08] space-y-1">
+              <span className="font-bold text-emerald-300/70 text-xs uppercase tracking-wider block mb-1">
                 Pickup Address
               </span>
-              <p className="font-bold text-sm text-[#191c1a]">{addressForm.fullName}</p>
+              <p className="font-bold text-sm text-white">{addressForm.fullName}</p>
               <p>{addressForm.streetAddress}</p>
               <p>{addressForm.area}, {addressForm.city} - {addressForm.pincode}</p>
-              <p className="pt-1 font-semibold text-[#123b26]">Phone: +91 {addressForm.phoneNumber}</p>
+              <p className="pt-1 font-semibold text-emerald-300">Phone: +91 {addressForm.phoneNumber}</p>
               {addressForm.notes && (
-                <p className="text-[#717a75] italic pt-1">Notes: "{addressForm.notes}"</p>
+                <p className="text-emerald-200/60 italic pt-1">Notes: "{addressForm.notes}"</p>
               )}
             </div>
 
-            <div className="p-4 rounded-2xl bg-[#fbfbf9] border border-[#e6e8e5] space-y-2">
-              <span className="font-bold text-[#123b26] text-xs uppercase tracking-wider block mb-1">
+            <div className="p-4 rounded-2xl bg-white/[0.03] border border-white/[0.08] space-y-2">
+              <span className="font-bold text-emerald-300/70 text-xs uppercase tracking-wider block mb-1">
                 Scheduled Slot & Partner
               </span>
-              <p className="flex items-center gap-2 font-bold text-sm text-[#123b26]">
-                <Calendar className="w-4 h-4 text-[#16a34a]" />
+              <p className="flex items-center gap-2 font-bold text-sm text-white">
+                <Calendar className="w-4 h-4 text-emerald-400" />
                 <span>{formatDate(addressForm.preferredDate)}</span>
               </p>
-              <p className="flex items-center gap-2 text-xs text-[#525955]">
-                <Clock className="w-4 h-4 text-[#16a34a]" />
+              <p className="flex items-center gap-2 text-xs text-emerald-200/70">
+                <Clock className="w-4 h-4 text-emerald-400" />
                 <span>{addressForm.timeSlot}</span>
               </p>
 
-              <div className="pt-2 border-t border-[#e8ebe8] flex items-center gap-2 text-xs">
-                <Truck className="w-4 h-4 text-[#16a34a]" />
+              <div className="pt-2 border-t border-white/[0.08] flex items-center gap-2 text-xs text-emerald-200/80">
+                <Truck className="w-4 h-4 text-emerald-400" />
                 <span>
-                  Demo Partner: <strong>{DEMO_DEALER.name}</strong>
+                  Demo Partner: <strong className="text-white">{DEMO_DEALER.name}</strong>
                 </span>
               </div>
             </div>
@@ -1271,15 +1271,15 @@ export const BookingPage: React.FC = () => {
 
           {/* Attached Scrap Photos Preview */}
           {photoPreviews.length > 0 && (
-            <div className="p-4 rounded-2xl bg-[#fbfbf9] border border-[#e6e8e5] space-y-2">
-              <span className="font-bold text-[#123b26] text-xs uppercase tracking-wider block">
+            <div className="p-4 rounded-2xl bg-white/[0.03] border border-white/[0.08] space-y-2">
+              <span className="font-bold text-emerald-300/70 text-xs uppercase tracking-wider block">
                 Attached Photos for Dealer Review ({photoPreviews.length})
               </span>
               <div className="flex gap-2.5 overflow-x-auto pb-1">
                 {photoPreviews.map((preview, idx) => (
-                  <div key={idx} className="relative w-16 h-16 rounded-xl overflow-hidden border border-[#d1d5db] shrink-0 shadow-2xs">
+                  <div key={idx} className="relative w-16 h-16 rounded-xl overflow-hidden border border-white/10 shrink-0 shadow-sm">
                     <img src={preview} alt={`Photo ${idx + 1}`} className="w-full h-full object-cover" />
-                    <span className="absolute bottom-1 right-1 bg-black/60 text-white text-[9px] px-1 py-0.2 rounded font-mono">
+                    <span className="absolute bottom-1 right-1 bg-black/70 text-white text-[9px] px-1 py-0.2 rounded font-mono border border-white/10">
                       #{idx + 1}
                     </span>
                   </div>
@@ -1289,8 +1289,8 @@ export const BookingPage: React.FC = () => {
           )}
 
           {/* Notice & Disclaimer Check */}
-          <div className="p-4 rounded-xl bg-amber-50/80 border border-amber-200/80 text-xs text-amber-950 flex items-start gap-2.5">
-            <ShieldCheck className="w-4 h-4 text-amber-600 shrink-0 mt-0.5" />
+          <div className="p-4 rounded-xl bg-amber-500/10 border border-amber-500/25 text-xs text-amber-200 flex items-start gap-2.5">
+            <ShieldCheck className="w-4 h-4 text-amber-400 shrink-0 mt-0.5" />
             <p className="leading-relaxed">
               I understand that displayed scrap prices and estimated payouts are sample indicative benchmarks. Final payout will be weighed and settled via instant UPI or cash on doorstep arrival.
             </p>
@@ -1301,7 +1301,7 @@ export const BookingPage: React.FC = () => {
             <button
               type="button"
               onClick={() => setCurrentStep(2)}
-              className="inline-flex items-center gap-1.5 px-5 py-2.5 rounded-xl text-sm font-semibold text-[#525955] hover:text-[#191c1a] hover:bg-[#f1f3f1] transition-colors"
+              className="inline-flex items-center gap-1.5 px-5 py-2.5 rounded-xl text-sm font-semibold text-white/70 hover:text-white hover:bg-white/10 transition-colors"
             >
               <ArrowLeft className="w-4 h-4" />
               <span>Back</span>
@@ -1311,7 +1311,7 @@ export const BookingPage: React.FC = () => {
               type="button"
               onClick={handleConfirmBooking}
               disabled={isSubmitting}
-              className={`inline-flex items-center gap-2 px-8 py-3.5 rounded-xl font-bold text-sm bg-gradient-to-r from-[#16a34a] to-[#123b26] hover:from-[#15803d] hover:to-[#0a2417] text-white shadow-lg shadow-[#16a34a]/25 transition-all active:scale-[0.98] focus:outline-none focus-visible:ring-2 focus-visible:ring-[#16a34a] ${
+              className={`inline-flex items-center gap-2 px-8 py-3.5 rounded-xl font-bold text-sm bg-gradient-to-r from-emerald-500 to-green-600 hover:from-emerald-400 hover:to-green-500 text-white shadow-xl shadow-emerald-950/60 transition-all active:scale-[0.98] focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500 ${
                 isSubmitting ? 'opacity-70 cursor-not-allowed' : ''
               }`}
             >
