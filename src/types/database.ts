@@ -393,6 +393,20 @@ export interface Database {
         Args: Record<PropertyKey, never>;
         Returns: boolean;
       };
+      claim_pickup_lead: {
+        Args: {
+          p_booking_id: string;
+        };
+        Returns: {
+          success: boolean;
+          error?: string;
+          message?: string;
+          booking_id?: string;
+          status?: string;
+          assigned_dealer_id?: string;
+          already_assigned?: boolean;
+        };
+      };
       get_demo_dealer_bookings: {
         Args: Record<PropertyKey, never>;
         Returns: Array<{
@@ -408,6 +422,21 @@ export interface Database {
           time_slot: string;
           area: string;
           city: string;
+          customer_name: string;
+          phone_number: string;
+          email: string | null;
+          street_address: string;
+          pincode: string;
+          notes: string | null;
+          driver_note: string | null;
+          cancellation_reason: string | null;
+          reschedule_reason: string | null;
+          rescheduled_date: string | null;
+          rescheduled_time_slot: string | null;
+          payment_method: string | null;
+          payment_amount: number | null;
+          payment_reference: string | null;
+          assigned_dealer_id: string | null;
           items: Array<{
             material_id: string;
             material_name: string;
@@ -421,6 +450,12 @@ export interface Database {
             actual_subtotal: number | null;
           }>;
           photo_paths: string[];
+          status_history: Array<{
+            id: string;
+            new_status: BookingStatus;
+            note: string | null;
+            created_at: string;
+          }>;
         }>;
       };
     };

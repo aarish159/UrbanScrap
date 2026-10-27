@@ -14,7 +14,6 @@ import { TIME_SLOTS } from '../../data/mockData';
 import { supabase, isSupabaseConfigured } from '../../lib/supabase';
 import { updateBookingStatus } from '../../utils/storage';
 
-
 export type DealerActionType =
   | 'claim'
   | 'schedule'
@@ -124,14 +123,50 @@ export const DealerStatusActionModal: React.FC<DealerStatusActionModalProps> = (
       let auditNote = '';
 
       const isClaimAction = actionType === 'claim';
-      const hasValidDealerUuid = isClaimAction && isValidUuid(dealerId);
+
+      // Resolve effective dealer database UUID
+      let effectiveDealerId = dealerId;
+      if (isConfigured && isSupabaseConfigured() && user && (!effectiveDealerId || !isValidUuid(effectiveDealerId))) {
+        const { data: dRow } = await supabase
+          .from('dealers')
+          .select('id')
+          .eq('user_id', user.id)
+          .maybeSingle();
+        if (dRow?.id) {
+          effectiveDealerId = dRow.id;
+        } else {
+          // Auto-provision demo partner record so session has a genuine UUID
+          try {
+            const { data: newDealer } = await (supabase.from('dealers') as any)
+              .insert({
+                user_id: user.id,
+                business_name: 'UrbanScrap Demo Partner',
+                phone: '9876543210',
+                service_area: 'Bengaluru Central',
+                vehicle_type: 'Mini Electric Van',
+                rating: 4.90,
+                is_verified: false,
+                is_demo: true,
+              })
+              .select('id')
+              .maybeSingle();
+            if (newDealer?.id) {
+              effectiveDealerId = newDealer.id;
+            }
+          } catch (createErr) {
+            console.warn('Could not auto-provision dealer record in frontend:', createErr);
+          }
+        }
+      }
+
+      const hasValidDealerUuid = isValidUuid(effectiveDealerId);
 
       switch (actionType) {
         case 'claim':
           targetStatus = 'dealer_assigned';
           bookingUpdatePayload = {
             status: targetStatus,
-            ...(hasValidDealerUuid ? { assigned_dealer_id: dealerId } : {}),
+            ...(hasValidDealerUuid ? { assigned_dealer_id: effectiveDealerId } : {}),
           };
           auditNote = hasValidDealerUuid
             ? 'Pickup claimed and assigned to dealer partner.'
@@ -267,22 +302,179 @@ export const DealerStatusActionModal: React.FC<DealerStatusActionModalProps> = (
           }
         }
 
-        const { error } = await supabase
-          .from('bookings')
-          .update(bookingUpdatePayload)
-          .eq('id', booking.id);
+        if (isClaimAction) {
+          // Attempt atomic claim RPC first if available
+          let claimedSuccessfully = false;
+          try {
+            const { data: rpcRes, error: rpcErr } = await (supabase as any).rpc('claim_pickup_lead', {
+              p_booking_id: booking.id,
+            });
 
-        if (error) {
-          showToast('Update Failed', error.message, 'error');
-          setLoading(false);
-          return;
+            if (!rpcErr && rpcRes) {
+              const res = rpcRes as any;
+
+              if (res.already_assigned) {
+                showToast(
+                  'Already Claimed',
+                  res.message || 'This pickup request is already claimed and assigned to your dealership.',
+                  'info'
+                );
+                setLoading(false);
+                onSuccess();
+                onClose();
+                return;
+              }
+
+              if (res.success === false) {
+                if (res.error === 'SESSION_EXPIRED') {
+                  showToast(
+                    'Session Expired',
+                    res.message || 'Your session has expired. Please sign in again.',
+                    'error'
+                  );
+                } else if (res.error === 'LEAD_ALREADY_CLAIMED') {
+                  showToast(
+                    'Lead Already Claimed',
+                    res.message || 'This pickup request has already been claimed by another partner or is no longer available.',
+                    'error'
+                  );
+                } else if (res.error === 'PERMISSION_DENIED') {
+                  showToast(
+                    'Permission Denied',
+                    res.message || 'Only authenticated dealer partners can accept pickup leads.',
+                    'error'
+                  );
+                } else if (res.error === 'DEALER_PROFILE_MISSING') {
+                  showToast(
+                    'Dealer Profile Missing',
+                    res.message || 'Dealer profile not found for this session. Please reload or apply migration 20261027000005.',
+                    'error'
+                  );
+                } else if (res.error === 'NOT_FOUND') {
+                  showToast(
+                    'Request Not Found',
+                    res.message || 'Pickup request not found in database.',
+                    'error'
+                  );
+                } else {
+                  showToast(
+                    'Claim Not Completed',
+                    res.message || 'Could not claim this pickup lead.',
+                    'error'
+                  );
+                }
+                setLoading(false);
+                onSuccess();
+                onClose();
+                return;
+              }
+              claimedSuccessfully = true;
+            } else if (rpcErr) {
+              console.warn('claim_pickup_lead RPC notice:', rpcErr);
+              if (rpcErr.code === '42501') {
+                showToast(
+                  'Permission Denied',
+                  'Database policy denied claim. Please verify permissions or apply migration 20261027000005.',
+                  'error'
+                );
+                setLoading(false);
+                return;
+              }
+
+              // Fallback to direct atomic update if RPC function is not yet installed in Supabase schema cache
+              if (rpcErr.code === 'PGRST202') {
+                if (!hasValidDealerUuid) {
+                  showToast(
+                    'Missing Dealer Identity',
+                    'Unable to resolve a valid dealer database UUID for your account. Please re-login as Demo Partner.',
+                    'error'
+                  );
+                  setLoading(false);
+                  return;
+                }
+
+                // Atomic conditional update: only update if currently requested and unassigned
+                const { data: updatedRows, error: claimErr } = await (supabase.from('bookings') as any)
+                  .update(bookingUpdatePayload)
+                  .eq('id', booking.id)
+                  .eq('status', 'requested')
+                  .is('assigned_dealer_id', null)
+                  .select('id, status, assigned_dealer_id');
+
+                if (claimErr) {
+                  showToast('Claim Failed', claimErr.message, 'error');
+                  setLoading(false);
+                  return;
+                }
+
+                if (!updatedRows || updatedRows.length === 0) {
+                  const { data: checkRow } = await (supabase.from('bookings') as any)
+                    .select('id, status, assigned_dealer_id')
+                    .eq('id', booking.id)
+                    .maybeSingle();
+
+                  if (checkRow && (checkRow.assigned_dealer_id !== null || checkRow.status !== 'requested')) {
+                    showToast(
+                      'Lead Already Claimed',
+                      `This pickup request was claimed by another partner (Status: ${checkRow.status}).`,
+                      'error'
+                    );
+                  } else {
+                    showToast(
+                      'Database Migration Required',
+                      'Atomic claim RPC is missing and direct update was blocked by RLS. Please execute migration 20261027000005 in your Supabase SQL Editor.',
+                      'error'
+                    );
+                  }
+                  setLoading(false);
+                  onSuccess();
+                  onClose();
+                  return;
+                }
+
+                claimedSuccessfully = true;
+              } else {
+                showToast('Database Error', rpcErr.message || 'An error occurred while claiming lead.', 'error');
+                setLoading(false);
+                return;
+              }
+            }
+          } catch (e: any) {
+            console.warn('RPC invocation exception:', e);
+            showToast('Connection Error', e?.message || 'Unable to connect to database.', 'error');
+            setLoading(false);
+            return;
+          }
+
+          if (claimedSuccessfully) {
+            showToast(
+              'Pickup Accepted!',
+              `Order ${booking.id} assigned to your dealership. Moved to My Assigned Pickups.`,
+              'success'
+            );
+            setLoading(false);
+            onSuccess();
+            onClose();
+            return;
+          }
+        } else {
+          const { error } = await supabase
+            .from('bookings')
+            .update(bookingUpdatePayload)
+            .eq('id', booking.id);
+
+          if (error) {
+            showToast('Update Failed', error.message, 'error');
+            setLoading(false);
+            return;
+          }
+
+          showToast(
+            'Status Updated',
+            `Order ${booking.id} moved to ${targetStatus.replace('_', ' ')}.`,
+            'success'
+          );
         }
-
-        showToast(
-          'Status Updated',
-          `Order ${booking.id} moved to ${targetStatus.replace('_', ' ')}.`,
-          'success'
-        );
       } else {
         // Local sandbox fallback
         updateBookingStatus(booking.id, targetStatus, {
@@ -680,7 +872,7 @@ export const DealerStatusActionModal: React.FC<DealerStatusActionModalProps> = (
               </>
             ) : (
               <span>
-                {actionType === 'claim' && 'Confirm Claim'}
+                {actionType === 'claim' && 'Accept Pickup & Confirm'}
                 {actionType === 'schedule' && 'Confirm Schedule'}
                 {actionType === 'on_the_way' && 'Dispatch Route'}
                 {actionType === 'weigh' && 'Save Certified Weights'}

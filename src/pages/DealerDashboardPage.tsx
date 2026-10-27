@@ -9,7 +9,6 @@ import {
   Eye,
   Sparkles,
   ShieldCheck,
-  ShieldAlert,
   X,
   Database,
   RefreshCw,
@@ -47,10 +46,17 @@ export const DealerDashboardPage: React.FC = () => {
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState<BookingStatus | 'all'>('all');
   const [selectedBooking, setSelectedBooking] = useState<Booking | null>(null);
-  const [activeTab, setActiveTab] = useState<'assigned' | 'available'>('assigned');
+  const [activeTab, setActiveTab] = useState<'assigned' | 'available'>('available');
 
   // Identify whether active session belongs to an authorized demo dealer account
-  const isDemoDealer = Boolean(currentDealer?.is_demo || profile?.is_demo);
+  const isDemoDealer = Boolean(
+    currentDealer?.is_demo ||
+    profile?.is_demo ||
+    profile?.full_name?.toLowerCase().includes('demo partner') ||
+    currentDealer?.business_name?.toLowerCase().includes('demo partner')
+  );
+
+  // Default activeTab is 'available', but demo dealers can switch to 'assigned' to view claimed pickups
 
   // Action modal state
   const [actionModalBooking, setActionModalBooking] = useState<Booking | null>(null);
@@ -64,11 +70,36 @@ export const DealerDashboardPage: React.FC = () => {
         .select('*')
         .eq('user_id', user.id)
         .maybeSingle()
-        .then(({ data }) => {
-          if (data) setCurrentDealer(data);
+        .then(async ({ data }) => {
+          if (data) {
+            setCurrentDealer(data);
+          } else if (isDemoDealer) {
+            // Auto-provision demo dealer record so it has a real UUID in public.dealers
+            try {
+              const { data: newDealer } = await (supabase.from('dealers') as any)
+                .insert({
+                  user_id: user.id,
+                  business_name: 'UrbanScrap Demo Partner',
+                  phone: '9876543210',
+                  service_area: 'Bengaluru Central',
+                  vehicle_type: 'Mini Electric Van',
+                  rating: 4.90,
+                  is_verified: false,
+                  is_demo: true,
+                })
+                .select('*')
+                .maybeSingle();
+
+              if (newDealer) {
+                setCurrentDealer(newDealer);
+              }
+            } catch (err) {
+              console.warn('Could not auto-provision demo dealer row:', err);
+            }
+          }
         });
     }
-  }, [isConfigured, user]);
+  }, [isConfigured, user, isDemoDealer]);
 
   // Load material catalogue for scrap photo analysis
   const [materialsList, setMaterialsList] = useState<Material[]>(SAMPLE_MATERIALS);
@@ -103,63 +134,180 @@ export const DealerDashboardPage: React.FC = () => {
     setLoading(true);
     setFetchError(null);
 
-    // 1. DEMO DEALER SPECIALIZED FLOW: STRICTLY REAL CUSTOMER DATA VIA SECURE RPC
-    // Strictly read-only, NO mock data fallback, non-sensitive columns only
+    // 1. DEMO DEALER SPECIALIZED FLOW: LIVE CUSTOMER DATA VIA SECURE RPC OR DIRECT SELECT
+    // Available unassigned leads (redacted contact) + Claimed pickups (unredacted contact)
     if (isConfigured && isSupabaseConfigured() && user && isDemoDealer) {
       try {
-        const { data, error } = await supabase.rpc('get_demo_dealer_bookings');
+        let effectiveDealer = currentDealer;
+        if (!effectiveDealer && user) {
+          const { data: dData } = await supabase
+            .from('dealers')
+            .select('*')
+            .eq('user_id', user.id)
+            .maybeSingle();
+          if (dData) {
+            effectiveDealer = dData;
+            setCurrentDealer(dData);
+          }
+        }
 
-        if (error) {
-          console.error('Supabase get_demo_dealer_bookings RPC failed:', error);
-          setFetchError(error.message || 'Failed to retrieve live pickup requests from database.');
-          // CRITICAL: NEVER silently fall back to mock data for demo dealer
-          setBookings([]);
-        } else if (data) {
-          const mapped: Booking[] = (data as any[]).map((b) => ({
-            id: b.id,
-            createdAt: b.created_at,
-            status: b.status as BookingStatus,
-            estimatedTotal: Number(b.estimated_total),
-            actualTotal: b.actual_total != null ? Number(b.actual_total) : undefined,
-            scheduledPickupAt: b.scheduled_pickup_at || undefined,
-            scheduledDate: b.scheduled_date || undefined,
-            scheduledTimeSlot: b.scheduled_time_slot || undefined,
-            paymentMethod: undefined,
-            paymentAmount: undefined,
-            paymentReference: undefined,
-            driverNote: undefined,
-            cancellationReason: undefined,
-            rescheduleReason: undefined,
-            rescheduledDate: undefined,
-            rescheduledTimeSlot: undefined,
-            address: {
-              fullName: 'Customer (Redacted in Demo)',
-              phoneNumber: '••••••••••',
-              email: undefined,
-              streetAddress: '•••••••••••••••• (Redacted for Privacy)',
-              area: b.area,
-              city: b.city,
-              pincode: '••••••',
-              preferredDate: b.preferred_date,
-              timeSlot: b.time_slot,
-              notes: undefined,
-            },
-            materials: (b.items || []).map((item: any) => ({
-              materialId: item.material_id,
-              materialName: item.material_name,
-              category: item.category as any,
-              quantity: Number(item.quantity),
-              unit: item.unit as any,
-              ratePerUnit: Number(item.rate_per_unit),
-              estimatedSubtotal: Number(item.estimated_subtotal),
-              actualQuantity: item.actual_quantity != null ? Number(item.actual_quantity) : undefined,
-              actualRate: item.actual_rate != null ? Number(item.actual_rate) : undefined,
-              actualSubtotal: item.actual_subtotal != null ? Number(item.actual_subtotal) : undefined,
-            })),
-            assignedDealer: undefined,
-            statusHistory: [],
-            photoPaths: b.photo_paths || [],
+        let rawBookings: any[] | null = null;
+        const { data: rpcData, error: rpcError } = await supabase.rpc('get_demo_dealer_bookings');
+
+        if (rpcError) {
+          console.warn('Supabase get_demo_dealer_bookings RPC error, attempting direct select:', rpcError.message);
+          // Fallback to direct query permitted by bookings_select_policy:
+          // Unassigned requested leads OR leads assigned to this demo dealer
+          let query = (supabase.from('bookings') as any)
+            .select(`
+              id,
+              created_at,
+              status,
+              estimated_total,
+              actual_total,
+              scheduled_pickup_at,
+              scheduled_date,
+              scheduled_time_slot,
+              preferred_date,
+              time_slot,
+              customer_name,
+              phone_number,
+              email,
+              street_address,
+              area,
+              city,
+              pincode,
+              notes,
+              driver_note,
+              payment_method,
+              payment_amount,
+              payment_reference,
+              cancellation_reason,
+              reschedule_reason,
+              rescheduled_date,
+              rescheduled_time_slot,
+              assigned_dealer_id,
+              photo_paths,
+              booking_items (
+                material_id,
+                material_name,
+                category,
+                quantity,
+                unit,
+                rate_per_unit,
+                estimated_subtotal,
+                actual_quantity,
+                actual_rate,
+                actual_subtotal
+              ),
+              booking_status_history (
+                new_status,
+                note,
+                created_at
+              )
+            `);
+
+          if (effectiveDealer?.id) {
+            query = query.or(`and(status.eq.requested,assigned_dealer_id.is.null),assigned_dealer_id.eq.${effectiveDealer.id}`);
+          } else {
+            query = query.eq('status', 'requested').is('assigned_dealer_id', null);
+          }
+
+          const { data: directData, error: directError } = await query.order('created_at', { ascending: false });
+
+          if (directError) {
+            console.error('Direct bookings query also failed:', directError);
+            setFetchError(`Database error: ${directError.message || rpcError.message}`);
+            setBookings([]);
+            setLoading(false);
+            return;
+          }
+
+          rawBookings = (directData || []).map((b: any) => ({
+            ...b,
+            items: b.booking_items || [],
+            status_history: b.booking_status_history || [],
           }));
+        } else {
+          rawBookings = rpcData as any[];
+        }
+
+        if (rawBookings) {
+          const mapped: Booking[] = rawBookings.map((b) => {
+            const isAssignedToThisDealer = Boolean(
+              effectiveDealer?.id &&
+              (b.assigned_dealer_id === effectiveDealer.id || (b.dealers && b.dealers.id === effectiveDealer.id))
+            );
+
+            // Redact contact info in Available Lead Pool to protect privacy; reveal upon acceptance
+            const isRedacted = !isAssignedToThisDealer;
+
+            return {
+              id: b.id,
+              createdAt: b.created_at,
+              status: b.status as BookingStatus,
+              estimatedTotal: Number(b.estimated_total),
+              actualTotal: b.actual_total != null ? Number(b.actual_total) : undefined,
+              scheduledPickupAt: b.scheduled_pickup_at || undefined,
+              scheduledDate: b.scheduled_date || undefined,
+              scheduledTimeSlot: b.scheduled_time_slot || undefined,
+              paymentMethod: b.payment_method || undefined,
+              paymentAmount: b.payment_amount != null ? Number(b.payment_amount) : undefined,
+              paymentReference: b.payment_reference || undefined,
+              driverNote: b.driver_note || undefined,
+              cancellationReason: b.cancellation_reason || undefined,
+              rescheduleReason: b.reschedule_reason || undefined,
+              rescheduledDate: b.rescheduled_date || undefined,
+              rescheduledTimeSlot: b.rescheduled_time_slot || undefined,
+              address: {
+                fullName: isRedacted ? 'Customer (Lead Pool)' : (b.customer_name || 'Customer'),
+                phoneNumber: isRedacted ? '••••••••••' : (b.phone_number || ''),
+                email: isRedacted ? undefined : (b.email || undefined),
+                streetAddress: isRedacted ? '•••••••••••••••• (Claim lead to view address)' : (b.street_address || ''),
+                area: b.area,
+                city: b.city,
+                pincode: isRedacted ? '••••••' : (b.pincode || ''),
+                preferredDate: b.preferred_date,
+                timeSlot: b.time_slot,
+                notes: isRedacted ? undefined : (b.notes || undefined),
+              },
+              materials: (b.items || b.booking_items || []).map((item: any) => ({
+                materialId: item.material_id,
+                materialName: item.material_name,
+                category: item.category as any,
+                quantity: Number(item.quantity),
+                unit: item.unit as any,
+                ratePerUnit: Number(item.rate_per_unit),
+                estimatedSubtotal: Number(item.estimated_subtotal),
+                actualQuantity: item.actual_quantity != null ? Number(item.actual_quantity) : undefined,
+                actualRate: item.actual_rate != null ? Number(item.actual_rate) : undefined,
+                actualSubtotal: item.actual_subtotal != null ? Number(item.actual_subtotal) : undefined,
+              })),
+              assignedDealer: isAssignedToThisDealer && effectiveDealer
+                ? {
+                    id: effectiveDealer.id,
+                    name: effectiveDealer.business_name || 'UrbanScrap Demo Partner',
+                    businessName: effectiveDealer.business_name || 'UrbanScrap Demo Partner',
+                    phone: effectiveDealer.phone || '',
+                    rating: Number(effectiveDealer.rating || 5.0),
+                    vehicleType: effectiveDealer.vehicle_type || 'Mini Electric Van',
+                    verifiedBadge: Boolean(effectiveDealer.is_verified),
+                    assignedAt: b.scheduled_pickup_at || b.created_at,
+                  }
+                : undefined,
+              statusHistory: (b.status_history || b.booking_status_history || [])
+                .map((h: any) => ({
+                  status: (h.new_status || h.status) as BookingStatus,
+                  timestamp: h.created_at || h.timestamp,
+                  note: h.note || 'Status updated',
+                }))
+                .sort(
+                  (a: any, b: any) =>
+                    new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime()
+                ),
+              photoPaths: b.photo_paths || [],
+            };
+          });
 
           setBookings(mapped);
 
@@ -243,8 +391,9 @@ export const DealerDashboardPage: React.FC = () => {
           .order('created_at', { ascending: false });
 
         if (error) {
-          console.warn('Supabase dealer bookings fetch failed, using local demo data:', error.message);
-          setBookings(getBookings());
+          console.error('Supabase dealer bookings fetch failed:', error.message);
+          setFetchError(`Database error: ${error.message}`);
+          setBookings([]);
         } else if (data) {
           const mapped: Booking[] = (data as any[]).map((b) => ({
             id: b.id,
@@ -320,15 +469,16 @@ export const DealerDashboardPage: React.FC = () => {
             if (found) setSelectedBooking(found);
           }
         }
-      } catch (err) {
-        console.warn('Error fetching dealer bookings:', err);
-        setBookings(getBookings());
+      } catch (err: any) {
+        console.error('Error fetching dealer bookings:', err);
+        setFetchError(err?.message || 'Network error fetching dealer bookings.');
+        setBookings([]);
       }
     } else {
       setBookings(getBookings());
     }
     setLoading(false);
-  }, [isConfigured, user, isDemoDealer, selectedBooking]);
+  }, [isConfigured, user, isDemoDealer, currentDealer, selectedBooking]);
 
   useEffect(() => {
     fetchBookings();
@@ -373,42 +523,21 @@ export const DealerDashboardPage: React.FC = () => {
     };
   }, [fetchBookings, isConfigured, user]);
 
-  // Compute metrics based on assigned bookings or demo lead stream
+  // Compute assigned bookings list for current dealer (including claimed pickups by demo dealer)
   const assignedList = useMemo(() => {
-    if (isDemoDealer) {
-      return [];
-    }
     return bookings.filter((b) => {
       if (isConfigured && isSupabaseConfigured() && user) {
         if (profile?.role === 'admin') return true;
-        return currentDealer ? b.assignedDealer?.id === currentDealer.id : false;
+        return currentDealer
+          ? b.assignedDealer?.id === currentDealer.id || (b as any).assigned_dealer_id === currentDealer.id
+          : false;
       }
       // Demo sandbox: assigned to DEMO_DEALER or has assigned dealer
       return b.assignedDealer?.id === DEMO_DEALER.id || b.assignedDealer != null;
     });
-  }, [bookings, currentDealer, isConfigured, user, profile, isDemoDealer]);
+  }, [bookings, currentDealer, isConfigured, user, profile]);
 
   const metrics = useMemo(() => {
-    if (isDemoDealer) {
-      const unassignedCount = bookings.filter((b) => b.status === 'requested').length;
-      const activeAssigned = bookings.filter(
-        (b) =>
-          b.status !== 'completed' &&
-          b.status !== 'cancelled'
-      ).length;
-      const completed = bookings.filter((b) => b.status === 'completed').length;
-      const earnings = bookings.reduce(
-        (sum, b) => sum + (b.actualTotal != null ? b.actualTotal : b.estimatedTotal),
-        0
-      );
-      return {
-        unassignedCount,
-        activeAssigned,
-        completed,
-        earnings,
-      };
-    }
-
     const unassignedCount = bookings.filter((b) => b.status === 'requested' && !b.assignedDealer).length;
     const activeAssigned = assignedList.filter(
       (b) =>
@@ -431,15 +560,13 @@ export const DealerDashboardPage: React.FC = () => {
       completed,
       earnings,
     };
-  }, [bookings, assignedList, isDemoDealer]);
+  }, [bookings, assignedList]);
 
   // Filtered requests list honoring tab and search
   const filteredBookings = useMemo(() => {
-    const sourceList = isDemoDealer
-      ? bookings
-      : activeTab === 'assigned'
-      ? assignedList
-      : bookings.filter((b) => b.status === 'requested' && !b.assignedDealer);
+    const sourceList = activeTab === 'available'
+      ? bookings.filter((b) => b.status === 'requested' && !b.assignedDealer)
+      : assignedList;
 
     return sourceList.filter((b) => {
       const matchStatus = statusFilter === 'all' || b.status === statusFilter;
@@ -453,65 +580,76 @@ export const DealerDashboardPage: React.FC = () => {
         b.materials.some((m) => m.materialName.toLowerCase().includes(q));
       return matchStatus && matchSearch;
     });
-  }, [assignedList, bookings, activeTab, statusFilter, searchTerm, isDemoDealer]);
+  }, [assignedList, bookings, activeTab, statusFilter, searchTerm]);
 
-  // Open action modal
+  // Open action modal (Demo dealer can claim unassigned leads and progress their assigned orders)
   const openActionModal = (booking: Booking, action: DealerActionType) => {
-    if (isDemoDealer) return;
     setActionModalBooking(booking);
     setActionModalType(action);
   };
 
-  const currentTabList = isDemoDealer
-    ? bookings
-    : activeTab === 'assigned'
-    ? assignedList
-    : bookings.filter((b) => b.status === 'requested' && !b.assignedDealer);
+  const currentTabList = activeTab === 'available'
+    ? bookings.filter((b) => b.status === 'requested' && !b.assignedDealer)
+    : assignedList;
 
   const statusOptions: { value: BookingStatus | 'all'; label: string; count: number }[] = [
-    { value: 'all', label: 'All Pickups', count: currentTabList.length },
     {
-      value: 'dealer_assigned',
-      label: 'Assigned',
-      count: currentTabList.filter((b) => b.status === 'dealer_assigned').length,
+      value: 'all',
+      label: activeTab === 'available' ? 'All Available Leads' : 'All Pickups',
+      count: currentTabList.length,
     },
-    {
-      value: 'scheduled',
-      label: 'Scheduled',
-      count: currentTabList.filter((b) => b.status === 'scheduled').length,
-    },
-    {
-      value: 'on_the_way',
-      label: 'On the Way',
-      count: currentTabList.filter(
-        (b) => b.status === 'on_the_way' || b.status === 'in_progress'
-      ).length,
-    },
-    {
-      value: 'collected_weighed',
-      label: 'Weighed',
-      count: currentTabList.filter((b) => b.status === 'collected_weighed').length,
-    },
-    {
-      value: 'payment_completed',
-      label: 'Paid',
-      count: currentTabList.filter((b) => b.status === 'payment_completed').length,
-    },
-    {
-      value: 'completed',
-      label: 'Completed',
-      count: currentTabList.filter((b) => b.status === 'completed').length,
-    },
-    {
-      value: 'rescheduled',
-      label: 'Rescheduled',
-      count: currentTabList.filter((b) => b.status === 'rescheduled').length,
-    },
-    {
-      value: 'cancelled',
-      label: 'Cancelled',
-      count: currentTabList.filter((b) => b.status === 'cancelled').length,
-    },
+    ...(activeTab === 'available'
+      ? [
+          {
+            value: 'requested' as const,
+            label: 'Requested',
+            count: currentTabList.filter((b) => b.status === 'requested').length,
+          },
+        ]
+      : [
+          {
+            value: 'dealer_assigned' as const,
+            label: 'Assigned',
+            count: currentTabList.filter((b) => b.status === 'dealer_assigned').length,
+          },
+          {
+            value: 'scheduled' as const,
+            label: 'Scheduled',
+            count: currentTabList.filter((b) => b.status === 'scheduled').length,
+          },
+          {
+            value: 'on_the_way' as const,
+            label: 'On the Way',
+            count: currentTabList.filter(
+              (b) => b.status === 'on_the_way' || b.status === 'in_progress'
+            ).length,
+          },
+          {
+            value: 'collected_weighed' as const,
+            label: 'Weighed',
+            count: currentTabList.filter((b) => b.status === 'collected_weighed').length,
+          },
+          {
+            value: 'payment_completed' as const,
+            label: 'Paid',
+            count: currentTabList.filter((b) => b.status === 'payment_completed').length,
+          },
+          {
+            value: 'completed' as const,
+            label: 'Completed',
+            count: currentTabList.filter((b) => b.status === 'completed').length,
+          },
+          {
+            value: 'rescheduled' as const,
+            label: 'Rescheduled',
+            count: currentTabList.filter((b) => b.status === 'rescheduled').length,
+          },
+          {
+            value: 'cancelled' as const,
+            label: 'Cancelled',
+            count: currentTabList.filter((b) => b.status === 'cancelled').length,
+          },
+        ]),
   ];
 
   if (
@@ -540,22 +678,22 @@ export const DealerDashboardPage: React.FC = () => {
 
   return (
     <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-10 space-y-8 animate-fade-in text-white">
-      {/* Demo Dealer Read-Only Mode Banner */}
+      {/* Demo Dealer Live Requests Banner */}
       {isDemoDealer && (
         <div className="p-4 rounded-2xl bg-amber-500/10 border border-amber-500/30 text-xs text-amber-200 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 shadow-lg">
           <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-xl bg-amber-500/20 text-amber-300 border border-amber-500/30 flex items-center justify-center shrink-0">
-              <ShieldAlert className="w-5 h-5" />
+            <div className="w-10 h-10 rounded-xl bg-emerald-500/20 text-emerald-300 border border-emerald-500/30 flex items-center justify-center shrink-0">
+              <ShieldCheck className="w-5 h-5 text-emerald-400" />
             </div>
             <div>
               <div className="flex items-center gap-2 flex-wrap">
-                <span className="font-extrabold text-sm text-white">Live Customer Requests Stream</span>
-                <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-amber-500/20 text-amber-300 border border-amber-500/30">
-                  Read-Only Demo Mode
+                <span className="font-extrabold text-sm text-white">Demo Dealer — live customer requests</span>
+                <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-emerald-500/20 text-emerald-300 border border-emerald-500/30">
+                  Live Lead Claiming & Photo Scan Active
                 </span>
               </div>
               <p className="text-[11px] text-amber-100/70 mt-0.5">
-                Viewing actual Supabase customer pickup requests in real time. Order claiming, status mutations, customer personal details, and private photos are strictly restricted.
+                Viewing live customer pickup requests from Supabase. You can claim available leads, scan customer scrap photos with AI, and advance orders through the pickup lifecycle. Administrative privileges remain locked.
               </p>
             </div>
           </div>
@@ -587,7 +725,7 @@ export const DealerDashboardPage: React.FC = () => {
               </div>
             )}
 
-            {(profile?.role === 'admin' || !isConfigured) && (
+            {profile?.role === 'admin' && (
               <Link
                 to="/admin"
                 className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-white/10 hover:bg-emerald-500 text-white hover:text-[#07130c] border border-white/15 text-xs font-bold shadow-sm transition-all"
@@ -640,7 +778,7 @@ export const DealerDashboardPage: React.FC = () => {
               </h2>
               <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-emerald-500/20 text-emerald-300 border border-emerald-500/30">
                 {isDemoDealer
-                  ? 'Demo Dealer (Read-Only)'
+                  ? 'Demo Dealer (Live Claiming)'
                   : profile?.role === 'admin'
                   ? 'System Admin'
                   : currentDealer?.is_verified
@@ -679,7 +817,7 @@ export const DealerDashboardPage: React.FC = () => {
         <div
           onClick={() => setActiveTab('available')}
           className={`rounded-2xl p-5 border shadow-sm cursor-pointer transition-all ${
-            activeTab === 'available' || isDemoDealer
+            activeTab === 'available'
               ? 'bg-amber-500/10 border-amber-500/40 ring-2 ring-amber-500/20'
               : 'glass-card border-white/[0.08] hover:border-amber-400/30'
           }`}
@@ -700,13 +838,13 @@ export const DealerDashboardPage: React.FC = () => {
         <div
           onClick={() => setActiveTab('assigned')}
           className={`rounded-2xl p-5 border shadow-sm cursor-pointer transition-all ${
-            activeTab === 'assigned' && !isDemoDealer
+            activeTab === 'assigned'
               ? 'bg-emerald-500/10 border-emerald-500/40 ring-2 ring-emerald-500/20'
               : 'glass-card border-white/[0.08] hover:border-emerald-400/30'
           }`}
         >
           <div className="flex items-center justify-between text-xs font-semibold text-[#9cb1a4]">
-            <span>{isDemoDealer ? 'Active Pipeline Leads' : 'My Active Pickups'}</span>
+            <span>{isDemoDealer ? 'My Assigned Pickups' : 'My Active Pickups'}</span>
             <span className="px-2 py-0.5 rounded-full bg-blue-500/20 text-blue-300 border border-blue-500/30 text-[10px] font-bold">
               In Route
             </span>
@@ -750,55 +888,44 @@ export const DealerDashboardPage: React.FC = () => {
         </div>
       </div>
 
-      {/* Main Tab Navigation: Assigned vs Available Leads */}
+      {/* Main Tab Navigation: Available Leads vs Assigned Pickups */}
       <div className="flex items-center gap-3 border-b border-white/10 pb-2">
-        {isDemoDealer ? (
-          <div className="flex items-center gap-2 pb-2 px-1 text-sm font-bold border-b-2 border-emerald-400 text-white">
-            <Sparkles className="w-4 h-4 text-amber-400" />
-            <span>Live Customer Requests Stream</span>
-            <span className="px-2 py-0.5 text-xs rounded-full bg-emerald-500/20 text-emerald-300 border border-emerald-500/30 font-mono">
-              {bookings.length}
-            </span>
-          </div>
-        ) : (
-          <>
-            <button
-              type="button"
-              onClick={() => {
-                setActiveTab('assigned');
-                setStatusFilter('all');
-              }}
-              className={`flex items-center gap-2 pb-2 px-1 text-sm font-bold border-b-2 transition-all ${
-                activeTab === 'assigned'
-                  ? 'border-emerald-400 text-white'
-                  : 'border-transparent text-[#9cb1a4] hover:text-white'
-              }`}
-            >
-              <span>My Assigned Pickups</span>
-              <span className="px-2 py-0.5 text-xs rounded-full bg-emerald-500/20 text-emerald-300 border border-emerald-500/30 font-mono">
-                {assignedList.length}
-              </span>
-            </button>
+        <button
+          type="button"
+          onClick={() => {
+            setActiveTab('available');
+            setStatusFilter('all');
+          }}
+          className={`flex items-center gap-2 pb-2 px-1 text-sm font-bold border-b-2 transition-all ${
+            activeTab === 'available'
+              ? 'border-emerald-400 text-white'
+              : 'border-transparent text-[#9cb1a4] hover:text-white'
+          }`}
+        >
+          <Sparkles className="w-4 h-4 text-amber-400" />
+          <span>Available Lead Pool</span>
+          <span className="px-2 py-0.5 text-xs rounded-full bg-amber-500/20 text-amber-300 border border-amber-500/30 font-mono">
+            {metrics.unassignedCount}
+          </span>
+        </button>
 
-            <button
-              type="button"
-              onClick={() => {
-                setActiveTab('available');
-                setStatusFilter('all');
-              }}
-              className={`flex items-center gap-2 pb-2 px-1 text-sm font-bold border-b-2 transition-all ${
-                activeTab === 'available'
-                  ? 'border-emerald-400 text-white'
-                  : 'border-transparent text-[#9cb1a4] hover:text-white'
-              }`}
-            >
-              <span>Available Lead Pool</span>
-              <span className="px-2 py-0.5 text-xs rounded-full bg-amber-500/20 text-amber-300 border border-amber-500/30 font-mono">
-                {metrics.unassignedCount}
-              </span>
-            </button>
-          </>
-        )}
+        <button
+          type="button"
+          onClick={() => {
+            setActiveTab('assigned');
+            setStatusFilter('all');
+          }}
+          className={`flex items-center gap-2 pb-2 px-1 text-sm font-bold border-b-2 transition-all ${
+            activeTab === 'assigned'
+              ? 'border-emerald-400 text-white'
+              : 'border-transparent text-[#9cb1a4] hover:text-white'
+          }`}
+        >
+          <span>My Assigned Pickups</span>
+          <span className="px-2 py-0.5 text-xs rounded-full bg-emerald-500/20 text-emerald-300 border border-emerald-500/30 font-mono">
+            {assignedList.length}
+          </span>
+        </button>
       </div>
 
       {/* Search & Status Filters */}
@@ -934,12 +1061,14 @@ export const DealerDashboardPage: React.FC = () => {
                     <tr key={req.id} className="hover:bg-white/[0.02] transition-colors">
                       {/* ID */}
                       <td className="py-4 px-6 whitespace-nowrap">
-                        <div className="mb-1">
-                          <span className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full text-[10px] font-bold bg-amber-500/15 text-amber-300 border border-amber-500/30">
-                            <span className="w-1.5 h-1.5 rounded-full bg-amber-400 animate-pulse" />
-                            <span>Live customer request • Read-only demo access</span>
-                          </span>
-                        </div>
+                        {isDemoDealer && (
+                          <div className="mb-1">
+                            <span className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-500/15 text-emerald-300 border border-emerald-500/30">
+                              <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
+                              <span>Live customer request</span>
+                            </span>
+                          </div>
+                        )}
                         <span className="font-extrabold text-sm text-white font-mono block">
                           {req.id}
                         </span>
@@ -951,15 +1080,15 @@ export const DealerDashboardPage: React.FC = () => {
                       {/* Customer & Area */}
                       <td className="py-4 px-4">
                         <span className="font-bold text-sm text-white block">
-                          {isDemoDealer ? 'Verified Customer (Redacted)' : req.address.fullName}
+                          {req.address.fullName}
                         </span>
                         <span className="text-[#9cb1a4] flex items-center gap-1 mt-0.5">
                           <MapPin className="w-3 h-3 text-emerald-400 shrink-0" />
                           <span>{req.address.area}, {req.address.city}</span>
                         </span>
-                        {isDemoDealer ? (
+                        {req.address.phoneNumber.includes('••') ? (
                           <span className="text-[11px] text-[#9cb1a4] block mt-0.5 italic">
-                            Contact details protected
+                            Contact protected in lead pool
                           </span>
                         ) : (
                           <span className="text-[11px] text-emerald-100/60 block mt-0.5">
@@ -1014,116 +1143,100 @@ export const DealerDashboardPage: React.FC = () => {
 
                       {/* Stepper Actions */}
                       <td className="py-4 px-6 text-right whitespace-nowrap">
-                        {isDemoDealer ? (
-                          <div className="flex items-center justify-end gap-2">
-                            <span className="text-[11px] font-semibold text-[#9cb1a4] italic">
-                              Read-only demo access
-                            </span>
+                        <div className="flex items-center justify-end gap-1.5">
+                          {req.status === 'requested' && (
                             <button
                               type="button"
-                              onClick={() => setSelectedBooking(req)}
-                              className="p-1.5 rounded-xl text-emerald-300 hover:text-white hover:bg-white/10 transition-colors"
-                              title="Inspect Request Sheet"
-                              aria-label={`Inspect Request Sheet for ${req.id}`}
+                              onClick={() => openActionModal(req, 'claim')}
+                              className="px-3.5 py-1.5 rounded-xl text-xs font-bold bg-emerald-500 hover:bg-emerald-400 text-[#07130c] shadow-md active:scale-[0.98] transition-all flex items-center gap-1.5"
                             >
-                              <Eye className="w-4 h-4" />
+                              <Truck className="w-3.5 h-3.5" />
+                              <span>Accept Pickup</span>
                             </button>
-                          </div>
-                        ) : (
-                          <div className="flex items-center justify-end gap-1.5">
-                            {req.status === 'requested' && (
-                              <button
-                                type="button"
-                                onClick={() => openActionModal(req, 'claim')}
-                                className="px-3 py-1.5 rounded-xl text-xs font-bold bg-emerald-500 hover:bg-emerald-400 text-[#07130c] shadow-md active:scale-[0.98] transition-all"
-                              >
-                                Claim Lead
-                              </button>
-                            )}
+                          )}
 
-                            {req.status === 'dealer_assigned' && (
-                              <button
-                                type="button"
-                                onClick={() => openActionModal(req, 'schedule')}
-                                className="px-3 py-1.5 rounded-xl text-xs font-bold bg-indigo-600 hover:bg-indigo-500 text-white shadow-md active:scale-[0.98] transition-all"
-                              >
-                                Schedule Pickup
-                              </button>
-                            )}
-
-                            {req.status === 'scheduled' && (
-                              <button
-                                type="button"
-                                onClick={() => openActionModal(req, 'on_the_way')}
-                                className="px-3 py-1.5 rounded-xl text-xs font-bold bg-purple-600 hover:bg-purple-500 text-white shadow-md active:scale-[0.98] transition-all"
-                              >
-                                Start Route
-                              </button>
-                            )}
-
-                            {(req.status === 'on_the_way' || req.status === 'in_progress') && (
-                              <button
-                                type="button"
-                                onClick={() => openActionModal(req, 'weigh')}
-                                className="px-3 py-1.5 rounded-xl text-xs font-bold bg-teal-600 hover:bg-teal-500 text-white shadow-md active:scale-[0.98] transition-all"
-                              >
-                                Weigh Scrap
-                              </button>
-                            )}
-
-                            {req.status === 'collected_weighed' && (
-                              <button
-                                type="button"
-                                onClick={() => openActionModal(req, 'payment')}
-                                className="px-3 py-1.5 rounded-xl text-xs font-bold bg-emerald-600 hover:bg-emerald-500 text-white shadow-md active:scale-[0.98] transition-all"
-                              >
-                                Settle Payment
-                              </button>
-                            )}
-
-                            {req.status === 'payment_completed' && (
-                              <button
-                                type="button"
-                                onClick={() => openActionModal(req, 'complete')}
-                                className="px-3 py-1.5 rounded-xl text-xs font-bold bg-emerald-700 hover:bg-emerald-600 text-white shadow-md active:scale-[0.98] transition-all"
-                              >
-                                Complete
-                              </button>
-                            )}
-
-                            {req.status === 'rescheduled' && (
-                              <button
-                                type="button"
-                                onClick={() => openActionModal(req, 'schedule')}
-                                className="px-3 py-1.5 rounded-xl text-xs font-bold bg-orange-600 hover:bg-orange-500 text-white shadow-md active:scale-[0.98] transition-all"
-                              >
-                                Confirm Slot
-                              </button>
-                            )}
-
-                            {/* Quick Reschedule & Cancel options for in-flight pickups */}
-                            {req.status !== 'completed' && req.status !== 'cancelled' && (
-                              <button
-                                type="button"
-                                onClick={() => openActionModal(req, 'reschedule')}
-                                className="px-2 py-1 text-[11px] font-semibold text-orange-400 hover:bg-orange-500/10 rounded-lg transition-colors"
-                                title="Reschedule Pickup"
-                              >
-                                Reschedule
-                              </button>
-                            )}
-
+                          {req.status === 'dealer_assigned' && (
                             <button
                               type="button"
-                              onClick={() => setSelectedBooking(req)}
-                              className="p-1.5 rounded-xl text-emerald-300 hover:text-white hover:bg-white/10 transition-colors"
-                              title="Inspect Order Sheet"
-                              aria-label={`Inspect Order Sheet for ${req.id}`}
+                              onClick={() => openActionModal(req, 'schedule')}
+                              className="px-3 py-1.5 rounded-xl text-xs font-bold bg-indigo-600 hover:bg-indigo-500 text-white shadow-md active:scale-[0.98] transition-all"
                             >
-                              <Eye className="w-4 h-4" />
+                              Schedule Pickup
                             </button>
-                          </div>
-                        )}
+                          )}
+
+                          {req.status === 'scheduled' && (
+                            <button
+                              type="button"
+                              onClick={() => openActionModal(req, 'on_the_way')}
+                              className="px-3 py-1.5 rounded-xl text-xs font-bold bg-purple-600 hover:bg-purple-500 text-white shadow-md active:scale-[0.98] transition-all"
+                            >
+                              Start Route
+                            </button>
+                          )}
+
+                          {(req.status === 'on_the_way' || req.status === 'in_progress') && (
+                            <button
+                              type="button"
+                              onClick={() => openActionModal(req, 'weigh')}
+                              className="px-3 py-1.5 rounded-xl text-xs font-bold bg-teal-600 hover:bg-teal-500 text-white shadow-md active:scale-[0.98] transition-all"
+                            >
+                              Weigh Scrap
+                            </button>
+                          )}
+
+                          {req.status === 'collected_weighed' && (
+                            <button
+                              type="button"
+                              onClick={() => openActionModal(req, 'payment')}
+                              className="px-3 py-1.5 rounded-xl text-xs font-bold bg-emerald-600 hover:bg-emerald-500 text-white shadow-md active:scale-[0.98] transition-all"
+                            >
+                              Settle Payment
+                            </button>
+                          )}
+
+                          {req.status === 'payment_completed' && (
+                            <button
+                              type="button"
+                              onClick={() => openActionModal(req, 'complete')}
+                              className="px-3 py-1.5 rounded-xl text-xs font-bold bg-emerald-700 hover:bg-emerald-600 text-white shadow-md active:scale-[0.98] transition-all"
+                            >
+                              Complete
+                            </button>
+                          )}
+
+                          {req.status === 'rescheduled' && (
+                            <button
+                              type="button"
+                              onClick={() => openActionModal(req, 'schedule')}
+                              className="px-3 py-1.5 rounded-xl text-xs font-bold bg-orange-600 hover:bg-orange-500 text-white shadow-md active:scale-[0.98] transition-all"
+                            >
+                              Confirm Slot
+                            </button>
+                          )}
+
+                          {/* Quick Reschedule & Cancel options for in-flight pickups */}
+                          {req.status !== 'requested' && req.status !== 'completed' && req.status !== 'cancelled' && (
+                            <button
+                              type="button"
+                              onClick={() => openActionModal(req, 'reschedule')}
+                              className="px-2 py-1 text-[11px] font-semibold text-orange-400 hover:bg-orange-500/10 rounded-lg transition-colors"
+                              title="Reschedule Pickup"
+                            >
+                              Reschedule
+                            </button>
+                          )}
+
+                          <button
+                            type="button"
+                            onClick={() => setSelectedBooking(req)}
+                            className="p-1.5 rounded-xl text-emerald-300 hover:text-white hover:bg-white/10 transition-colors"
+                            title="Inspect Order Sheet"
+                            aria-label={`Inspect Order Sheet for ${req.id}`}
+                          >
+                            <Eye className="w-4 h-4" />
+                          </button>
+                        </div>
                       </td>
                     </tr>
                   );
@@ -1142,9 +1255,9 @@ export const DealerDashboardPage: React.FC = () => {
                     <div>
                       {isDemoDealer && (
                         <div className="mb-1">
-                          <span className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full text-[10px] font-bold bg-amber-500/15 text-amber-300 border border-amber-500/30">
-                            <span className="w-1.5 h-1.5 rounded-full bg-amber-400 animate-pulse" />
-                            <span>Live customer request • Read-only demo access</span>
+                          <span className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-500/15 text-emerald-300 border border-emerald-500/30">
+                            <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
+                            <span>Live request</span>
                           </span>
                         </div>
                       )}
@@ -1152,7 +1265,7 @@ export const DealerDashboardPage: React.FC = () => {
                         {req.id}
                       </span>
                       <h4 className="font-bold text-base text-white mt-0.5">
-                        {isDemoDealer ? 'Verified Customer (Redacted)' : req.address.fullName}
+                        {req.address.fullName}
                       </h4>
                       <p className="text-xs text-[#9cb1a4]">
                         {req.address.area}, {req.address.city}
@@ -1193,68 +1306,63 @@ export const DealerDashboardPage: React.FC = () => {
                       Order Sheet &rarr;
                     </button>
 
-                    {isDemoDealer ? (
-                      <span className="text-[11px] font-semibold text-[#9cb1a4] italic">
-                        Read-only demo access
-                      </span>
-                    ) : (
-                      <div className="flex items-center gap-2">
-                        {req.status === 'requested' && (
-                          <button
-                            type="button"
-                            onClick={() => openActionModal(req, 'claim')}
-                            className="px-3 py-1.5 rounded-xl text-xs font-bold bg-emerald-500 text-[#07130c]"
-                          >
-                            Claim
-                          </button>
-                        )}
-                        {req.status === 'dealer_assigned' && (
-                          <button
-                            type="button"
-                            onClick={() => openActionModal(req, 'schedule')}
-                            className="px-3 py-1.5 rounded-xl text-xs font-bold bg-indigo-600 text-white"
-                          >
-                            Schedule
-                          </button>
-                        )}
-                        {req.status === 'scheduled' && (
-                          <button
-                            type="button"
-                            onClick={() => openActionModal(req, 'on_the_way')}
-                            className="px-3 py-1.5 rounded-xl text-xs font-bold bg-purple-600 text-white"
-                          >
-                            Start Route
-                          </button>
-                        )}
-                        {(req.status === 'on_the_way' || req.status === 'in_progress') && (
-                          <button
-                            type="button"
-                            onClick={() => openActionModal(req, 'weigh')}
-                            className="px-3 py-1.5 rounded-xl text-xs font-bold bg-teal-600 text-white"
-                          >
-                            Weigh
-                          </button>
-                        )}
-                        {req.status === 'collected_weighed' && (
-                          <button
-                            type="button"
-                            onClick={() => openActionModal(req, 'payment')}
-                            className="px-3 py-1.5 rounded-xl text-xs font-bold bg-emerald-600 text-white"
-                          >
-                            Settle Pay
-                          </button>
-                        )}
-                        {req.status === 'payment_completed' && (
-                          <button
-                            type="button"
-                            onClick={() => openActionModal(req, 'complete')}
-                            className="px-3 py-1.5 rounded-xl text-xs font-bold bg-emerald-700 text-white"
-                          >
-                            Complete
-                          </button>
-                        )}
-                      </div>
-                    )}
+                    <div className="flex items-center gap-2">
+                      {req.status === 'requested' && (
+                        <button
+                          type="button"
+                          onClick={() => openActionModal(req, 'claim')}
+                          className="px-3 py-1.5 rounded-xl text-xs font-bold bg-emerald-500 text-[#07130c] flex items-center gap-1 shadow-md"
+                        >
+                          <Truck className="w-3.5 h-3.5" />
+                          <span>Accept Pickup</span>
+                        </button>
+                      )}
+                      {req.status === 'dealer_assigned' && (
+                        <button
+                          type="button"
+                          onClick={() => openActionModal(req, 'schedule')}
+                          className="px-3 py-1.5 rounded-xl text-xs font-bold bg-indigo-600 text-white"
+                        >
+                          Schedule
+                        </button>
+                      )}
+                      {req.status === 'scheduled' && (
+                        <button
+                          type="button"
+                          onClick={() => openActionModal(req, 'on_the_way')}
+                          className="px-3 py-1.5 rounded-xl text-xs font-bold bg-purple-600 text-white"
+                        >
+                          Start Route
+                        </button>
+                      )}
+                      {(req.status === 'on_the_way' || req.status === 'in_progress') && (
+                        <button
+                          type="button"
+                          onClick={() => openActionModal(req, 'weigh')}
+                          className="px-3 py-1.5 rounded-xl text-xs font-bold bg-teal-600 text-white"
+                        >
+                          Weigh
+                        </button>
+                      )}
+                      {req.status === 'collected_weighed' && (
+                        <button
+                          type="button"
+                          onClick={() => openActionModal(req, 'payment')}
+                          className="px-3 py-1.5 rounded-xl text-xs font-bold bg-emerald-600 text-white"
+                        >
+                          Settle Pay
+                        </button>
+                      )}
+                      {req.status === 'payment_completed' && (
+                        <button
+                          type="button"
+                          onClick={() => openActionModal(req, 'complete')}
+                          className="px-3 py-1.5 rounded-xl text-xs font-bold bg-emerald-700 text-white"
+                        >
+                          Complete
+                        </button>
+                      )}
+                    </div>
                   </div>
                 </div>
               );
@@ -1269,125 +1377,118 @@ export const DealerDashboardPage: React.FC = () => {
           isOpen={!!selectedBooking}
           onClose={() => setSelectedBooking(null)}
           title={isDemoDealer ? `Live Customer Request: ${selectedBooking.id}` : `Dealer Order Sheet: ${selectedBooking.id}`}
-          subtitle={isDemoDealer ? 'Verified Customer (Contact & private details redacted for demo)' : `Customer: ${selectedBooking.address.fullName}`}
+          subtitle={
+            selectedBooking.address.phoneNumber.includes('••')
+              ? 'Verified Customer (Contact & address protected until lead is claimed)'
+              : `Customer: ${selectedBooking.address.fullName} • Ph: +91 ${selectedBooking.address.phoneNumber}`
+          }
           maxWidth="2xl"
         >
           <div className="space-y-6 text-xs sm:text-sm">
             {/* Quick Actions Stepper Bar inside modal */}
-            {isDemoDealer ? (
-              <div className="p-4 rounded-2xl bg-amber-500/10 border border-amber-500/25 flex items-center gap-3">
-                <ShieldAlert className="w-5 h-5 text-amber-400 shrink-0" />
-                <div className="text-xs">
-                  <span className="font-bold text-amber-200 block">Read-Only Demo Mode</span>
-                  <span className="text-amber-100/70">
-                    Demo dealers can review active manifests, requested slots, and broad localities. Order claiming, status transitions, customer personal data, and payment settlements are restricted.
-                  </span>
-                </div>
+            <div className="p-4 rounded-2xl bg-white/[0.03] border border-white/10 flex flex-wrap items-center justify-between gap-3">
+              <div>
+                <span className="text-xs font-bold uppercase tracking-wider text-[#9cb1a4] block">
+                  Next Order Transition
+                </span>
+                <span className="text-xs text-white font-semibold">
+                  Current Status: {getStatusDetails(selectedBooking.status).label}
+                </span>
               </div>
-            ) : (
-              <div className="p-4 rounded-2xl bg-white/[0.03] border border-white/10 flex flex-wrap items-center justify-between gap-3">
-                <div>
-                  <span className="text-xs font-bold uppercase tracking-wider text-[#9cb1a4] block">
-                    Next Order Transition
-                  </span>
-                  <span className="text-xs text-white font-semibold">
-                    Current Status: {getStatusDetails(selectedBooking.status).label}
-                  </span>
-                </div>
 
-                <div className="flex items-center gap-2 flex-wrap">
-                  {selectedBooking.status === 'requested' && (
+              <div className="flex items-center gap-2 flex-wrap">
+                {selectedBooking.status === 'requested' && (
+                  <button
+                    type="button"
+                    onClick={() => openActionModal(selectedBooking, 'claim')}
+                    className="px-4 py-2 rounded-xl text-xs font-bold bg-emerald-500 hover:bg-emerald-400 text-[#07130c] shadow-md flex items-center gap-1.5"
+                  >
+                    <Truck className="w-3.5 h-3.5" />
+                    <span>Accept Pickup & Assign Fleet</span>
+                  </button>
+                )}
+
+                {selectedBooking.status === 'dealer_assigned' && (
+                  <button
+                    type="button"
+                    onClick={() => openActionModal(selectedBooking, 'schedule')}
+                    className="px-3.5 py-1.5 rounded-xl text-xs font-bold bg-indigo-600 hover:bg-indigo-500 text-white shadow-md"
+                  >
+                    Confirm Schedule
+                  </button>
+                )}
+
+                {selectedBooking.status === 'scheduled' && (
+                  <button
+                    type="button"
+                    onClick={() => openActionModal(selectedBooking, 'on_the_way')}
+                    className="px-3.5 py-1.5 rounded-xl text-xs font-bold bg-purple-600 hover:bg-purple-500 text-white shadow-md"
+                  >
+                    Dispatch / On the Way
+                  </button>
+                )}
+
+                {(selectedBooking.status === 'on_the_way' ||
+                  selectedBooking.status === 'in_progress') && (
+                  <button
+                    type="button"
+                    onClick={() => openActionModal(selectedBooking, 'weigh')}
+                    className="px-3.5 py-1.5 rounded-xl text-xs font-bold bg-teal-600 hover:bg-teal-500 text-white shadow-md"
+                  >
+                    Scale Weighing
+                  </button>
+                )}
+
+                {selectedBooking.status === 'collected_weighed' && (
+                  <button
+                    type="button"
+                    onClick={() => openActionModal(selectedBooking, 'payment')}
+                    className="px-3.5 py-1.5 rounded-xl text-xs font-bold bg-emerald-600 hover:bg-emerald-500 text-white shadow-md"
+                  >
+                    Record Payment
+                  </button>
+                )}
+
+                {selectedBooking.status === 'payment_completed' && (
+                  <button
+                    type="button"
+                    onClick={() => openActionModal(selectedBooking, 'complete')}
+                    className="px-3.5 py-1.5 rounded-xl text-xs font-bold bg-emerald-700 hover:bg-emerald-600 text-white shadow-md"
+                  >
+                    Finish Order
+                  </button>
+                )}
+
+                {selectedBooking.status !== 'completed' && selectedBooking.status !== 'cancelled' && (
+                  <>
                     <button
                       type="button"
-                      onClick={() => openActionModal(selectedBooking, 'claim')}
-                      className="px-3.5 py-1.5 rounded-xl text-xs font-bold bg-emerald-500 hover:bg-emerald-400 text-[#07130c] shadow-md"
+                      onClick={() => openActionModal(selectedBooking, 'reschedule')}
+                      className="px-3 py-1.5 rounded-xl text-xs font-bold text-orange-400 bg-orange-500/10 border border-orange-500/20"
                     >
-                      Claim Lead
+                      Reschedule
                     </button>
-                  )}
 
-                  {selectedBooking.status === 'dealer_assigned' && (
                     <button
                       type="button"
-                      onClick={() => openActionModal(selectedBooking, 'schedule')}
-                      className="px-3.5 py-1.5 rounded-xl text-xs font-bold bg-indigo-600 hover:bg-indigo-500 text-white shadow-md"
+                      onClick={() => openActionModal(selectedBooking, 'cancel')}
+                      className="px-3 py-1.5 rounded-xl text-xs font-bold text-rose-400 bg-rose-500/10 border border-rose-500/20"
                     >
-                      Confirm Schedule
+                      Cancel Order
                     </button>
-                  )}
-
-                  {selectedBooking.status === 'scheduled' && (
-                    <button
-                      type="button"
-                      onClick={() => openActionModal(selectedBooking, 'on_the_way')}
-                      className="px-3.5 py-1.5 rounded-xl text-xs font-bold bg-purple-600 hover:bg-purple-500 text-white shadow-md"
-                    >
-                      Dispatch / On the Way
-                    </button>
-                  )}
-
-                  {(selectedBooking.status === 'on_the_way' ||
-                    selectedBooking.status === 'in_progress') && (
-                    <button
-                      type="button"
-                      onClick={() => openActionModal(selectedBooking, 'weigh')}
-                      className="px-3.5 py-1.5 rounded-xl text-xs font-bold bg-teal-600 hover:bg-teal-500 text-white shadow-md"
-                    >
-                      Scale Weighing
-                    </button>
-                  )}
-
-                  {selectedBooking.status === 'collected_weighed' && (
-                    <button
-                      type="button"
-                      onClick={() => openActionModal(selectedBooking, 'payment')}
-                      className="px-3.5 py-1.5 rounded-xl text-xs font-bold bg-emerald-600 hover:bg-emerald-500 text-white shadow-md"
-                    >
-                      Record Payment
-                    </button>
-                  )}
-
-                  {selectedBooking.status === 'payment_completed' && (
-                    <button
-                      type="button"
-                      onClick={() => openActionModal(selectedBooking, 'complete')}
-                      className="px-3.5 py-1.5 rounded-xl text-xs font-bold bg-emerald-700 hover:bg-emerald-600 text-white shadow-md"
-                    >
-                      Finish Order
-                    </button>
-                  )}
-
-                  {selectedBooking.status !== 'completed' && selectedBooking.status !== 'cancelled' && (
-                    <>
-                      <button
-                        type="button"
-                        onClick={() => openActionModal(selectedBooking, 'reschedule')}
-                        className="px-3 py-1.5 rounded-xl text-xs font-bold text-orange-400 bg-orange-500/10 border border-orange-500/20"
-                      >
-                        Reschedule
-                      </button>
-
-                      <button
-                        type="button"
-                        onClick={() => openActionModal(selectedBooking, 'cancel')}
-                        className="px-3 py-1.5 rounded-xl text-xs font-bold text-rose-400 bg-rose-500/10 border border-rose-500/20"
-                      >
-                        Cancel Order
-                      </button>
-                    </>
-                  )}
-                </div>
+                  </>
+                )}
               </div>
-            )}
+            </div>
 
             {/* Customer Attached Photos & AI Analysis */}
             {isDemoDealer && (
               <div className="p-3.5 rounded-xl bg-emerald-500/10 border border-emerald-500/20 text-xs text-emerald-300 flex flex-wrap items-center justify-between gap-2">
                 <span className="font-semibold">
-                  Live Customer Scrap Photo • Certified AI Scan Access (Read-Only Demo)
+                  Live Customer Scrap Photo • Real AI Scrap Scanning (Signed URL)
                 </span>
                 <span className="text-[10px] uppercase font-bold tracking-wider px-2 py-0.5 rounded-full bg-emerald-500/20 text-emerald-200">
-                  Authorized Feed
+                  Secure Storage
                 </span>
               </div>
             )}
@@ -1420,9 +1521,12 @@ export const DealerDashboardPage: React.FC = () => {
             setActionModalType(null);
           }}
           onSuccess={() => {
+            if (actionModalType === 'claim') {
+              setActiveTab('assigned');
+            }
             fetchBookings();
           }}
-          dealerId={currentDealer?.id || DEMO_DEALER.id}
+          dealerId={currentDealer?.id || ''}
           isConfigured={isConfigured}
           user={user}
         />

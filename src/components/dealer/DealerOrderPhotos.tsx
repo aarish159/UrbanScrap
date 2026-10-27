@@ -32,65 +32,6 @@ interface PhotoItem {
   isDemo: boolean;
 }
 
-const DEMO_PRESET_MATCHES: Record<string, { matches: ScanMatch[]; note: string }> = {
-  cardboard: {
-    matches: [
-      {
-        materialId: 'mat-cardboard',
-        materialName: 'Cardboard / Corrugated Boxes',
-        category: 'paper',
-        confidence: 0.94,
-        reason: 'Clean corrugated kraft board sheets, dry and unsoiled packaging boxes.',
-      },
-      {
-        materialId: 'mat-newspaper',
-        materialName: 'Newspaper (Raddi)',
-        category: 'paper',
-        confidence: 0.72,
-        reason: 'Discarded printed paper inserts and packaging liners visible nearby.',
-      },
-    ],
-    note: 'Demo sample result: Detected packaging corrugated cardboard and paper bundles. Live AI recognition was not invoked.',
-  },
-  metal: {
-    matches: [
-      {
-        materialId: 'mat-iron',
-        materialName: 'Iron Scrap (Loha)',
-        category: 'metal',
-        confidence: 0.91,
-        reason: 'Heavy structural ferrous metal elements and metallic fabrication offcuts.',
-      },
-      {
-        materialId: 'mat-aluminium',
-        materialName: 'Aluminium Scrap',
-        category: 'metal',
-        confidence: 0.68,
-        reason: 'Lightweight cast or extruded framing sections visible in scrap pile.',
-      },
-    ],
-    note: 'Demo sample result: Identified ferrous structural metal scrap. Live AI recognition was not invoked.',
-  },
-  sample: {
-    matches: [
-      {
-        materialId: 'mat-copper',
-        materialName: 'Copper Wire & Piping',
-        category: 'metal',
-        confidence: 0.88,
-        reason: 'Bright stripped red-metal wiring coils and plumbing pipe segments.',
-      },
-      {
-        materialId: 'mat-brass',
-        materialName: 'Brass Scrap (Peetal)',
-        category: 'metal',
-        confidence: 0.74,
-        reason: 'Machined yellow-metal plumbing fittings and valves.',
-      },
-    ],
-    note: 'Demo sample result: Identified non-ferrous electrical/plumbing scrap. Live AI recognition was not invoked.',
-  },
-};
 
 export const DealerOrderPhotos: React.FC<DealerOrderPhotosProps> = ({ booking, materials }) => {
   const [photos, setPhotos] = useState<PhotoItem[]>([]);
@@ -102,12 +43,15 @@ export const DealerOrderPhotos: React.FC<DealerOrderPhotosProps> = ({ booking, m
   const [analysisResults, setAnalysisResults] = useState<Record<number, { matches: ScanMatch[]; note: string; isDemo: boolean }>>({});
   const [analysisError, setAnalysisError] = useState<string | null>(null);
 
+  const [photoLoadError, setPhotoLoadError] = useState<string | null>(null);
+
   // Load photos (signed URLs for private Supabase Storage, or direct URLs for demo/dataUrls)
   useEffect(() => {
     let isMounted = true;
 
     async function loadPhotoUrls() {
       setLoadingPhotos(true);
+      setPhotoLoadError(null);
       const rawPaths = booking.photoPaths || booking.photoUrls || [];
 
       if (rawPaths.length === 0) {
@@ -119,6 +63,7 @@ export const DealerOrderPhotos: React.FC<DealerOrderPhotosProps> = ({ booking, m
       }
 
       const items: PhotoItem[] = [];
+      let lastErrorMessage: string | null = null;
 
       for (let i = 0; i < rawPaths.length; i++) {
         const path = rawPaths[i];
@@ -141,6 +86,7 @@ export const DealerOrderPhotos: React.FC<DealerOrderPhotosProps> = ({ booking, m
 
             if (error || !data?.signedUrl) {
               console.warn(`Could not resolve signed URL for photo ${cleanPath}:`, error?.message);
+              lastErrorMessage = error?.message || 'Storage permission or signed URL failure';
             } else {
               items.push({
                 id: `photo-${i}`,
@@ -149,14 +95,18 @@ export const DealerOrderPhotos: React.FC<DealerOrderPhotosProps> = ({ booking, m
                 isDemo: false,
               });
             }
-          } catch (err) {
+          } catch (err: any) {
             console.error('Signed URL exception:', err);
+            lastErrorMessage = err?.message || 'Network exception while accessing private storage';
           }
         }
       }
 
       if (isMounted) {
         setPhotos(items);
+        if (items.length === 0 && rawPaths.length > 0) {
+          setPhotoLoadError(lastErrorMessage || 'Failed to generate signed URLs for attached photos.');
+        }
         setActivePhotoIndex(0);
         setLoadingPhotos(false);
       }
@@ -172,36 +122,12 @@ export const DealerOrderPhotos: React.FC<DealerOrderPhotosProps> = ({ booking, m
   const activePhoto = photos[activePhotoIndex];
   const currentResult = analysisResults[activePhotoIndex];
 
-  // Handler to analyze the current photo
+  // Handler to analyze the customer photo using scrap-scan Edge Function
   const handleAnalyzePhoto = async () => {
     if (!activePhoto) return;
     setAnalysisError(null);
     setIsAnalyzing(true);
 
-    // 1. Check for Demo Photo
-    if (activePhoto.isDemo || booking.isDemoSample) {
-      await new Promise((r) => setTimeout(r, 650)); // Realistic UX delay
-
-      let preset = DEMO_PRESET_MATCHES.sample;
-      if (activePhoto.originalPath.toLowerCase().includes('cardboard')) {
-        preset = DEMO_PRESET_MATCHES.cardboard;
-      } else if (activePhoto.originalPath.toLowerCase().includes('metal')) {
-        preset = DEMO_PRESET_MATCHES.metal;
-      }
-
-      setAnalysisResults((prev) => ({
-        ...prev,
-        [activePhotoIndex]: {
-          matches: preset.matches,
-          note: preset.note,
-          isDemo: true,
-        },
-      }));
-      setIsAnalyzing(false);
-      return;
-    }
-
-    // 2. Real Photo AI Analysis via scrap-scan Edge Function
     if (!isSupabaseConfigured()) {
       setAnalysisError('AI analysis unavailable: Supabase client is not configured.');
       setIsAnalyzing(false);
@@ -220,13 +146,19 @@ export const DealerOrderPhotos: React.FC<DealerOrderPhotosProps> = ({ booking, m
       }
 
       // Fetch the photo through signed URL, compress and convert to base64 data URL
-      const imgRes = await fetch(activePhoto.url);
-      if (!imgRes.ok) {
-        throw new Error('Unable to download photo for scanning. Please check your network connection.');
+      let dataUrl: string;
+      if (activePhoto.url.startsWith('data:image/')) {
+        dataUrl = activePhoto.url;
+      } else {
+        const imgRes = await fetch(activePhoto.url);
+        if (!imgRes.ok) {
+          throw new Error('Unable to download customer photo for scanning. Please check your network connection.');
+        }
+        const blob = await imgRes.blob();
+        const tempFile = new File([blob], 'scrap.jpg', { type: blob.type || 'image/jpeg' });
+        const compressed = await compressImageFile(tempFile);
+        dataUrl = compressed.dataUrl;
       }
-      const blob = await imgRes.blob();
-      const tempFile = new File([blob], 'scrap.jpg', { type: blob.type || 'image/jpeg' });
-      const { dataUrl } = await compressImageFile(tempFile);
 
       // Invoke scrap-scan Edge Function with explicit authorization header
       const { data, error: invokeError } = await supabase.functions.invoke('scrap-scan', {
@@ -241,16 +173,29 @@ export const DealerOrderPhotos: React.FC<DealerOrderPhotosProps> = ({ booking, m
 
       if (invokeError) {
         let serverMessage = '';
+        let serverCode = '';
         try {
           if ('context' in invokeError && typeof (invokeError as any).context?.json === 'function') {
             const errBody = await (invokeError as any).context.json();
             if (errBody?.error && typeof errBody.error === 'string') {
               serverMessage = errBody.error;
             }
+            if (errBody?.code && typeof errBody.code === 'string') {
+              serverCode = errBody.code;
+            }
           }
         } catch {
           // ignore parsing error
         }
+
+        if (serverCode === 'OPENAI_QUOTA_EXCEEDED' || serverMessage.toLowerCase().includes('quota')) {
+          throw new Error('AI scanner quota exceeded on server. Please inspect and confirm materials manually from the catalogue below.');
+        }
+
+        if (serverCode === 'OPENAI_CONFIGURATION_ERROR' || serverMessage.toLowerCase().includes('configuration') || serverMessage.toLowerCase().includes('not configured')) {
+          throw new Error('AI scanner configuration notice: OpenAI API key is missing or unconfigured in Supabase secrets. Please inspect materials manually.');
+        }
+
         throw new Error(serverMessage || invokeError.message || 'The photo analysis could not be completed.');
       }
 
@@ -262,11 +207,13 @@ export const DealerOrderPhotos: React.FC<DealerOrderPhotosProps> = ({ booking, m
         ...prev,
         [activePhotoIndex]: {
           matches: Array.isArray(data?.matches) ? data.matches : [],
-          note: typeof data?.note === 'string' ? data.note : '',
+          note: typeof data?.note === 'string' && data.note
+            ? data.note
+            : 'AI estimate note: Visual scrap identification can be inaccurate. Actual material categories, condition, and certified weight will be verified on-site during pickup.',
           isDemo: false,
         },
       }));
-    } catch (err) {
+    } catch (err: any) {
       setAnalysisError(
         err instanceof Error
           ? err.message
@@ -286,6 +233,21 @@ export const DealerOrderPhotos: React.FC<DealerOrderPhotosProps> = ({ booking, m
     );
   }
 
+  // Case: Photo loading failed
+  if (photoLoadError) {
+    return (
+      <div className="p-4 rounded-2xl glass-panel border border-rose-500/30 bg-rose-500/10 flex items-start gap-3 text-xs text-rose-200">
+        <AlertCircle className="w-5 h-5 text-rose-400 shrink-0 mt-0.5" />
+        <div className="space-y-0.5">
+          <span className="font-bold text-white block">Customer Photos Attached</span>
+          <p className="text-rose-200/90 leading-relaxed">
+            Unable to load attached customer photos: {photoLoadError}. Booking details and scheduled pickup info remain fully available.
+          </p>
+        </div>
+      </div>
+    );
+  }
+
   // Case: No photos attached by customer
   if (photos.length === 0) {
     return (
@@ -294,7 +256,7 @@ export const DealerOrderPhotos: React.FC<DealerOrderPhotosProps> = ({ booking, m
           <Camera className="w-4 h-4" />
         </div>
         <div className="text-xs space-y-0.5">
-          <span className="font-bold text-white block">Customer Scrap Photos</span>
+          <span className="font-bold text-white block">No photos attached</span>
           <p className="text-[#9cb1a4]">
             No photos attached by customer. The customer manually selected materials from the catalogue. You can inspect and weigh items directly during doorstep pickup.
           </p>
@@ -405,25 +367,28 @@ export const DealerOrderPhotos: React.FC<DealerOrderPhotosProps> = ({ booking, m
                   ) : (
                     <>
                       <ScanSearch className="w-3.5 h-3.5 text-[#07130c]" />
-                      <span>{currentResult ? 'Re-scan Photo' : 'Scan Customer Photo'}</span>
+                      <span>{currentResult ? 'Re-scan Scrap' : 'Scan Scrap'}</span>
                     </>
                   )}
                 </button>
               </div>
 
               <p className="text-xs text-[#9cb1a4] leading-relaxed">
-                Analyze this photo to identify likely materials from your active catalogue before heading to the pickup address.
+                Scan this customer photo to identify likely materials from your active catalogue before heading to the pickup address.
               </p>
             </div>
 
             {/* Error Message */}
             {analysisError && (
-              <div className="p-3 rounded-xl bg-amber-500/10 border border-amber-500/25 text-xs text-amber-200 space-y-1">
+              <div className="p-3.5 rounded-xl bg-amber-500/10 border border-amber-500/30 text-xs text-amber-200 space-y-2">
                 <div className="flex items-center gap-1.5 font-bold text-amber-300">
                   <AlertCircle className="w-4 h-4 text-amber-400 shrink-0" />
-                  <span>AI Analysis Note</span>
+                  <span>Scanner Notice</span>
                 </div>
                 <p className="leading-relaxed">{analysisError}</p>
+                <div className="pt-1 border-t border-amber-500/20 text-[11px] text-amber-100/70">
+                  Tip: You can manually review materials directly from the catalogue and verify all scrap on-site with certified digital scales.
+                </div>
               </div>
             )}
 
@@ -434,7 +399,7 @@ export const DealerOrderPhotos: React.FC<DealerOrderPhotosProps> = ({ booking, m
                   <div className="flex items-center gap-1.5">
                     <CheckCircle2 className="w-4 h-4 text-emerald-400" />
                     <span className="text-xs font-bold text-white">
-                      Suggested Catalogue Matches
+                      AI Estimate: Suggested Catalogue Matches
                     </span>
                   </div>
                   {currentResult.isDemo && (
